@@ -1,53 +1,9 @@
-/*
-*				define.h
-*
-* Global definitions
-*
-*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-*
-*	This file part of:	SExtractor
-*
-*	Copyright:		(C) 1993-2012 Emmanuel Bertin -- IAP/CNRS/UPMC
-*
-*	License:		GNU General Public License
-*
-*	SExtractor is free software: you can redistribute it and/or modify
-*	it under the terms of the GNU General Public License as published by
-*	the Free Software Foundation, either version 3 of the License, or
-*	(at your option) any later version.
-*	SExtractor is distributed in the hope that it will be useful,
-*	but WITHOUT ANY WARRANTY; without even the implied warranty of
-*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*	GNU General Public License for more details.
-*	You should have received a copy of the GNU General Public License
-*	along with SExtractor. If not, see <http://www.gnu.org/licenses/>.
-*
-*	Last modified:		12/04/2012
-*
-*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-/* Check if we are using a configure script here */
-#ifndef HAVE_CONFIG_H
-#define		VERSION		"2.x"
-#define		DATE		"2009-03-31"
-#define		THREADS_NMAX	1024		/* max. number of threads */
-#endif
 
-/*------------------------ what, who, when and where ------------------------*/
-
-#define		BANNER		"SExtractor"
-#define		MYVERSION	VERSION
-#define		EXECUTABLE	"sex"
-#define         COPYRIGHT       "2012 IAP/CNRS/UPMC"
-#define		DISCLAIMER	BANNER " comes with ABSOLUTELY NO WARRANTY\n" \
-		"You may redistribute copies of " BANNER "\n" \
-		"under the terms of the GNU General Public License."
-#define		AUTHORS		"Emmanuel BERTIN <bertin@iap.fr>"
-#define		WEBSITE		"http://astromatic.net/software/sextractor"
-#define		INSTITUTE	"IAP  http://www.iap.fr"
+#define		VERSION		"0.1"
+#define		DATE		"2014-03-14"
 
 /*--------------------------- Internal constants ----------------------------*/
-
 #define	BIG			1e+30		/* a huge number */
 #define	LESSBIG			1e+25		/* a somewhat smaller number */
 #define	DATA_BUFSIZE		262144		/* data buffer size */
@@ -86,24 +42,8 @@
  *			1 <= PSF_NPSFMAX
 */
 
-/*---- Set defines according to machine's specificities and customizing -----*/
 
-#if _LARGEFILE_SOURCE
-#define	FSEEKO	fseeko
-#define	FTELLO	ftello
-#else
-#define	FSEEKO	fseek
-#define	FTELLO	ftell
-#endif
 /*--------------------- in case of missing constants ------------------------*/
-
-#ifndef		SEEK_SET
-#define		SEEK_SET	0
-#endif
-#ifndef		SEEK_CUR
-#define		SEEK_CUR	1
-#endif
-
 #ifndef	EXIT_SUCCESS
 #define	EXIT_SUCCESS		0
 #endif
@@ -111,63 +51,23 @@
 #define	EXIT_FAILURE		-1
 #endif
 
-/*---------------------------- return messages ------------------------------*/
+/*------------------------------- types ------------------------------------*/
+typedef float PIXTYPE;
+typedef	int		LONG;
+typedef	unsigned int	ULONG;
 
-#define		RETURN_OK		0
-#define		RETURN_ERROR		(-1)
-#define		RETURN_FATAL_ERROR	(-2)
-
-/*------------------- a few definitions to read FITS parameters ------------*/
-
-#define	FBSIZE	2880L	/* size (in bytes) of one FITS block */
-
-#define	FITSTOF(k, def) \
-			(st[0]=0,((point = fitsnfind(buf, k, n))? \
-				 fixexponent(point), \
-				atof(strncat(st, &point[10], 70)) \
-				:(def)))
-
-#define	FITSTOI(k, def) \
-			(st[0]=0,(point = fitsnfind(buf, k, n))? \
-				 atoi(strncat(st, &point[10], 70)) \
-				:(def))
-
-#define	FITSTOS(k, str, def) \
-                { if (fitsread(buf,k,str,H_STRING,T_STRING)!= RETURN_OK) \
-                    strcpy(str, (def)); \
-                }
+/* globals -----------------------------------------------------------------*/
+char			gstr[MAXCHAR];
 
 /*------------------------------- Other Macros -----------------------------*/
 
 #define	DEXP(x)		exp(2.30258509299*(x))		/* 10^x */
 #define	DEXPF(x)	expf(2.30258509299f*(x))	/* 10^x */
 
-#define QFREAD(ptr, size, afile, fname) \
-		if (fread(ptr, (size_t)(size), (size_t)1, afile)!=1) \
-		  error(EXIT_FAILURE, "*Error* while reading ", fname)
-
-#define QFWRITE(ptr, size, afile, fname) \
-		if (fwrite(ptr, (size_t)(size), (size_t)1, afile)!=1) \
-		  error(EXIT_FAILURE, "*Error* while writing ", fname)
-
-#define	QFSEEK(afile, offset, pos, fname) \
-		if (FSEEKO(afile, (offset), pos)) \
-		  error(EXIT_FAILURE,"*Error*: file positioning failed in ", \
-			fname)
-
-#define	QFTELL(afile, pos, fname) \
-		if ((pos=FTELLO(afile))==-1) \
-		  error(EXIT_FAILURE,"*Error*: file position unknown in ", \
-			fname)
-
-#define	QFREE(ptr) \
-		{free(ptr); \
-		ptr = NULL;}
-
 #define	QCALLOC(ptr, typ, nel) \
 		{if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ)))) \
 		   { \
-		   sprintf(gstr, #ptr " (" #nel "=%lld elements) " \
+		   sprintf(gstr, #ptr " (" #nel "=%lu elements) " \
 			"at line %d in module " __FILE__ " !", \
 			(size_t)(nel)*sizeof(typ), __LINE__); \
 		   error(EXIT_FAILURE, "Could not allocate memory for ", gstr);\
@@ -177,7 +77,7 @@
 #define	QMALLOC(ptr, typ, nel) \
 		{if (!(ptr = (typ *)malloc((size_t)(nel)*sizeof(typ)))) \
 		   { \
-		   sprintf(gstr, #ptr " (" #nel "=%lld elements) " \
+		   sprintf(gstr, #ptr " (" #nel "=%lu elements) " \
 			"at line %d in module " __FILE__ " !", \
 			(size_t)(nel)*sizeof(typ), __LINE__); \
 		   error(EXIT_FAILURE, "Could not allocate memory for ", gstr);\
@@ -187,7 +87,7 @@
 #define	QMALLOC16(ptr, typ, nel) \
 		{if (posix_memalign((void **)&ptr, 16, (size_t)(nel)*sizeof(typ))) \
 		   { \
-		   sprintf(gstr, #ptr " (" #nel "=%lld elements) " \
+		   sprintf(gstr, #ptr " (" #nel "=%lu elements) " \
 			"at line %d in module " __FILE__ " !", \
 			(size_t)(nel)*sizeof(typ), __LINE__); \
 		   error(EXIT_FAILURE, "Could not allocate memory for ", gstr);\
@@ -197,7 +97,7 @@
 #define	QREALLOC(ptr, typ, nel) \
 		{if (!(ptr = (typ *)realloc(ptr, (size_t)(nel)*sizeof(typ))))\
 		   { \
-		   sprintf(gstr, #ptr " (" #nel "=%lld elements) " \
+		   sprintf(gstr, #ptr " (" #nel "=%lu elements) " \
 			"at line %d in module " __FILE__ " !", \
 			(size_t)(nel)*sizeof(typ), __LINE__); \
 		   error(EXIT_FAILURE, "Could not allocate memory for ", gstr);\
@@ -208,7 +108,7 @@
 		{if (ptrin) \
                   {if (!(ptrout = (typ *)malloc((size_t)(nel)*sizeof(typ)))) \
 		     { \
-		     sprintf(gstr, #ptrout " (" #nel "=%lld elements) " \
+		     sprintf(gstr, #ptrout " (" #nel "=%lu elements) " \
 			"at line %d in module " __FILE__ " !", \
 			(size_t)(nel)*sizeof(typ), __LINE__); \
 		     error(EXIT_FAILURE,"Could not allocate memory for ",gstr);\
@@ -218,25 +118,6 @@
                  }
 
 #define	RINT(x)	(int)(floor(x+0.5))
-
-#define	PIX(pic, x, y)	pic->strip[(((int)y)%pic->stripheight) \
-				*pic->width +(int)x]
-
-#define	NPRINTF		if (prefs.verbose_type == NORM \
-				|| prefs.verbose_type==WARN) fprintf
-
-#define	NFPRINTF(w,x)	{if (prefs.verbose_type==NORM \
-				|| prefs.verbose_type==WARN) \
-				fprintf(w, "\33[1M> %s\n\33[1A",x); \
-			else if (prefs.verbose_type == FULL) \
-				fprintf(w, "%s.\n", x);}
-
-#define	QPRINTF		if (prefs.verbose_type != QUIET)	fprintf
-
-#define	FPRINTF		if (prefs.verbose_type == FULL)	fprintf
-
-#define	QWARNING       	if (prefs.verbose_type==WARN \
-				|| prefs.verbose_type==FULL)	warning
 
 #define FLAG(x)		(*((char *)&flag##x))
 
@@ -285,27 +166,25 @@ typedef struct backspl
 } backsplstruct;
 
 /*------------------------------- functions ---------------------------------*/
-void backhisto(backstruct *, backstruct *, PIXTYPE *, PIXTYPE *,
-	       size_t, int, int, int, PIXTYPE);
-void backstat(backstruct *, backstruct *, PIXTYPE *, PIXTYPE *,
-	      size_t, int, int, int, PIXTYPE);
+void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
+	       int, int, int, int, PIXTYPE);
+void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
+	      int, int, int, int, PIXTYPE);
 /* void backrmsline(picstruct *, int, PIXTYPE *);
 void copyback(picstruct *infield, picstruct *outfield);
 void endback(picstruct *); */
-void filterback(backsplstruct *);
+void filterback(backsplstruct *, int, float);
 /* void subbackline(picstruct *, int, PIXTYPE *); */
 
-backsplstruct *makeback(float *, float *, int, int, int, int, float);
+backsplstruct *makeback(PIXTYPE *, PIXTYPE *, int, int, int, int, PIXTYPE);
 
-float backguess(backstruct *, float *, float *),
+float backguess(backstruct *, float *, float *);
 /* float localback(picstruct *, objstruct *), */
-float *makebackspline(picstruct *, float *);
+float *makebackspline(backsplstruct *, float *);
 
-extern PIXTYPE	back(picstruct *, int, int);
+/*extern PIXTYPE	back(picstruct *, int, int); */
 
-
-//prototypes
-float makeback(float *, int, int);
+extern void error(int, char *, char *);
 
 /*---------------------------------------------------------------------------*/
 /* misc                                                                      */

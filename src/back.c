@@ -1,19 +1,22 @@
 
+#include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "sep.h"
 
-/* weight >= wthresh implies that pixel will be used.
+/* weight >= wthresh implies that pixel will be used. */
 /* w, h is image size in pixels */
 /* bw, bh is size of a single background tile in pixels */
 backsplstruct *makeback(PIXTYPE *im, PIXTYPE *weight,
                         int w, int h, int bw, int bh, PIXTYPE wthresh)
 {
-  int npix;                  /* size of image */
-  int nx, ny, nb;            /* number of background boxes in x, y, total */
-  int bufsize;               /* size of a "row" of boxes in pixels (w*bh) */
-  backstruct	*backmesh;   /* info about each background "box" */
-  backsplstruct *backspline; /* output */
-  int i, j;
+  int npix;                   /* size of image */
+  int nx, ny, nb;             /* number of background boxes in x, y, total */
+  int bufsize;                /* size of a "row" of boxes in pixels (w*bh) */
+  backstruct *backmesh, *bm;  /* info about each background "box" */
+  backsplstruct *backspline;  /* output */
+  int j,k,m;
 
   npix = w*h;
   bufsize = w*bh;
@@ -80,8 +83,8 @@ backsplstruct *makeback(PIXTYPE *im, PIXTYPE *weight,
   filterback(backspline, 3, 0.0);
 
   /* Compute 2nd derivatives along the y-direction */
-  field->dback = makebackspline(backspline, backspline->back);
-  field->dsigma = makebackspline(backspline, backspline->sigma);
+  backspline->dback = makebackspline(backspline, backspline->back);
+  backspline->dsigma = makebackspline(backspline, backspline->sigma);
 
   return backspline;
 }
@@ -95,10 +98,10 @@ void backstat(backstruct *backmesh,
 	      PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
 	      int n, int w, int bw, PIXTYPE wthresh)
 {
-  backstruct	*bm, *wbm;
-  double	pix,wpix, sig, mean,wmean, sigma,wsigma, step;
-  PIXTYPE	*buft,*wbuft,
-		lcut,wlcut, hcut,whcut;
+  backstruct	*bm;
+  double	pix, wpix, sig, mean, sigma, step;
+  PIXTYPE	*buft,*wbuft;
+  PIXTYPE       lcut,hcut;
   int		m,h,x,y, npix,wnpix, offset, lastbite;
   
   h = bufsize/w;  /* height of background boxes in this row */
@@ -219,7 +222,7 @@ void backhisto(backstruct *backmesh,
 {
   backstruct	*bm;
   PIXTYPE	*buft,*wbuft;
-  float	        qscale, cste;
+  float	        qscale, cste, wpix;
   LONG		*histo;
   int		h,m,x,y, nlevels, lastbite, offset, bin;
 
@@ -256,7 +259,6 @@ void backhisto(backstruct *backmesh,
 		if ((wpix = *(wbuft++))<wthresh && bin<nlevels && bin>=0)
 		  (*(histo+bin))++;
 	      }
-	  wbm++;
 	  wbuf += bw;
 	}
       else
@@ -472,7 +474,7 @@ void	filterback(backsplstruct *backspline, int filtersize,
 /*
 Pre-compute 2nd derivatives along the y direction at background nodes.
 */
-float *makebackspline(picstruct *backspline, float *map)
+float *makebackspline(backsplstruct *backspline, float *map)
 
   {
    int		x,y, nbx,nby,nbym1;
