@@ -152,7 +152,7 @@ typedef struct structback
   int		npix;			/* Number of pixels involved */
 } backstruct;
 
-typedef struct backspl
+typedef struct structbackspline
 {
   int imnx, imny;          /* original image width, height */
   int bw, bh;              /* single tile width, height */
@@ -163,26 +163,26 @@ typedef struct backspl
   float *dback;            /* background map */
   float *sigma;
   float *dsigma;
-} backsplstruct;
+} backspline;
+
+/* Public API ---------------------------------------------------------------*/
+backspline *makeback(PIXTYPE *, PIXTYPE *, int, int, int, int, PIXTYPE,
+		     int, int, float);
+PIXTYPE	backpixlinear(backspline *, int, int);
+void backline(backspline *, int, PIXTYPE *);
+void backim(backspline *, PIXTYPE *);
+void backrmsline(backspline *, int, PIXTYPE *);
+void backrmsim(backspline *, PIXTYPE *);
+void freeback(backspline *);
 
 /*------------------------------- functions ---------------------------------*/
 void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
 	       int, int, int, int, PIXTYPE);
 void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
 	      int, int, int, int, PIXTYPE);
-/* void backrmsline(picstruct *, int, PIXTYPE *);
-void copyback(picstruct *infield, picstruct *outfield);
-void endback(picstruct *); */
-void filterback(backsplstruct *, int, float);
-/* void subbackline(picstruct *, int, PIXTYPE *); */
-
-backsplstruct *makeback(PIXTYPE *, PIXTYPE *, int, int, int, int, PIXTYPE);
-
+void filterback(backspline *, int, int, float);
 float backguess(backstruct *, float *, float *);
-/* float localback(picstruct *, objstruct *), */
-float *makebackspline(backsplstruct *, float *);
-
-/*extern PIXTYPE	back(picstruct *, int, int); */
+float *makebackspline(backspline *, float *);
 
 extern void error(int, char *, char *);
 

@@ -12,7 +12,7 @@ OBJECTS=$(SOURCES:.c=.o)
 
 all: $(OBJECTS)
 #	$(AR) $(ARFLAGS) lib$(NAME).a $(OBJECTS)
-	$(LD) $(LDFLAGS) -o lib$(NAME).so $(OBJECTS) -lc
+	$(LD) $(LDFLAGS) -o lib$(NAME).so $(OBJECTS) -lc -lm
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

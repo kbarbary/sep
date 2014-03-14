@@ -13,6 +13,7 @@
 *.dylib
 
 # Executables
-*.exe
-*.out
-*.app
+test/runtest
+
+# emacs
+*~
