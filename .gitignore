@@ -13,7 +13,10 @@
 *.dylib
 
 # Executables
-test/runtest
+test/test-vs-sextractor
+
+# FITS files for testing
+*.fits
 
 # emacs
 *~
