@@ -42,6 +42,15 @@
  *			1 <= PSF_NPSFMAX
 */
 
+/* definitions from define.h ------------------------------------------------*/
+#define		OBJ_CROWDED	0x0001
+#define		OBJ_MERGED	0x0002
+#define		OBJ_SATUR	0x0004
+#define		OBJ_TRUNC	0x0008
+#define		OBJ_APERT_PB	0x0010
+#define		OBJ_ISO_PB	0x0020
+#define		OBJ_DOVERFLOW	0x0040
+#define		OBJ_OVERFLOW	0x0080
 
 /*--------------------- in case of missing constants ------------------------*/
 #ifndef	EXIT_SUCCESS
@@ -175,7 +184,7 @@ void backrmsline(backspline *, int, PIXTYPE *);
 void backrmsim(backspline *, PIXTYPE *);
 void freeback(backspline *);
 
-/*------------------------------- functions ---------------------------------*/
+/* priviate functions -------------------------------------------------------*/
 void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
 	       int, int, int, int, PIXTYPE);
 void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
@@ -191,3 +200,230 @@ extern void error(int, char *, char *);
 /*---------------------------------------------------------------------------*/
 
 float fqmedian(float *, int);
+
+/*---------------------------------------------------------------------------*/
+/* types.h                                                                   */
+/*---------------------------------------------------------------------------*/
+
+
+/*-------------------------------- catalog  ---------------------------------*/
+
+typedef struct
+  {
+  int		ndetect;				/* nb of detections */
+  int		ntotal;					/* Total object nb */
+  int		nparam;					/* Nb of parameters */
+/*----- Misc. strings defining the extraction */
+  char		prefs_name[MAXCHAR];			/* Prefs filename*/
+  char		image_name[MAXCHAR];			/* image filename*/
+  char		psf_name[MAXCHAR];			/* PSF filename*/
+  char		nnw_name[MAXCHAR];			/* NNW name */
+  char		filter_name[MAXCHAR];			/* Filter name */
+  char		soft_name[MAXCHAR];			/* Sextractor version*/
+/*----- time */
+  char		ext_date[16],ext_time[16];		/* date and time */
+  double	ext_elapsed;				/* processing time */
+/*----- MEF */
+  int		currext;				/* current extension */
+  int		next;					/* Nb of extensions */
+  }		sexcatstruct;
+
+/*---------------------------------------------------------------------------*/
+/* weight.h                                                                  */
+/*---------------------------------------------------------------------------*/
+
+
+#define	WTHRESH_CONVFAC		1e-4	/* Factor to apply to weights when */
+					/* thresholding filtered weight-maps */
+
+
+
+/*---------------------------------------------------------------------------*/
+/* extract.h                                                                 */
+/*---------------------------------------------------------------------------*/
+
+
+/*------------------------------ definitions --------------------------------*/
+
+#define	NOBJ			256		/* starting number of obj. */
+#define	UNKNOWN			-1		/* flag for LUTZ */
+
+/*--------------------------------- typedefs --------------------------------*/
+typedef	char		pliststruct;		/* Dummy type for plist */
+typedef	enum		{COMPLETE, INCOMPLETE, NONOBJECT, OBJECT}
+				status;	/* Extraction status */
+
+/*--------------------------------- variables -------------------------------*/
+
+PIXTYPE		*dumscan;
+
+/*------------------------------- structures --------------------------------*/
+/* Temporary object parameters during extraction */
+typedef struct structinfo
+  {
+  LONG		pixnb;			/* Number of pixels included */
+  LONG		firstpix;		/* Pointer to first pixel of pixlist */
+  LONG		lastpix;		/* Pointer to last pixel of pixlist */
+  short		flag;			/* Extraction flag */
+  }       infostruct;
+
+typedef struct
+  {
+  int		nobj;			/* number of objects in list */
+  objstruct	*obj;			/* pointer to the object array */
+  int		npix;			/* number of pixels in pixel-list */
+  pliststruct	*plist;			/* pointer to the pixel-list */
+  PIXTYPE	dthresh;		/* detection threshold */
+  PIXTYPE	thresh;			/* analysis threshold */
+  }	objliststruct;
+
+/*--------------------------------- objects ---------------------------------*/
+/* I: "PIXEL" parameters */
+
+typedef struct
+  {
+/* ---- basic parameters */
+  int		number;				/* ID */
+  int		fdnpix;				/* nb of extracted pix */
+  int		dnpix;				/* nb of pix above thresh  */
+  int		npix;				/* "" in measured frame */
+  int		nzdwpix;			/* nb of zero-dweights around */
+  int		nzwpix;				/* nb of zero-weights inside */
+  float		fdflux;				/* integrated ext. flux */
+  float		dflux;				/* integrated det. flux */
+  float		flux;				/* integrated mes. flux */
+  float		fluxerr;			/* integrated variance */
+  PIXTYPE	fdpeak;				/* peak intensity (ADU) */
+  PIXTYPE	dpeak;				/* peak intensity (ADU) */
+  PIXTYPE	peak;				/* peak intensity (ADU) */
+/* ---- astrometric data */
+  int		peakx,peaky;			/* pos of brightest pix */
+  double       	mx, my;				/* barycenter */
+  double	poserr_mx2, poserr_my2,
+		poserr_mxy;			/* Error ellips moments */
+/* ---- morphological data */			
+  int		xmin,xmax,ymin,ymax,ycmin,ycmax;/* x,y limits */
+  PIXTYPE	*blank, *dblank; 	       	/* BLANKing sub-images  */
+  int		*submap;			/* Pixel-index sub-map */
+  int		subx,suby, subw,subh;		/* sub-image pos. and size */
+  short		flag;				/* extraction flags */
+  BYTE		wflag;				/* weighted extraction flags */
+  FLAGTYPE	imaflag[MAXFLAG];		/* flags from FLAG-images */
+  BYTE		singuflag;			/* flags for singularities */
+  int		imanflag[MAXFLAG];     		/* number of MOST flags */
+  double	mx2,my2,mxy;			/* variances and covariance */
+  float		a, b, theta, abcor;		/* moments and angle */
+  float		cxx,cyy,cxy;			/* ellipse parameters */
+  int		firstpix;			/* ptr to first pixel */
+  int		lastpix;			/* ptr to last pixel */
+  float		bkg, dbkg, sigbkg, dsigbkg;	/* Background stats (ADU) */
+  float		thresh;				/* measur. threshold (ADU) */
+  float		dthresh;		       	/* detect. threshold (ADU) */
+  float		mthresh;		       	/* max. threshold (ADU) */
+  int		iso[NISO];			/* isophotal areas */
+  float		fwhm;				/* IMAGE FWHM */
+  
+  }	objstruct;
+
+/*------------------------------- functions ---------------------------------*/
+void		lutzalloc(int, int);
+
+/*		lutzfree(void),
+		lutzsort(infostruct *, objliststruct *),
+		sortit(picstruct *, picstruct *, picstruct *, picstruct *,
+			infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *),
+		update(infostruct *, infostruct *, pliststruct *);
+
+int		lutz(objliststruct *, int, objstruct *, objliststruct *); 
+
+*/
+
+/*---------------------------------------------------------------------------*/
+/* globals.h                                                                 */
+/*---------------------------------------------------------------------------*/
+
+void allocparcelout(void);
+
+/*---------------------------------------------------------------------------*/
+/* clean.h                                                                   */
+/*---------------------------------------------------------------------------*/
+
+/*------------------------------ definitions --------------------------------*/
+
+#define		CLEAN_ZONE		10.0	/* zone (in sigma) to */
+						/* consider for processing */
+
+#define CLEAN_FLAG 1      /* replaces prefs.clean_flag (move to scan input?) */
+#define CLEAN_STACKSIZE 3000  /* replaces prefs.clean_stacksize  */
+                              /* (MEMORY_OBJSTACK in sextractor inputs) */
+
+/*------------------------------- variables ---------------------------------*/
+
+objliststruct	*cleanobjlist;		/* laconic, isn't it? */
+
+/*------------------------------- functions ---------------------------------*/
+
+extern void	addcleanobj(objstruct *),
+		endclean(void),
+		initclean(void),
+		subcleanobj(int);
+
+extern int	clean(picstruct *field, picstruct *dfield,
+		      int, objliststruct *);
+
+/*---------------------------------------------------------------------------*/
+/* plist.h                                                                   */
+/*---------------------------------------------------------------------------*/
+
+
+/*------------------------------- definitions -------------------------------*/
+
+#define	PLIST(ptr, elem)	(((pbliststruct *)(ptr))->elem)
+
+#define	PLISTEXIST(elem)	(plistexist_##elem)
+
+#define	PLISTPIX(ptr, elem)	(*((PIXTYPE *)((ptr)+plistoff_##elem)))
+
+#define	PLISTFLAG(ptr, elem)	(*((FLAGTYPE *)((ptr)+plistoff_##elem)))
+
+/*------------------------------- structures --------------------------------*/
+
+typedef struct
+  {
+  int		nextpix;
+  int		x, y;
+  PIXTYPE       value;
+  }	pbliststruct;
+
+/*-------------------------------- globals ----------------------------------*/
+
+int	plistexist_value, plistexist_dvalue, plistexist_cdvalue,
+	plistexist_flag, plistexist_wflag, plistexist_dthresh, plistexist_var,
+	plistoff_value, plistoff_dvalue, plistoff_cdvalue,
+	plistoff_flag[MAXFLAG], plistoff_wflag, plistoff_dthresh, plistoff_var,
+	plistsize;
+
+/*------------------------------- functions ---------------------------------*/
+
+void	init_plist(PIXTYPE *filter, PIXTYPE *cdwfield);
+
+int	createblank(objliststruct *objlist, int n),
+	createsubmap(objliststruct *objlist, int n);
+
+#define MEMORY_PIXSTACK  300000         /* number of pixels in stack */
+                                        /* replaces prefs.mem_pixstack */
+#define MEMORY_BUFSIZE 1024             /* number of lines in buffer */
+/*------------------------------- error codes -------------------------------*/
+
+#define MEMORY_PIXSTACK_ERROR 1
+
+/*---------------------------------------------------------------------------*/
+/* filter.h                                                                  */
+/*---------------------------------------------------------------------------*/
+
+void	convolve(PIXTYPE *im,                      /* full image (was field) */
+		 int w, int h,                     /* image size */
+		 int y,                            /* line in image */
+		 float *conv,                      /* convolution mask */
+		 int convw, int convh, int convn,  /* size of conv */
+		 PIXTYPE *mscan);                  /* convolved line */
