@@ -60,6 +60,13 @@
 #define	EXIT_FAILURE		-1
 #endif
 
+/*---------------------------- return messages ------------------------------*/
+
+#define		RETURN_OK		0
+#define		RETURN_ERROR		(-1)
+#define		RETURN_FATAL_ERROR	(-2)
+
+
 /*------------------------------- types ------------------------------------*/
 typedef float PIXTYPE;
 typedef	int		LONG;
@@ -205,6 +212,11 @@ float fqmedian(float *, int);
 /* types.h                                                                   */
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------- preanalyse flags -----------------------------*/
+
+#define		ANALYSE_FAST		0
+#define		ANALYSE_FULL		1
+#define		ANALYSE_ROBUST		2
 
 /*-------------------------------- catalog  ---------------------------------*/
 
@@ -242,6 +254,7 @@ typedef struct
 /* extract.h                                                                 */
 /*---------------------------------------------------------------------------*/
 
+#define DETECT_MAXAREA 0  /* replaces prefs.ext_maxarea */
 
 /*------------------------------ definitions --------------------------------*/
 
@@ -326,23 +339,27 @@ typedef struct
   }	objstruct;
 
 /*------------------------------- functions ---------------------------------*/
-void		lutzalloc(int, int);
-
-/*		lutzfree(void),
+void		lutzalloc(int, int),
+		lutzfree(void),
 		lutzsort(infostruct *, objliststruct *),
 		sortit(picstruct *, picstruct *, picstruct *, picstruct *,
-			infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *),
+		       infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *,
+		       int),
 		update(infostruct *, infostruct *, pliststruct *);
 
-int		lutz(objliststruct *, int, objstruct *, objliststruct *); 
+int		lutz(objliststruct *, int, objstruct *, objliststruct *, int); 
 
-*/
 
 /*---------------------------------------------------------------------------*/
 /* globals.h                                                                 */
 /*---------------------------------------------------------------------------*/
 
-void allocparcelout(void);
+void            allocparcelout(void),
+                freeparcelout(void);
+extern int	addobj(int, objliststruct *, objliststruct *),
+		belong(int, objliststruct *, int, objliststruct *),
+		gatherup(objliststruct *, objliststruct *),
+                parcelout(objliststruct *, objliststruct *, int, int);
 
 /*---------------------------------------------------------------------------*/
 /* clean.h                                                                   */
@@ -407,8 +424,7 @@ int	plistexist_value, plistexist_dvalue, plistexist_cdvalue,
 
 void	init_plist(PIXTYPE *filter, PIXTYPE *cdwfield);
 
-int	createblank(objliststruct *objlist, int n),
-	createsubmap(objliststruct *objlist, int n);
+int	createsubmap(objliststruct *objlist, int n);
 
 #define MEMORY_PIXSTACK  300000         /* number of pixels in stack */
                                         /* replaces prefs.mem_pixstack */
@@ -416,6 +432,8 @@ int	createblank(objliststruct *objlist, int n),
 /*------------------------------- error codes -------------------------------*/
 
 #define MEMORY_PIXSTACK_ERROR 1
+#define PIXSTACK_OVERFLOW_ERROR 2
+#define FATAL_ERROR 3
 
 /*---------------------------------------------------------------------------*/
 /* filter.h                                                                  */
