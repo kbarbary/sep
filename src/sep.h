@@ -339,23 +339,23 @@ typedef struct
   }	objstruct;
 
 /*------------------------------- functions ---------------------------------*/
-void		lutzalloc(int, int),
-		lutzfree(void),
-		lutzsort(infostruct *, objliststruct *),
-		sortit(picstruct *, picstruct *, picstruct *, picstruct *,
-		       infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *,
-		       int),
-		update(infostruct *, infostruct *, pliststruct *);
+void lutzalloc(int, int);
+void lutzfree(void);
+void lutzsort(infostruct *, objliststruct *);
+void sortit(infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *, int,
+	    int, double, objliststruct *, LONG *);
+void update(infostruct *, infostruct *, pliststruct *);
 
-int		lutz(objliststruct *, int, objstruct *, objliststruct *, int); 
+int  lutz(objliststruct *, int, objstruct *, objliststruct *, int); 
 
 
 /*---------------------------------------------------------------------------*/
 /* globals.h                                                                 */
 /*---------------------------------------------------------------------------*/
 
-void            allocparcelout(void),
-                freeparcelout(void);
+void allocparcelout(void);
+void freeparcelout(void);
+void mergeobject(objstruct *, objstruct *);
 extern int	addobj(int, objliststruct *, objliststruct *),
 		belong(int, objliststruct *, int, objliststruct *),
 		gatherup(objliststruct *, objliststruct *),
@@ -365,28 +365,15 @@ extern int	addobj(int, objliststruct *, objliststruct *),
 /* clean.h                                                                   */
 /*---------------------------------------------------------------------------*/
 
-/*------------------------------ definitions --------------------------------*/
-
-#define		CLEAN_ZONE		10.0	/* zone (in sigma) to */
-						/* consider for processing */
-
-#define CLEAN_FLAG 1      /* replaces prefs.clean_flag (move to scan input?) */
+#define	CLEAN_ZONE      10.0  /* zone (in sigma) to consider for processing */
 #define CLEAN_STACKSIZE 3000  /* replaces prefs.clean_stacksize  */
                               /* (MEMORY_OBJSTACK in sextractor inputs) */
+#define CLEAN_MARGIN    0  /* replaces prefs.cleanmargin which was set based */
+                           /* on stuff like apertures and vignet size */
 
-/*------------------------------- variables ---------------------------------*/
-
-objliststruct	*cleanobjlist;		/* laconic, isn't it? */
-
-/*------------------------------- functions ---------------------------------*/
-
-extern void	addcleanobj(objstruct *),
-		endclean(void),
-		initclean(void),
-		subcleanobj(int);
-
-extern int	clean(picstruct *field, picstruct *dfield,
-		      int, objliststruct *);
+extern void addcleanobj(objstruct *, objliststruct *);
+extern void subcleanobj(int, objliststruct *);
+extern int  clean(int, objliststruct *, objliststruct *, LONG *, double);
 
 /*---------------------------------------------------------------------------*/
 /* plist.h                                                                   */

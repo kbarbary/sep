@@ -5,37 +5,36 @@
 #include	"sep.h"
 
 /****************************** scanimage ************************************
-PROTO   void scanimage(picstruct *field, picstruct *dfield, picstruct *ffield,
-        picstruct *wfield, picstruct *dwfield)
-PURPOSE Scan of the large pixmap(s). Main loop and heart of the program.
-INPUT   Measurement field pointer,
-        Detection field pointer,
-        Flag field pointer,
-        Measurement weight-map field pointer,
-        Detection weight-map field pointer,
-OUTPUT  -.
-NOTES   -.
-AUTHOR  E. Bertin (IAP)
-VERSION 21/12/2011
+
  ***/
 
-/* deblend_nthresh default is 32 in sextractor */
-/* deblend_mincont default is 0.005 in sextractor */
-int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-		  PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-		  int threshabsolute, int minarea,
-		  float *conv, int convw, int convh,
-		  int deblend_nthresh, double deblend_mincont)
+/* sextractor defaults
+   -------------------
+   threshabsolute 0 (No; relative threholding)
+   dthresh 1.5
+   athresh 1.5
+   minarea 5
+   deblend_nthresh 32
+   deblend_mincont 0.005
+   clean_flag      1 (Yes)
+   clean_param     1.0
+   conv = [1 2 1; 2 4 2; 1 2 1]
+*/
+int scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
+	      PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
+	      int threshabsolute, int minarea,
+	      float *conv, int convw, int convh,
+	      int deblend_nthresh, double deblend_mincont,
+	      int clean_flag, double clean_param)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
-  checkstruct		*check;
-  objliststruct       	objlist;
+  objliststruct       	objlist, *cleanobjlist;
   objstruct		*cleanobj;
   pliststruct		*pixel, *pixt; 
   char			*marker, newmarker, *blankpad, *bpt,*bpt0;
   int			co, i,j, flag, luflag,pstop, xl,xl2,yl, cn,
 			nposize, stacksize, w, h, blankh, maxpixnb,
-                        varthreshflag, ontotal, convn;
+                        varthreshflag, convn;
   short	       	        trunflag;
   PIXTYPE		thresh, relthresh, cdnewsymbol, cdwthresh,wthresh,
 			*scan,*dscan,*cdscan,*dwscan,*dwscanp,*dwscann,
@@ -45,20 +44,19 @@ int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   FLAGTYPE		*pfscan[MAXFLAG];
   status		cs, ps, *psstack;
   int			*start, *end, ymax;
-
-  sexcatstruct         thecat; /* from globals.h */
-  int yblank, stripy, y, ymin, stripylim, stripsclim;  /* from picstruct */
+  LONG                  *cleanvictim;
+  
+int yblank, stripy, y, ymin, stripylim, stripsclim;  /* from picstruct */
   int wyblank, wstripy, wy, wymin, wstripylim, wstripsclim;
 
+  /*----- Beginning of the main loop: Initialisations  */
   convn = 0;
   sum = 0.0;
   convnorm = NULL;
   cdscan = cdwscan = NULL;              /* Avoid gcc -Wall warnings */
   victim = NULL;			/* Avoid gcc -Wall warnings */
+  cleanvictim = NULL;
   blankh = 0;				/* Avoid gcc -Wall warnings */
-
-  /*----- Beginning of the main loop: Initialisations  */
-  thecat.ntotal = thecat.ndetect = 0;
 
   /* cdwfield is the detection weight-field if available (can be null)*/
   if (cdwthresh>BIG*WTHRESH_CONVFAC)
@@ -110,7 +108,13 @@ int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   curpixinfo.pixnb = 1;
 
   /* Init cleaning procedure */
-  initclean();
+  if (clean_flag)
+    QMALLOC(cleanvictim, LONG, CLEAN_STACKSIZE);
+  QMALLOC(cleanobjlist, objliststruct, 1);
+  cleanobjlist->obj = NULL;
+  cleanobjlist->plist = NULL;
+  cleanobjlist->nobj = cleanobjlist->npix = 0;
+
 
   /* Allocate memory for the pixel list */
   init_plist(conv, cdwfield);
@@ -338,8 +342,10 @@ int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		      if (start[co] == UNKNOWN)
 			{
 			  if ((int)info[co].pixnb >= minarea)
-			    sortit(cfield, cdwfield, &info[co], &objlist,
-				   cdwscan, wscan, minarea);
+			    sortit(&info[co], &objlist,
+				   cdwscan, wscan, minarea,
+				   clean_flag, clean_param, cleanobjlist,
+				   cleanvictim);
 
 			  /* free the chain-list */
 			  PLIST(pixel+info[co].lastpix, nextpix) =
@@ -359,25 +365,23 @@ int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	  /* end of if (newmarker) ------------------------------------------*/
 
 	  if (luflag)
-	    update (&info[co],&curpixinfo, pixel);
-	  else
+	    update(&info[co], &curpixinfo, pixel);
+
+	  /*---------------------- End Segment ------------------------------*/
+	  else if (cs == OBJECT)
 	    {
-	      if (cs == OBJECT)
-		/*---------------- End Segment ------------------------------*/
+	      cs = NONOBJECT;
+	      if (ps != COMPLETE)
 		{
-		  cs = NONOBJECT;
-		  if (ps != COMPLETE)
-		    {
-		      marker[xl] = 'f';
-		      end[co] = xl;
-		    }
-		  else
-		    {
-		      ps = psstack[--pstop];
-		      marker[xl] = 'F';
-		      store[start[co]] = info[co];
-		      co--;
-		    }
+		  marker[xl] = 'f';
+		  end[co] = xl;
+		}
+	      else
+		{
+		  ps = psstack[--pstop];
+		  marker[xl] = 'F';
+		  store[start[co]] = info[co];
+		  co--;
 		}
 	    }
 
@@ -386,72 +390,44 @@ int	scanimage(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
       /*-- Prepare markers for the next line */
       yl++;
       stripy = y = yl;
-      if (dfield)
-      dfield->stripy = (dfield->y=yl)%dfield->stripheight;
-    if (nffield)
-      for (i=0; i<nffield; i++)
-        {
-        ffield = pffield[i];
-        ffield->stripy = (ffield->y=yl)%ffield->stripheight;
-        }
-    if (wfield)
-      wfield->stripy = (wfield->y=yl)%wfield->stripheight;
-    if (dwfield)
-      dwfield->stripy = (dwfield->y=yl)%dwfield->stripheight;
+      if (cdwfield)
+	wstripy = wy = yl;
 
-/*-- Remove objects close to the ymin limit if ymin is ready to increase */
-    if (cfield->stripy==cfield->stripysclim)
-      {
-      cleanobj = cleanobjlist->obj+cleanobjlist->nobj-1;
-      ontotal = 0;
-      for (i=cleanobjlist->nobj; i--; cleanobj--)
-        {
-        if (cleanobj->ycmin <= cfield->ymin)
-          {
-/*-------- Warn if there is a possibility for any aperture to be truncated */
-          if ((ymax=cleanobj->ycmax) > cfield->ymax)
-            {
-            sprintf(gstr, "Object at position %.0f,%.0f ",
-		cleanobj->mx+1, cleanobj->my+1);
-            QWARNING(gstr, "may have some apertures truncated:\n"
-		"          You might want to increase MEMORY_BUFSIZE");
-            }
-          else if (ymax>cfield->yblank && prefs.blank_flag)
-            {
-            sprintf(gstr, "Object at position %.0f,%.0f ",
-		cleanobj->mx+1, cleanobj->my+1);
-            QWARNING(gstr, "may have some unBLANKed neighbours:\n"
-		"          You might want to increase MEMORY_PIXSTACK");
-            }
-          if ((prefs.prof_flag && !(thecat.ntotal%10)
-		&& thecat.ntotal != ontotal)
-		|| !(thecat.ntotal%400))
-            NPRINTF(OUTPUT, "\33[1M> Line:%5d  "
-		"Objects: %8d detected / %8d sextracted\n\33[1A",
-		yl>h? h:yl, thecat.ndetect, thecat.ntotal);
-          ontotal = thecat.ntotal;
-          endobject(field, dfield, wfield, cdwfield, i, cleanobjlist);
-          subcleanobj(i);
-          cleanobj = cleanobjlist->obj+i;	/* realloc in subcleanobj() */
-          }
-        }
-      }
+    } /*--------------------- End of the loop over the y's ------------------*/
 
-    if ((prefs.prof_flag && !(thecat.ntotal%10)) || !(yl%25))
-      NPRINTF(OUTPUT, "\33[1M> Line:%5d  "
-		"Objects: %8d detected / %8d sextracted\n\33[1A",
-	yl>h?h:yl, thecat.ndetect, thecat.ntotal);
-/*--------------------- End of the loop over the y's -----------------------*/
+  
+  /* Now that all "detected" pixels have been removed, analyse detections */
+  /* removed this!
+  ontotal = 0;
+  for (j=cleanobjlist->nobj; j--;)
+    {
+      ontotal = thecat.ntotal;
+      endobject(field, dfield, wfield, cdwfield, 0, cleanobjlist);
+      subcleanobj(0);
     }
+  */
 
+  if (clean_flag)
+    free(cleanvictim);
+  free(cleanobjlist); /* TODO don't free this! return it */
 
-/* TODO free mem if early exit */
+  /* TODO free mem if early exit (goto here)!!!! */
 
-/* remember to free convnorm if conv */
-	  if (conv)
-	    free(convnorm);
-	}
-    }
+  /*Free memory */
+  freeparcelout();
+  free(pixel);
+  lutzfree();
+  free(info);
+  free(store);
+  free(marker);
+  free(dumscan);
+  free(psstack);
+  free(start);
+  free(end);
+  if (conv)
+    free(convnorm);
+  return;
+
 }
 
 
@@ -481,9 +457,9 @@ void  update(infostruct *infoptr1, infostruct *infoptr2, pliststruct *pixel)
 /*
 build the object structure.
 */
-void  sortit(PIXTYPE *cfield, PIXTYPE *wfield,
-	     infostruct *info, objliststruct *objlist,
-	     PIXTYPE *cdwscan, PIXTYPE *wscan, int minarea)
+void sortit(infostruct *info, objliststruct *objlist,
+	    PIXTYPE *cdwscan, PIXTYPE *wscan, int minarea,
+	    int clean_flag, double clean_param, objliststruct *cleanobjlist, LONG *cleanvictim)
 {
   objliststruct	        objlistout, *objlist2;
   static objstruct	obj;
@@ -558,29 +534,17 @@ void  sortit(PIXTYPE *cfield, PIXTYPE *wfield,
 		ymin = cleanobj->ycmax;
 	      }
 	  
-	  /* Warn if there is a possibility for any aperture to be truncated */
-	  /* TODO: can we remove this? */
-	  if (field->ymax < field->height)
-	    {
-	      cleanobj = &cleanobjlist->obj[victim];
-	      if ((ymax=cleanobj->ycmax) > field->ymax)
-		{
-		  sprintf(gstr, "Object at position %.0f,%.0f ",
-			  cleanobj->mx+1, cleanobj->my+1);
-		  QWARNING(gstr, "may have some apertures truncated:\n"
-			   "     You might want to increase MEMORY_OBJSTACK");
-		}
-	    }
-
 	  /* removed (defined in analyse.c in sextractor) */
 	  /* endobject(field, dfield, wfield, dwfield,victim,cleanobjlist); */
 
-	  subcleanobj(victim);
+	  /* TODO don't think I should be removing this here!! */
+	  subcleanobj(victim, cleanobjlist);
 	}
 
       /* Only add the object if it is not swallowed by cleaning */
-      if (!CLEAN_FLAG || clean(field, dfield, i, objlist2))
-	addcleanobj(cobj);
+      if (!clean_flag ||
+	  clean(i, objlist2, cleanobjlist, cleanvictim, clean_param))
+	addcleanobj(cobj, cleanobjlist);
     }
 
   free(objlistout.plist);
