@@ -8,6 +8,11 @@
                               /* (MEMORY_OBJSTACK in sextractor inputs) */
 #define CLEAN_MARGIN    0  /* replaces prefs.cleanmargin which was set based */
                            /* on stuff like apertures and vignet size */
+#define	MARGIN_SCALE   2.0 /* Margin / object height */ 
+#define	MARGIN_OFFSET  4.0 /* Margin offset (pixels) */ 
+#define	MAXDEBAREA     3   /* max. area for deblending (must be >= 1)*/
+#define	MAXFLAG	       4   /* max. # of FLAG-images (TODO: remove)*/
+#define	MAXPICSIZE     1048576 /* max. image size in any dimension */
 
 /* plist-related macros */
 #define	PLIST(ptr, elem)	(((pbliststruct *)(ptr))->elem)
@@ -26,8 +31,6 @@ typedef struct structinfo
   LONG	lastpix;    /* Pointer to last pixel of pixlist */
   short	flag;	    /* Extraction flag */
 } infostruct;
-
-typedef	char pliststruct;  /* Dummy type for plist */
 
 typedef struct
 {

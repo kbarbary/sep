@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 #include "extract.h"
 
 void mergeobject(objstruct *, objstruct *);

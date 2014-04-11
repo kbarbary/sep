@@ -4,31 +4,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 
 #define	BACK_MINGOODFRAC	0.5		/* min frac with good weights*/
 #define	QUANTIF_NSIGMA		5		/* histogram limits */
 #define	QUANTIF_NMAXLEVELS	4096		/* max nb of quantif. levels */
 #define	QUANTIF_AMIN		4		/* min nb of "mode pixels" */
 
-/* Background info */
-typedef struct structback
+/* Background info in a single mesh*/
+typedef struct
 {
-  float		mode, mean, sigma;	/* Background mode, mean and sigma */
-  LONG		*histo;			/* Pointer to a histogram */
-  int		nlevels;		/* Nb of histogram bins */
-  float		qzero, qscale;		/* Position of histogram */
-  float		lcut, hcut;		/* Histogram cuts */
-  int		npix;			/* Number of pixels involved */
+  float	 mode, mean, sigma;	/* Background mode, mean and sigma */
+  LONG	 *histo;	       	/* Pointer to a histogram */
+  int	 nlevels;		/* Nb of histogram bins */
+  float	 qzero, qscale;		/* Position of histogram */
+  float	 lcut, hcut;		/* Histogram cuts */
+  int	 npix;			/* Number of pixels involved */
 } backstruct;
 
 void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
 	       int, int, int, int, PIXTYPE);
 void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
 	      int, int, int, int, PIXTYPE);
-void filterback(backspline *, int, int, float);
+int filterback(backmap *, int, int, float);
 float backguess(backstruct *, float *, float *);
-float *makebackspline(backspline *, float *);
+int makebackspline(backmap *, float *, float *);
 
 
 /*i**** fqcmp **************************************************************
@@ -72,15 +71,15 @@ float fqmedian(float *ra, int n)
 /* weight >= wthresh implies that pixel will be used. */
 /* w, h is image size in pixels */
 /* bw, bh is size of a single background tile in pixels */
-backspline *makeback(PIXTYPE *im, PIXTYPE *weight, int w, int h,
+backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
 		     int bw, int bh, PIXTYPE wthresh, int fbx, int fby,
-		     float fthresh)
+		     float fthresh, int *status)
 {
   int npix;                   /* size of image */
   int nx, ny, nb;             /* number of background boxes in x, y, total */
   int bufsize;                /* size of a "row" of boxes in pixels (w*bh) */
   backstruct *backmesh, *bm;  /* info about each background "box" */
-  backspline *bkspl;          /* output */
+  backmap *bkmap=NULL;        /* output */
   int j,k,m;
 
   npix = w*h;
@@ -94,19 +93,25 @@ backspline *makeback(PIXTYPE *im, PIXTYPE *weight, int w, int h,
   nb = nx*ny;
 
   /* Allocate memory */
-  QMALLOC(backmesh, backstruct, nx);		/* background information */
+  QMALLOC(backmesh, backstruct, nx, *status);
 
   /* Allocate the returned struct */
-  QMALLOC(bkspl, backspline, 1);
-  bkspl->imnx = w;
-  bkspl->imny = h;
-  bkspl->nx = nx;
-  bkspl->ny = ny;
-  bkspl->n = nx*ny;
-  bkspl->bw = bw;
-  bkspl->bh = bh;
-  QMALLOC(bkspl->back, float, nb);
-  QMALLOC(bkspl->sigma, float, nb);
+  QMALLOC(bkmap, backmap, 1, *status);
+  bkmap->imnx = w;
+  bkmap->imny = h;
+  bkmap->nx = nx;
+  bkmap->ny = ny;
+  bkmap->n = nb;
+  bkmap->bw = bw;
+  bkmap->bh = bh;
+  bkmap->back = NULL;
+  bkmap->sigma = NULL;
+  bkmap->dback = NULL;
+  bkmap->dsigma = NULL;
+  QMALLOC(bkmap->back, float, nb, *status);
+  QMALLOC(bkmap->sigma, float, nb, *status);
+  QMALLOC(bkmap->dback, float, nb, *status);
+  QMALLOC(bkmap->dsigma, float, nb, *status);
 
   /* loop over rows of background boxes.
      (here, we could loop over all boxes, but this is how its done in
@@ -129,7 +134,7 @@ backspline *makeback(PIXTYPE *im, PIXTYPE *weight, int w, int h,
 	if (bm->mean <= -BIG)
 	  bm->histo=NULL;
 	else
-	  QCALLOC(bm->histo, LONG, bm->nlevels);
+	  QCALLOC(bm->histo, LONG, bm->nlevels, *status);
       backhisto(backmesh, im, weight, bufsize, nx, w, bw, weight?wthresh:0.0);
 
       /*-- Compute background statistics from the histograms */
@@ -137,23 +142,39 @@ backspline *makeback(PIXTYPE *im, PIXTYPE *weight, int w, int h,
       for (m=0; m<nx; m++, bm++)
 	{
 	  k = m+nx*j;
-	  backguess(bm, bkspl->back+k, bkspl->sigma+k);
+	  backguess(bm, bkmap->back+k, bkmap->sigma+k);
 	  free(bm->histo);
+	  bm->histo = NULL;
 	}
-
     }
 
   /* free memory */
   free(backmesh);
+  backmesh = NULL;
 
   /* Median-filter and check suitability of the background map */
-  filterback(bkspl, fbx, fby, fthresh);
+  if ((*status = filterback(bkmap, fbx, fby, fthresh)))
+    goto exit;
 
   /* Compute 2nd derivatives along the y-direction */
-  bkspl->dback = makebackspline(bkspl, bkspl->back);
-  bkspl->dsigma = makebackspline(bkspl, bkspl->sigma);
+  if ((*status = makebackspline(bkmap, bkmap->back, bkmap->dback)))
+    goto exit;
+  if ((*status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)))
+    goto exit;
 
-  return bkspl;
+  return bkmap;
+
+  /* If we encountered a problem, clean up allocated memory */
+ exit:
+  if (backmesh)
+    {
+      bm = backmesh;
+      for (m=0; m<nx; m++, bm++)
+	free(bm->histo);
+    }
+  free(backmesh);
+  freebackmap(bkmap);
+  return NULL;
 }
 
 
@@ -417,28 +438,30 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
 Median filtering of the background map to remove the contribution from bright
 sources.
 */
-void	filterback(backspline *bkspl, int filtersizex, int filtersizey,
-		   float filterthresh)
+int filterback(backmap *bkmap, int filtersizex, int filtersizey,
+	       float filterthresh)
 {
    float	*back,*sigma, *back2,*sigma2, *bmask,*smask, *sigmat,
 		d2,d2min, fthresh, med, val,sval;
    int		i,j,px,py, np, nx,ny, npx,npx2, npy,npy2, dpx,dpy, x,y, nmin;
+   int status = 0;
+   bmask = smask = back2 = sigma2 = NULL;
 
   fthresh = filterthresh;
-  nx = bkspl->nx;
-  ny = bkspl->ny;
-  np = bkspl->n;
+  nx = bkmap->nx;
+  ny = bkmap->ny;
+  np = bkmap->n;
   npx = filtersizex/2;
   npy = filtersizey/2;
   npy *= nx;
 
-  QMALLOC(bmask, float, (2*npx+1)*(2*npy+1));
-  QMALLOC(smask, float, (2*npx+1)*(2*npy+1));
-  QMALLOC(back2, float, np);
-  QMALLOC(sigma2, float, np);
+  QMALLOC(bmask, float, (2*npx+1)*(2*npy+1), status);
+  QMALLOC(smask, float, (2*npx+1)*(2*npy+1), status);
+  QMALLOC(back2, float, np, status);
+  QMALLOC(sigma2, float, np, status);
 
-  back = bkspl->back;
-  sigma = bkspl->sigma;
+  back = bkmap->back;
+  sigma = bkmap->sigma;
   val = sval = 0.0;			/* to avoid gcc -Wall warnings */
 
 /* Look for `bad' meshes and interpolate them if necessary */
@@ -514,74 +537,87 @@ void	filterback(backspline *bkspl, int filtersizex, int filtersizey,
 
   free(bmask);
   free(smask);
+  bmask = smask = NULL;
   memcpy(back, back2, np*sizeof(float));
-  bkspl->backmean = fqmedian(back2, np);
+  bkmap->backmean = fqmedian(back2, np);
   free(back2);
+  back2 = NULL;
   memcpy(sigma, sigma2, np*sizeof(float));
-  bkspl->backsig = fqmedian(sigma2, np);
+  bkmap->backsig = fqmedian(sigma2, np);
 
-  if (bkspl->backsig<=0.0)
+  if (bkmap->backsig<=0.0)
     {
     sigmat = sigma2+np;
     for (i=np; i-- && *(--sigmat)>0.0;);
     if (i>=0 && i<(np-1))
-      bkspl->backsig = fqmedian(sigmat+1, np-1-i);
+      bkmap->backsig = fqmedian(sigmat+1, np-1-i);
     else
-      bkspl->backsig = 1.0;
+      bkmap->backsig = 1.0;
     }
 
   free(sigma2);
+  sigma2 = NULL;
 
+  return status;
 
-  return;
-  }
+ exit:
+  free(bmask);
+  free(smask);
+  free(back2);
+  free(sigma2);
+  return status;
+}
 
 
 /******************************* makebackspline ******************************/
 /*
-Pre-compute 2nd derivatives along the y direction at background nodes.
-*/
-float *makebackspline(backspline *bkspl, float *map)
+ * Pre-compute 2nd derivatives along the y direction at background nodes.
+ */
+int makebackspline(backmap *bkmap, float *map, float *dmap)
+{
+  int   x, y, nbx, nby, nbym1, status;
+  float *dmapt, *mapt, *u, temp;
+  u = NULL;
 
-  {
-   int		x,y, nbx,nby,nbym1;
-   float	*dmap,*dmapt,*mapt, *u, temp;
-
-  nbx = bkspl->nx;
-  nby = bkspl->ny;
+  nbx = bkmap->nx;
+  nby = bkmap->ny;
   nbym1 = nby - 1;
-  QMALLOC(dmap, float, bkspl->n);
   for (x=0; x<nbx; x++)
     {
-    mapt = map+x;
-    dmapt = dmap+x;
-    if (nby>1)
-      {
-      QMALLOC(u, float, nbym1);	/* temporary array */
-      *dmapt = *u = 0.0;	/* "natural" lower boundary condition */
-      mapt += nbx;
-      for (y=1; y<nbym1; y++, mapt+=nbx)
-        {
-        temp = -1/(*dmapt+4);
-        *(dmapt += nbx) = temp;
-        temp *= *(u++) - 6*(*(mapt+nbx)+*(mapt-nbx)-2**mapt);
-        *u = temp;
-        }
-      *(dmapt+=nbx) = 0.0;	/* "natural" upper boundary condition */
-      for (y=nby-2; y--;)
-        {
-        temp = *dmapt;
-        dmapt -= nbx;
-        *dmapt = (*dmapt*temp+*(u--))/6.0;
-        }
-      free(u);
-      }
-    else
-      *dmapt = 0.0;
+      mapt = map+x;
+      dmapt = dmap+x;
+      if (nby>1)
+	{
+	  QMALLOC(u, float, nbym1, status); /* temporary array */
+	  *dmapt = *u = 0.0;	/* "natural" lower boundary condition */
+	  mapt += nbx;
+	  for (y=1; y<nbym1; y++, mapt+=nbx)
+	    {
+	      temp = -1/(*dmapt+4);
+	      *(dmapt += nbx) = temp;
+	      temp *= *(u++) - 6*(*(mapt+nbx)+*(mapt-nbx)-2**mapt);
+	      *u = temp;
+	    }
+	  *(dmapt+=nbx) = 0.0;	/* "natural" upper boundary condition */
+	  for (y=nby-2; y--;)
+	    {
+	      temp = *dmapt;
+	      dmapt -= nbx;
+	      *dmapt = (*dmapt*temp+*(u--))/6.0;
+	    }
+	  free(u);
+	  u = NULL;
+	}
+      else
+	*dmapt = 0.0;
     }
 
-  return dmap;
-  }
+  return status;
+
+ exit: 
+  free(u);
+  return status;
+}
 
 
 /******************************* subbackline *********************************/
@@ -589,19 +625,23 @@ float *makebackspline(backspline *bkspl, float *map)
 Interpolate background at line y (bicubic spline interpolation between
 background map vertices) and save to line */
 
-void backline(backspline *bkspl, int y, PIXTYPE *line)
+int backline(backmap *bkmap, int y, PIXTYPE *line)
 {
-  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint;
-  float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep,
-    *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
+  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
+  float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
+  float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
+  status = 0;
+  node = NULL;
+  dnode = NULL;
+  u = NULL;
 
-  width = bkspl->imnx;
-  nbx = bkspl->nx;
+  width = bkmap->imnx;
+  nbx = bkmap->nx;
   nbxm1 = nbx - 1;
-  nby = bkspl->ny;
+  nby = bkmap->ny;
   if (nby > 1)
     {
-      dy = (float)y/bkspl->bh - 0.5;
+      dy = (float)y/bkmap->bh - 0.5;
       dy -= (yl = (int)dy);
       if (yl<0)
 	{
@@ -618,21 +658,21 @@ void backline(backspline *bkspl, int y, PIXTYPE *line)
       dy3 = (dy*dy*dy-dy);
       cdy3 = (cdy*cdy*cdy-cdy);
       ystep = nbx*yl;
-      blo = bkspl->back + ystep;
+      blo = bkmap->back + ystep;
       bhi = blo + nbx;
-      dblo = bkspl->dback + ystep;
+      dblo = bkmap->dback + ystep;
       dbhi = dblo + nbx;
-      QMALLOC(node, float, nbx);	/* Interpolated background */
+      QMALLOC(node, float, nbx, status);  /* Interpolated background */
       nodep = node;
       for (x=nbx; x--;)
 	*(nodep++) = cdy**(blo++) + dy**(bhi++) + cdy3**(dblo++) +
 	  dy3**(dbhi++);
 
       /*-- Computation of 2nd derivatives along x */
-      QMALLOC(dnode, float, nbx);	/* 2nd derivative along x */
+      QMALLOC(dnode, float, nbx, status);  /* 2nd derivative along x */
       if (nbx>1)
 	{
-	  QMALLOC(u, float, nbxm1);	/* temporary array */
+	  QMALLOC(u, float, nbxm1, status); /* temporary array */
 	  *dnode = *u = 0.0;	/* "natural" lower boundary condition */
 	  nodep = node+1;
 	  for (x=nbxm1; --x; nodep++)
@@ -649,20 +689,21 @@ void backline(backspline *bkspl, int y, PIXTYPE *line)
 	      *dnode = (*dnode*temp+*(u--))/6.0;
 	    }
 	  free(u);
+	  u = NULL;
 	  dnode--;
 	}
     }
   else
     {
       /*-- No interpolation and no new 2nd derivatives needed along y */
-      node = bkspl->back;
-      dnode = bkspl->dback;
+      node = bkmap->back;
+      dnode = bkmap->dback;
     }
 
   /*-- Interpolation along x */
   if (nbx>1)
     {
-      nx = bkspl->bw;
+      nx = bkmap->bw;
       xstep = 1.0/nx;
       changepoint = nx/2;
       dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
@@ -695,41 +736,41 @@ void backline(backspline *bkspl, int y, PIXTYPE *line)
     for (j=width; j--;)
       *(line++) = (PIXTYPE)*node;
   
-  if (nby>1)
-    {
-      free(node);
-      free(dnode);
-    }
-  
-  return;
+ exit:
+  free(node);
+  free(dnode);
+  free(u);
+  return status;
 }
 
-void backim(backspline *bkspl, PIXTYPE *arr)
+int backim(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
+  int status = 0;
 
-  width = bkspl->imnx;
-  for (y=0; y<bkspl->imny; y++, arr+=width)
-    backline(bkspl, y, arr);
+  width = bkmap->imnx;
+  for (y=0; y<bkmap->imny; y++, arr+=width)
+    status = backline(bkmap, y, arr);
+  return status;
 }
 /************************************ back ***********************************/
 /*
 return background at position x,y (linear interpolation between background
 map vertices).
 */
-PIXTYPE	backpixlinear(backspline *bkspl, int x, int y)
+PIXTYPE	backpixlinear(backmap *bkmap, int x, int y)
 
   {
    int		nx,ny, xl,yl, pos;
    double	dx,dy, cdx;
    float	*b, b0,b1,b2,b3;
 
-  b = bkspl->back;
-  nx = bkspl->nx;
-  ny = bkspl->ny;
+  b = bkmap->back;
+  nx = bkmap->nx;
+  ny = bkmap->ny;
 
-  dx = (double)x/bkspl->bw - 0.5;
-  dy = (double)y/bkspl->bh - 0.5;
+  dx = (double)x/bkmap->bw - 0.5;
+  dy = (double)y/bkmap->bh - 0.5;
   dx -= (xl = (int)dx);
   dy -= (yl = (int)dy);
 
@@ -771,141 +812,148 @@ Bicubic-spline interpolation of the background noise along the current
 scanline (y).
 NOTES   Most of the code is a copy of subbackline(), for optimization reasons.
 */
-void	backrmsline(backspline *bkspl, int y, PIXTYPE *line)
+int backrmsline(backmap *bkmap, int y, PIXTYPE *line)
 {
-  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint;
-  float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep,
-    *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
-  
-  nbx = bkspl->nx;
+  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
+  float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
+  float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
+  status = 0;
+  node = NULL;
+  dnode = NULL;
+  u = NULL;
+
+  nbx = bkmap->nx;
   nbxm1 = nbx - 1;
-  nby = bkspl->ny;
+  nby = bkmap->ny;
   if (nby > 1)
     {
-    dy = (float)y/bkspl->bh - 0.5;
-    dy -= (yl = (int)dy);
-    if (yl<0)
-      {
-      yl = 0;
-      dy -= 1.0;
-      }
-    else if (yl>=nby-1)
-      {
-      yl = nby<2 ? 0 : nby-2;
-      dy += 1.0;
-      }
-/*-- Interpolation along y for each node */
-    cdy = 1 - dy;
-    dy3 = (dy*dy*dy-dy);
-    cdy3 = (cdy*cdy*cdy-cdy);
-    ystep = nbx*yl;
-    blo = bkspl->sigma + ystep;
-    bhi = blo + nbx;
-    dblo = bkspl->dsigma + ystep;
-    dbhi = dblo + nbx;
-    QMALLOC(node, float, nbx);	/* Interpolated background */
-    nodep = node;
-    for (x=nbx; x--;)
-      *(nodep++) = cdy**(blo++) + dy**(bhi++) + cdy3**(dblo++) + dy3**(dbhi++);
+      dy = (float)y/bkmap->bh - 0.5;
+      dy -= (yl = (int)dy);
+      if (yl<0)
+	{
+	  yl = 0;
+	  dy -= 1.0;
+	}
+      else if (yl>=nby-1)
+	{
+	  yl = nby<2 ? 0 : nby-2;
+	  dy += 1.0;
+	}
+      /*-- Interpolation along y for each node */
+      cdy = 1 - dy;
+      dy3 = (dy*dy*dy-dy);
+      cdy3 = (cdy*cdy*cdy-cdy);
+      ystep = nbx*yl;
+      blo = bkmap->sigma + ystep;
+      bhi = blo + nbx;
+      dblo = bkmap->dsigma + ystep;
+      dbhi = dblo + nbx;
+      QMALLOC(node, float, nbx, status); /* Interpolated background */
+      nodep = node;
+      for (x=nbx; x--;)
+	*(nodep++) = cdy**(blo++)+dy**(bhi++)+cdy3**(dblo++)+dy3**(dbhi++);
 
-/*-- Computation of 2nd derivatives along x */
-    QMALLOC(dnode, float, nbx);	/* 2nd derivative along x */
-    if (nbx>1)
-      {
-      QMALLOC(u, float, nbxm1);	/* temporary array */
-      *dnode = *u = 0.0;	/* "natural" lower boundary condition */
-      nodep = node+1;
-      for (x=nbxm1; --x; nodep++)
-        {
-        temp = -1/(*(dnode++)+4);
-        *dnode = temp;
-        temp *= *(u++) - 6*(*(nodep+1)+*(nodep-1)-2**nodep);
-        *u = temp;
-        }
-      *(++dnode) = 0.0;	/* "natural" upper boundary condition */
-      for (x=nbx-2; x--;)
-        {
-        temp = *(dnode--);
-        *dnode = (*dnode*temp+*(u--))/6.0;
-        }
-      free(u);
-      dnode--;
-      }
+      /*-- Computation of 2nd derivatives along x */
+      QMALLOC(dnode, float, nbx, status); /* 2nd derivative along x */
+      if (nbx>1)
+	{
+	  QMALLOC(u, float, nbxm1, status);	/* temporary array */
+	  *dnode = *u = 0.0;	/* "natural" lower boundary condition */
+	  nodep = node+1;
+	  for (x=nbxm1; --x; nodep++)
+	    {
+	      temp = -1/(*(dnode++)+4);
+	      *dnode = temp;
+	      temp *= *(u++) - 6*(*(nodep+1)+*(nodep-1)-2**nodep);
+	      *u = temp;
+	    }
+	  *(++dnode) = 0.0;	/* "natural" upper boundary condition */
+	  for (x=nbx-2; x--;)
+	    {
+	      temp = *(dnode--);
+	      *dnode = (*dnode*temp+*(u--))/6.0;
+	    }
+	  free(u);
+	  u = NULL;
+	  dnode--;
+	}
     }
   else
     {
-/*-- No interpolation and no new 2nd derivatives needed along y */
-    node = bkspl->sigma;
-    dnode = bkspl->dsigma;
+      /*-- No interpolation and no new 2nd derivatives needed along y */
+      node = bkmap->sigma;
+      dnode = bkmap->dsigma;
     }
-
-/*-- Interpolation along x */
-  width = bkspl->imnx;
+  
+  /*-- Interpolation along x */
+  width = bkmap->imnx;
   if (nbx>1)
     {
-    nx = bkspl->bw;
-    xstep = 1.0/nx;
-    changepoint = nx/2;
-    dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
-    dx0 = ((nx+1)%2)*xstep/2;	/* dx of the 1st pixel right to a bkgnd node */
-    blo = node;
-    bhi = node + 1;
-    dblo = dnode;
-    dbhi = dnode + 1;
-    for (x=i=0,j=width; j--; i++, dx += xstep)
-      {
-      if (i==changepoint && x>0 && x<nbxm1)
-        {
-        blo++;
-        bhi++;
-        dblo++;
-        dbhi++;
-        dx = dx0;
-        }
-      cdx = 1 - dx;
-      *(line++) = (PIXTYPE)(cdx*(*blo+(cdx*cdx-1)**dblo)
-			+ dx*(*bhi+(dx*dx-1)**dbhi));
-      if (i==nx)
-        {
-        x++;
-        i = 0;
-        }
-      }
+      nx = bkmap->bw;
+      xstep = 1.0/nx;
+      changepoint = nx/2;
+      dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
+      dx0 = ((nx+1)%2)*xstep/2;	/* dx of the 1st pixel right to a bkgnd node */
+      blo = node;
+      bhi = node + 1;
+      dblo = dnode;
+      dbhi = dnode + 1;
+      for (x=i=0,j=width; j--; i++, dx += xstep)
+	{
+	  if (i==changepoint && x>0 && x<nbxm1)
+	    {
+	      blo++;
+	      bhi++;
+	      dblo++;
+	      dbhi++;
+	      dx = dx0;
+	    }
+	  cdx = 1 - dx;
+	  *(line++) = (PIXTYPE)(cdx*(*blo+(cdx*cdx-1)**dblo)
+				+ dx*(*bhi+(dx*dx-1)**dbhi));
+	  if (i==nx)
+	    {
+	      x++;
+	      i = 0;
+	    }
+	}
     }
   else
     for (j=width; j--;)
       *(line++) = (PIXTYPE)*node;
 
-  if (nby>1)
-    {
-    free(node);
-    free(dnode);
-    }
-
-  return;
-  }
-
-void backrmsim(backspline *bkspl, PIXTYPE *arr)
-{
-  int y, width;
-
-  width = bkspl->imnx;
-  for (y=0; y<bkspl->imny; y++, arr+=width)
-    backrmsline(bkspl, y, arr);
+ exit:
+  free(node);
+  free(dnode);
+  free(u);
+  return status;
 }
 
-/********************************* freeback **********************************/
-/*
-Terminate background procedures (mainly freeing memory).
-*/
-void freeback(backspline *bkspl)
-  {
-    free(bkspl->back);
-    free(bkspl->dback);
-    free(bkspl->sigma);
-    free(bkspl->dsigma);
-    free(bkspl);
-      
-    return;
-  }
+int backrmsim(backmap *bkmap, PIXTYPE *arr)
+{
+  int y, width;
+  int status = 0;
 
+  width = bkmap->imnx;
+  for (y=0; y<bkmap->imny; y++, arr+=width)
+    status = backrmsline(bkmap, y, arr);
+  return status;
+}
+
+/********************************* freebackmap *******************************/
+/*
+Terminate background procedures (free memory) (passing a NULL is OK).
+*/
+void freebackmap(backmap *bkmap)
+{
+  if (bkmap)
+    {
+      free(bkmap->back);
+      free(bkmap->dback);
+      free(bkmap->sigma);
+      free(bkmap->dsigma);
+    }
+  free(bkmap);
+  
+  return;
+}

@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 #include "extract.h"
 
 /******************************** preanalyse *********************************
@@ -20,7 +19,7 @@ void  preanalyse(int no, objliststruct *objlist, int analyse_type)
 {
   objstruct	*obj = &objlist->obj[no];
   pliststruct	*pixel = objlist->plist, *pixt;
-  PIXTYPE	peak, cpeak, val, cval, minthresh, thresht;
+  PIXTYPE	peak, cpeak, val, cval;
   double	thresh,thresh2, t1t2,darea,
                 mx,my, mx2,my2,mxy, rv, tv,
 		xm,ym, xm2,ym2,xym,
@@ -29,7 +28,6 @@ void  preanalyse(int no, objliststruct *objlist, int analyse_type)
   
   /*-----  initialize stacks and bounds */
   thresh = obj->dthresh;
-  minthresh = 0.0;
   fdnpix = dnpix = 0;
   rv = 0.0;
   peak = cpeak = -BIG;
@@ -99,7 +97,7 @@ void  preanalyse(int no, objliststruct *objlist, int analyse_type)
       /* In case of blending, use previous barycenters */
       if ((analyse_type & ANALYSE_ROBUST) && (obj->flag & OBJ_MERGED))
 	{
-	  double	xn,yn;
+	  double xn, yn;
 
 	  xn = obj->mx-xmin;
 	  yn = obj->my-ymin;

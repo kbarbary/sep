@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 #include "extract.h"
 
 #ifndef	RAND_MAX
@@ -29,7 +28,7 @@ static short	     *son, *ok;
 PURPOSE Divide a list of isophotal detections in several parts (deblending).
 INPUT   input objlist,
         output objlist,
-OUTPUT  RETURN_OK if success, RETURN_FATAL_ERROR otherwise (memory overflow).
+OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
 NOTES   Even if the object is not deblended, the output objlist threshold is
         recomputed if a variable threshold is used.
  ***/
@@ -61,9 +60,9 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	dthresh0 = objlistin->obj[l].dthresh;
 	
 	objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-	if ((out = addobj(l, objlistin, &objlist[0])) == RETURN_FATAL_ERROR)
+	if ((out = addobj(l, objlistin, &objlist[0])) == RETURN_ERROR)
 	  goto exit_parcelout;
-	if ((out = addobj(l, objlistin, &debobjlist2)) == RETURN_FATAL_ERROR)
+	if ((out = addobj(l, objlistin, &debobjlist2)) == RETURN_ERROR)
 	  goto exit_parcelout;
 	value0 = objlist[0].obj[0].fdflux*deblend_mincont;
 	ok[0] = (short)1;
@@ -77,14 +76,14 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	    /*--------- Build tree (bottom->up) */
 	    if (objlist[k-1].nobj>=NSONMAX)
 	      {
-		out = RETURN_FATAL_ERROR;
+		out = RETURN_ERROR;
 		goto exit_parcelout;
 	      }
 
 	    for (i=0; i<objlist[k-1].nobj; i++)
 	      {
 		if ((out=lutz(objlistin, l, &objlist[k-1].obj[i],
-			      &debobjlist, minarea)) == RETURN_FATAL_ERROR)
+			      &debobjlist, minarea)) == RETURN_ERROR)
 		  goto exit_parcelout;
 
 		for (j=h=0; j<debobjlist.nobj; j++)
@@ -92,16 +91,16 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 		    {
 		      debobjlist.obj[j].dthresh = debobjlist.dthresh;
 		      m = addobj(j, &debobjlist, &objlist[k]);
-		      if (m==RETURN_FATAL_ERROR || m>=NSONMAX)
+		      if (m==RETURN_ERROR || m>=NSONMAX)
 			{
-			  out = RETURN_FATAL_ERROR;
+			  out = RETURN_ERROR;
 			  goto exit_parcelout;
 			}
 		      if (h>=nbm-1)
 			if (!(son = (short *)
 			      realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
 			  {
-			    out = RETURN_FATAL_ERROR;
+			    out = RETURN_ERROR;
 			    goto exit_parcelout;
 			  }
 		      son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
@@ -133,7 +132,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 			    | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
 			       &debobjlist2.obj[0].flag);
 			  if ((out = addobj(j, &objlist[k+1], &debobjlist2))
-			      == RETURN_FATAL_ERROR)
+			      == RETURN_ERROR)
 			    goto exit_parcelout;
 			}
 		    ok[k+xn*i] = (short)0;
@@ -224,7 +223,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   if (!(bmp = (char *)calloc(1, npix*sizeof(char))))
     {
       bmp = 0;
-      out = RETURN_FATAL_ERROR;
+      out = RETURN_ERROR;
       goto exit_gatherup;
     }
   
@@ -239,9 +238,9 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 	   pixt=pixelin+PLIST(pixt,nextpix))
 	bmp[(PLIST(pixt,x)-xs) + (PLIST(pixt,y)-ys)*bmwidth] = '\1';
       
-      if ((n[i] = addobj(i, objlistin, objlistout)) == RETURN_FATAL_ERROR)
+      if ((n[i] = addobj(i, objlistin, objlistout)) == RETURN_ERROR)
 	{
-	  out = RETURN_FATAL_ERROR;
+	  out = RETURN_ERROR;
 	  goto exit_gatherup;
 	}
 
@@ -258,7 +257,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   if (!(pixelout=(pliststruct *)realloc(objlistout->plist,
 					(objlistout->npix + npix)*plistsize)))
     {
-      out = RETURN_FATAL_ERROR;
+      out = RETURN_ERROR;
       goto exit_gatherup;
     }
   
@@ -396,7 +395,7 @@ int	addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
 
   objl2->nobj--;
   objl2->npix = fp;
-  return RETURN_FATAL_ERROR;
+  return RETURN_ERROR;
 }
 
 

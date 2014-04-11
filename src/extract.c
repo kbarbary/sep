@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 #include "extract.h"
 
 #define DETECT_MAXAREA 0        /* replaces prefs.ext_maxarea */
@@ -605,7 +604,7 @@ void	convolve(PIXTYPE *im,                    /* full image (was field) */
 
 /******************************** createsubmap *******************************
 PURPOSE Create pixel-index submap for deblending.
-OUTPUT  RETURN_OK if success, RETURN_FATAL_ERROR otherwise (memory overflow).
+OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
 */
 int createsubmap(objliststruct *objlist, int no)
 {
@@ -622,7 +621,7 @@ int createsubmap(objliststruct *objlist, int no)
   obj->subh = obj->ymax - ymin + 1;
   n = w*obj->subh;
   if (!(obj->submap = pix = (int *)malloc(n*sizeof(int))))
-    return RETURN_FATAL_ERROR;
+    return RETURN_ERROR;
   pt = pix;
   for (i=n; i--;)
     *(pt++) = -1;

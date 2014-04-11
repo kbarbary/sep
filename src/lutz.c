@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
-#include "defs.h"
 #include "extract.h"
 
 #define	NOBJ 256  /* starting number of obj. */
@@ -115,7 +114,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   free(objlist->obj);
   if (!(obj=objlist->obj=(objstruct *)malloc(nobjm*sizeof(objstruct))))
     {
-      out = RETURN_FATAL_ERROR;
+      out = RETURN_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
       goto exit_lutz;
     }
@@ -125,7 +124,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   if (!(objlist->plist
 	= (pliststruct *)malloc((eny-sty)*(enx-stx)*plistsize)))
     {
-      out = RETURN_FATAL_ERROR;
+      out = RETURN_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
       goto exit_lutz;
     }
@@ -241,7 +240,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
 				      realloc(obj, (nobjm+=nobjm/2)*
 					      sizeof(objstruct))))
 				  {
-				    out = RETURN_FATAL_ERROR;
+				    out = RETURN_ERROR;
 				    goto exit_lutz;
 				  }
 			      lutzsort(&info[co], objlist);
