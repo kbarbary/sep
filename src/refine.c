@@ -10,10 +10,7 @@
 #include <string.h>
 #include "sep.h"
 #include "defs.h"
-#include "plist.h"
-#include "lutz.h"
-#include "analyse.h"
-#include "refine.h"
+#include "extract.h"
 
 #ifndef	RAND_MAX
 #define	RAND_MAX 2147483647

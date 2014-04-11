@@ -1,34 +1,33 @@
 /*---------------------------------------------------------------------------*/
-/* global definitions                                                        */
+/* global internal definitions                                               */
 /*---------------------------------------------------------------------------*/
 
-/*--------------------------- Internal constants ----------------------------*/
-#define	BIG			1e+30		/* a huge number */
-#define	LESSBIG			1e+25		/* a somewhat smaller number */
-#define	DATA_BUFSIZE		262144		/* data buffer size */
-#define	MARGIN_SCALE		2.0		/* Margin / object height */ 
-#define	MARGIN_OFFSET		4.0		/* Margin offset (pixels) */ 
-#define	MAXCHAR			512		/* max. number of characters */
-#define	MAXCHARL		16384		/* max.nb of chars in strlist*/
-#define	MAXDEBAREA		3		/* max. area for deblending */
-#define	MAXFLAG			4		/* max. # of FLAG-images */
-#define	MAXPICSIZE		1048576		/* max. image size */
-#define	NISO			8		/* number of isophotes */
-#define	OUTPUT			stderr		/* where all msgs are sent */
-#define PSF_NPSFMAX		9		/* Max number of fitted PSFs */
+#define	BIG	       1e+30		/* a huge number */
+#define	LESSBIG	       1e+25		/* a somewhat smaller number */
+#define	DATA_BUFSIZE   262144		/* data buffer size */
+#define	MARGIN_SCALE   2.0		/* Margin / object height */ 
+#define	MARGIN_OFFSET  4.0		/* Margin offset (pixels) */ 
+#define	MAXCHAR	       512		/* max. number of characters */
+#define	MAXCHARL       16384		/* max.nb of chars in strlist*/
+#define	MAXDEBAREA     3		/* max. area for deblending */
+#define	MAXFLAG	       4		/* max. # of FLAG-images */
+#define	MAXPICSIZE     1048576		/* max. image size */
+#define	NISO	       8		/* number of isophotes */
+#define	OUTPUT	       stderr		/* where all msgs are sent */
+#define PSF_NPSFMAX    9		/* Max number of fitted PSFs */
 #ifndef PI
-#define	PI			3.1415926535898	/* never met before? */
+#define	PI	       3.1415926535898	/* never met before? */
 #endif
-#define	DEG			(PI/180.0)	/* 1 deg in radians */
+#define	DEG	       (PI/180.0)	/* 1 deg in radians */
 
-/* NOTES:
+/* NOTE: One must have
  *
- *One must have:	BIG < the biggest element a float can store
- *			DATA_BUFSIZE >= 2880 with DATA_BUFSIZE%8 = 0
- *			MAXCHAR >= 16
- *			1 <= MAXCHECK <= MAXLIST (see prefs.h)
- *			1 <= MAXDEBAREA (see prefs.c & extract.c)
- *			1 <= MAXFLAG <= MAXLIST (see prefs.h)
+ * BIG < the biggest element a float can store
+ * DATA_BUFSIZE >= 2880 with DATA_BUFSIZE%8 = 0
+ * MAXCHAR >= 16
+ * 1 <= MAXCHECK <= MAXLIST (see prefs.h)
+ * 1 <= MAXDEBAREA (see prefs.c & extract.c)
+ * 1 <= MAXFLAG <= MAXLIST (see prefs.h)
  *			1 <= MAXIMAGE <= MAXLIST (see prefs.h)
  *			1 <= MAXNAPER <= MAXLIST (see prefs.h)
  *			1 <= MAXNASSOC <= MAXLIST (see prefs.h)

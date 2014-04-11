@@ -4,11 +4,6 @@
 #include <string.h>
 #include "sep.h"
 #include "defs.h"
-#include "clean.h"
-#include "lutz.h"
-#include "analyse.h"
-#include "plist.h"
-#include "refine.h"
 #include "extract.h"
 
 #define DETECT_MAXAREA 0        /* replaces prefs.ext_maxarea */
@@ -21,23 +16,9 @@ void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
 int  sortit(infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *, int,
 	    int, double, objliststruct *, LONG *);
 int  createsubmap(objliststruct *, int);
+void plistinit(PIXTYPE *, PIXTYPE *);
 
-/****************************** scanimage ************************************
-
-***/
-
-/* sextractor defaults
-   -------------------
-   threshabsolute 0 (No; relative threholding)
-   dthresh 1.5
-   athresh 1.5
-   minarea 5
-   deblend_nthresh 32
-   deblend_mincont 0.005
-   clean_flag      1 (Yes)
-   clean_param     1.0
-   conv = [1 2 1; 2 4 2; 1 2 1]
-*/
+/****************************** extract **************************************/
 int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
 	    int threshabsolute, int minarea,
@@ -136,7 +117,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
 
   /* Allocate memory for the pixel list */
-  init_plist(conv, cdwfield);
+  plistinit(conv, cdwfield);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
     return MEMORY_PIXSTACK_ERROR;
 
@@ -653,4 +634,57 @@ int createsubmap(objliststruct *objlist, int no)
     }
   
   return RETURN_OK;
+}
+
+/****************************** plistinit ************************************
+ * (originally init_plist() in sextractor)
+PURPOSE	initialize a pixel-list and its components.
+ ***/
+void plistinit(PIXTYPE *conv, PIXTYPE *cdwfield)
+{
+  pbliststruct	*pbdum = NULL;
+  int		i;
+
+  plistsize = sizeof(pbliststruct);
+  plistoff_value = (char *)&pbdum->value - (char *)pbdum;
+
+  if (conv)
+    {
+      plistexist_cdvalue = 1;
+      plistoff_cdvalue = plistsize;
+      plistsize += sizeof(PIXTYPE);
+    }
+  else
+    {
+      plistexist_cdvalue = 0;
+      plistoff_cdvalue = plistoff_dvalue;
+    }
+
+  if (cdwfield)
+    {
+      plistexist_var = 1;
+      plistoff_var = plistsize;
+      plistsize += sizeof(PIXTYPE);
+    }
+  else
+    plistexist_var = 0;
+
+  if (cdwfield)
+    {
+      plistexist_dthresh = 1;
+      plistoff_dthresh = plistsize;
+      plistsize += sizeof(PIXTYPE);
+    }
+  else
+    plistexist_dthresh = 0;
+
+  return;
+
+  /* can we remove these? */
+  plistexist_dvalue = 0;
+  plistoff_dvalue = plistoff_value;
+  plistexist_flag = 0;
+  plistexist_wflag = 0;
+
+  return;
 }

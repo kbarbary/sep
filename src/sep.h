@@ -110,3 +110,19 @@ typedef struct
   int	   iso[NISO];			     /* isophotal areas */
   float	   fwhm;			     /* IMAGE FWHM */
 } objstruct;
+
+/* below, sextractor defaults are shown in [] */
+int extract(PIXTYPE *, /* image array                                        */
+	    PIXTYPE *, /* variance array (can be NULL)                       */
+	    int, int,  /* size of arrays (w, h)                              */
+	    PIXTYPE,   /* detection threshold                          [1.5] */
+	    PIXTYPE,   /* analysis threshold                           [1.5] */
+	    PIXTYPE,   /* cdwthresh (???)                                    */
+	    int,       /* threshabsolute (0=relative)                    [0] */
+	    int,       /* minarea                                        [5] */
+	    float *,   /* conv array (can be NULL)     [{1 2 1 2 4 2 1 2 1}] */
+	    int, int,  /* conv size (w, h)                            [3, 3] */
+	    int,       /* deblend_nthresh                               [32] */
+	    double,    /*deblend_mincont                             [0.005] */
+	    int,       /* clean_flag (1 = YES)                           [1] */
+	    double)    /* clean_param                                  [1.0] */

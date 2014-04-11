@@ -11,9 +11,7 @@
 #include <string.h>
 #include "sep.h"
 #include "defs.h"
-#include "plist.h"
 #include "extract.h"
-#include "lutz.h"
 
 #define	NOBJ 256  /* starting number of obj. */
 

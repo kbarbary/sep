@@ -3,8 +3,7 @@
 #include <string.h>
 #include "sep.h"
 #include "defs.h"
-#include "plist.h"
-#include "analyse.h"
+#include "extract.h"
 
 /******************************** preanalyse *********************************
 PROTO   void preanalyse(int no, objliststruct *objlist, int analyse_type)
