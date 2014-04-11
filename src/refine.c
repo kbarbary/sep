@@ -5,18 +5,28 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#include	<math.h>
-#include	<stdlib.h>
-#include	<string.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include "sep.h"
+#include "defs.h"
+#include "plist.h"
+#include "lutz.h"
+#include "analyse.h"
+#include "refine.h"
 
 #ifndef	RAND_MAX
-#define	RAND_MAX	2147483647
+#define	RAND_MAX 2147483647
 #endif
-#define	NSONMAX			1024	/* max. number per level */
-#define	NBRANCH			16	/* starting number per branch */
+#define	NSONMAX	1024  /* max. number per level */
+#define	NBRANCH	16    /* starting number per branch */
 
-static objliststruct	*objlist;
-static short		*son, *ok;
+int addobj(int, objliststruct *, objliststruct *);
+int belong(int, objliststruct *, int, objliststruct *);
+int gatherup(objliststruct *, objliststruct *);
+
+static objliststruct *objlist;
+static short	     *son, *ok;
 
 /******************************** parcelout **********************************
 PURPOSE Divide a list of isophotal detections in several parts (deblending).
@@ -26,8 +36,8 @@ OUTPUT  RETURN_OK if success, RETURN_FATAL_ERROR otherwise (memory overflow).
 NOTES   Even if the object is not deblended, the output objlist threshold is
         recomputed if a variable threshold is used.
  ***/
-int	parcelout(objliststruct *objlistin, objliststruct *objlistout,
-		  int deblend_nthresh, double deblend_mincont, int minarea)
+int parcelout(objliststruct *objlistin, objliststruct *objlistout,
+	      int deblend_nthresh, double deblend_mincont, int minarea)
 {
   objstruct		*obj;
   static objliststruct	debobjlist, debobjlist2;
@@ -297,9 +307,9 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   objlistout->npix = k;
   if (!(objlistout->plist = (pliststruct *)realloc(pixelout,
 						   objlistout->npix*plistsize)))
-    error (-1, "Not enough memory to update pixel list in ", "gatherup()");
+    out = GATHERUP_MEMORY_ERROR;
 
-exit_gatherup:
+ exit_gatherup:
 
   free(bmp);
   free(amp);

@@ -7,14 +7,14 @@ LDFLAGS=-shared
 ARFLAGS=rcs
 
 NAME=sep
-SOURCES=back.c misc.c
+SOURCES=analyse.c #back.c clean.c extract.c lutz.c plist.c refine.c
 OBJECTS=$(SOURCES:.c=.o)
 
 all: $(OBJECTS)
 #	$(AR) $(ARFLAGS) lib$(NAME).a $(OBJECTS)
 	$(LD) $(LDFLAGS) -o lib$(NAME).so $(OBJECTS) -lc -lm
 
-.c.o:
+%.o: %.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:

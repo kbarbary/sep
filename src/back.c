@@ -4,6 +4,70 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "defs.h"
+
+#define	BACK_MINGOODFRAC	0.5		/* min frac with good weights*/
+#define	QUANTIF_NSIGMA		5		/* histogram limits */
+#define	QUANTIF_NMAXLEVELS	4096		/* max nb of quantif. levels */
+#define	QUANTIF_AMIN		4		/* min nb of "mode pixels" */
+
+/* Background info */
+typedef struct structback
+{
+  float		mode, mean, sigma;	/* Background mode, mean and sigma */
+  LONG		*histo;			/* Pointer to a histogram */
+  int		nlevels;		/* Nb of histogram bins */
+  float		qzero, qscale;		/* Position of histogram */
+  float		lcut, hcut;		/* Histogram cuts */
+  int		npix;			/* Number of pixels involved */
+} backstruct;
+
+void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
+	       int, int, int, int, PIXTYPE);
+void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
+	      int, int, int, int, PIXTYPE);
+void filterback(backspline *, int, int, float);
+float backguess(backstruct *, float *, float *);
+float *makebackspline(backspline *, float *);
+
+
+/*i**** fqcmp **************************************************************
+PROTO	int	fqcmp(const void *p1, const void *p2)
+PURPOSE	Sorting function for floats in qsort().
+INPUT	Pointer to first element,
+	pointer to second element.
+OUTPUT	1 if *p1>*p2, 0 if *p1=*p2, and -1 otherwise.
+NOTES	-.
+AUTHOR	E. Bertin (IAP)
+VERSION	05/10/2010
+ ***/
+static int fqcmp(const void *p1, const void *p2)
+{
+  double f1=*((float *)p1);
+  double f2=*((float *)p2);
+  return f1>f2? 1 : (f1<f2? -1 : 0);
+}
+
+
+/****** fqmedian *************************************************************
+PROTO	float   fqmedian(float *ra, int n)
+PURPOSE	Compute the median of an array of floats, using qsort().
+INPUT	Pointer to the array,
+	Number of array elements.
+OUTPUT	Median of the array.
+NOTES	Warning: the order of input data is modified!.
+*/
+float fqmedian(float *ra, int n)
+{
+  int dqcmp(const void *p1, const void *p2);
+  
+  qsort(ra, n, sizeof(float), fqcmp);
+  if (n<2)
+    return *ra;
+  else
+    return n&1? ra[n/2] : (ra[n/2-1]+ra[n/2])/2.0;
+}
+
 
 /* weight >= wthresh implies that pixel will be used. */
 /* w, h is image size in pixels */

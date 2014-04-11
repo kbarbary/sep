@@ -3,11 +3,14 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#include	<math.h>
-#include	<stdlib.h>
-#include	<string.h>
-#include	"sep.h"
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include "sep.h"
+#include "defs.h"
+#include "clean.h"
 
+void mergeobject(objstruct *, objstruct *);
 
 /********************************** clean ***********************************
 PURPOSE Remove object from frame -buffer and put it in the "CLEANlist".
@@ -16,7 +19,7 @@ INPUT   Object number,
 OUTPUT  0 if the object was CLEANed, 1 otherwise.
  ***/
 int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
-	  LONG *cleanvictim, double clean_param)
+	  LONG *cleanvictim, double clean_param, int *status)
 {
   objstruct     *objin, *obj;
   int	        i,j,k;
@@ -72,7 +75,9 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
       k = cleanvictim[i];
       obj = cleanobjlist->obj + k;
       mergeobject(obj, objin);
-      subcleanobj(k);
+      (*status) = subcleanobj(k, cleanobjlist);
+      if (*status)
+	return 0;
     }
 
   return 1;
@@ -83,7 +88,7 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
 /*
 Add an object to the "cleanobjlist".
 */
-void addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
+int addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
 {
   int	margin, y;
   float	hh1,hh2;
@@ -94,13 +99,13 @@ void addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
       if (!(cleanobjlist->obj =
 	    (objstruct *)realloc(cleanobjlist->obj,
 				 (++cleanobjlist->nobj) * sizeof(objstruct))))
-	error(EXIT_FAILURE, "Not enough memory for ", "CLEANing");
+	return MEMORY_CLEAN_ERROR;
     }
   else
     {
       if (!(cleanobjlist->obj = (objstruct *)malloc((++cleanobjlist->nobj) *
 						    sizeof(objstruct))))
-	error(EXIT_FAILURE, "Not enough memory for ", "CLEANing");
+	return MEMORY_CLEAN_ERROR;
     }
 
   /* Compute the max. vertical extent of the object: */
@@ -122,7 +127,7 @@ void addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
 
   cleanobjlist->obj[cleanobjlist->nobj-1] = *objin;
 
-  return;
+  return 0;
   }
 
 
@@ -175,12 +180,11 @@ void mergeobject(objstruct *objslave, objstruct *objmaster)
 /* 
 remove an object from a "cleanobjlist".
 */
-void subcleanobj(int objnb, objliststruct *cleanobjlist)
+int subcleanobj(int objnb, objliststruct *cleanobjlist)
 {
   /* Update the object list */
   if (objnb>=cleanobjlist->nobj)
-    error(EXIT_FAILURE, "*Internal Error*: no CLEAN object to remove ",
-	  "in subcleanobj()");
+    return NO_CLEAN_OBJ_ERROR;
   
   if (--cleanobjlist->nobj)
     {
@@ -188,10 +192,10 @@ void subcleanobj(int objnb, objliststruct *cleanobjlist)
 	cleanobjlist->obj[objnb] = cleanobjlist->obj[cleanobjlist->nobj];
       if (!(cleanobjlist->obj = (objstruct *)realloc(cleanobjlist->obj,
 						     cleanobjlist->nobj * sizeof(objstruct))))
-	error(EXIT_FAILURE, "Not enough memory for ", "CLEANing");
+	return MEMORY_CLEAN_ERROR;
     }
   else
     free(cleanobjlist->obj);
   
-  return;
+  return 0;
 }
