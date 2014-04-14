@@ -13,82 +13,74 @@
 
 void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
 int  sortit(infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *, int,
-	    int, double, objliststruct *, LONG *);
+	    int, double, objliststruct *, LONG *, int, double);
 int  createsubmap(objliststruct *, int);
 void plistinit(PIXTYPE *, PIXTYPE *);
 
 /****************************** extract **************************************/
-int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-	    int threshabsolute, int minarea,
-	    float *conv, int convw, int convh,
-	    int deblend_nthresh, double deblend_mincont,
-	    int clean_flag, double clean_param)
+objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
+		       PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
+		       int threshabsolute, int minarea,
+		       float *conv, int convw, int convh,
+		       int deblend_nthresh, double deblend_mincont,
+		       int clean_flag, double clean_param,
+		       int *status)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *cleanobjlist;
-  objstruct		*cleanobj;
   pliststruct		*pixel, *pixt; 
-  char			*marker, newmarker, *blankpad, *bpt,*bpt0;
+  char			*marker, newmarker;
   int			co, i,j, flag, luflag,pstop, xl,xl2,yl, cn,
-			nposize, stacksize, w, h, blankh, maxpixnb,
+			nposize, stacksize, maxpixnb,
                         varthreshflag, convn;
   short	       	        trunflag;
-  PIXTYPE		thresh, relthresh, cdnewsymbol, cdwthresh,wthresh,
-			*scan,*dscan,*cdscan,*dwscan,*dwscanp,*dwscann,
-			*cdwscan,*cdwscanp,*cdwscann,*wscand,
-                        *scant, *wscan,*wscann,*wscanp, *dumscan;
+  PIXTYPE		thresh, relthresh, cdnewsymbol;
+  PIXTYPE               *scan,*cdscan,*cdwscan,*wscan,*dumscan;
   float                 sum, *convnorm;
-  FLAGTYPE		*pfscan[MAXFLAG];
-  status		cs, ps, *psstack;
-  int			*start, *end, ymax;
+  pixstatus		cs, ps, *psstack;
+  int			*start, *end;
   LONG                  *cleanvictim;
-  int exitstatus=0;
 
-  int yblank, stripy, y, ymin, stripylim, stripsclim;  /* from picstruct */
-  int wyblank, wstripy, wy, wymin, wstripylim, wstripsclim;
+  *status = RETURN_OK;
 
   /*----- Beginning of the main loop: Initialisations  */
+  pixel = NULL;
+  convnorm = NULL;
+  scan = wscan = cdscan = cdwscan = dumscan = NULL;
+  victim = NULL;
+  cleanvictim = NULL;
+  info = NULL;
+  store = NULL;
+  marker = NULL;
+  psstack = NULL;
+  start = end = NULL;
+  cleanobjlist = NULL;
   convn = 0;
   sum = 0.0;
-  convnorm = NULL;
-  cdscan = cdwscan = NULL;              /* Avoid gcc -Wall warnings */
-  victim = NULL;			/* Avoid gcc -Wall warnings */
-  cleanvictim = NULL;
-  blankh = 0;				/* Avoid gcc -Wall warnings */
 
   /* cdwfield is the detection weight-field if available (can be null)*/
   if (cdwthresh>BIG*WTHRESH_CONVFAC)
     cdwthresh = BIG*WTHRESH_CONVFAC;
-  wthresh = 0.0;
 
   /* If WEIGHTing and no absolute thresholding, activate threshold scaling */
   varthreshflag = (cdwfield && threshabsolute==0);
   relthresh = varthreshflag ? thresh : 0.0;/* To avoid gcc warnings*/
   objlist.dthresh = dthresh;
   objlist.thresh = athresh;
-  yblank = 1;
-  y = stripy = 0;
-  ymin = stripylim = 0;
-  stripysclim = 0;
-
-  /* init regardless of whether weightmap is NULL; avoid gcc -Wall warnings */
-  wy = wstripy = 0;
-  wymin = wstripylim = 0;
-  wstripysclim = 0;
 
   /*Allocate memory for buffers */
   stacksize = w+1;
-  QMALLOC(info, infostruct, stacksize);
-  QCALLOC(store, infostruct, stacksize);
-  QMALLOC(marker, char, stacksize);
-  QMALLOC(dumscan, PIXTYPE, stacksize);
-  QMALLOC(psstack, status, stacksize);
-  QCALLOC(start, int, stacksize);
-  QMALLOC(end, int, stacksize);
-  blankpad = bpt = NULL;
-  lutzalloc(w,h);
-  allocparcelout(deblend_nthresh);
+  QMALLOC(info, infostruct, stacksize, *status);
+  QCALLOC(store, infostruct, stacksize, *status);
+  QMALLOC(marker, char, stacksize, *status);
+  QMALLOC(dumscan, PIXTYPE, stacksize, *status);
+  QMALLOC(psstack, pixstatus, stacksize, *status);
+  QCALLOC(start, int, stacksize, *status);
+  QMALLOC(end, int, stacksize, *status);
+  if ((*status = lutzalloc(w, h)) != RETURN_OK)
+    goto exit;
+  if ((*status = allocparcelout(deblend_nthresh)) != RETURN_OK)
+    goto exit;
 
   /* Some initializations */
   thresh = objlist.dthresh;
@@ -108,8 +100,8 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
   /* Init cleaning procedure */
   if (clean_flag)
-    QMALLOC(cleanvictim, LONG, CLEAN_STACKSIZE);
-  QMALLOC(cleanobjlist, objliststruct, 1);
+    QMALLOC(cleanvictim, LONG, CLEAN_STACKSIZE, *status);
+  QMALLOC(cleanobjlist, objliststruct, 1, *status);
   cleanobjlist->obj = NULL;
   cleanobjlist->plist = NULL;
   cleanobjlist->nobj = cleanobjlist->npix = 0;
@@ -118,7 +110,10 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   /* Allocate memory for the pixel list */
   plistinit(conv, cdwfield);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
-    return MEMORY_PIXSTACK_ERROR;
+    {
+      *status = MEMORY_PIXSTACK_ERROR;
+      goto exit;
+    }
 
   /*----- at the beginning, "free" object fills the whole pixel list */
   freeinfo.firstpix = 0;
@@ -131,13 +126,13 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   if (conv)
     {
       /* allocate memory for convolved buffers */
-      QMALLOC(cdscan, PIXTYPE, stacksize);
+      QMALLOC(cdscan, PIXTYPE, stacksize, *status);
       if (cdwfield)
-	  QCALLOC(cdwscan, PIXTYPE, stacksize);
+	QCALLOC(cdwscan, PIXTYPE, stacksize, *status);
 
       /* normalize the filter */
       convn = convw * convh;
-      QMALLOC(convnorm, PIXTYPE, convn);
+      QMALLOC(convnorm, PIXTYPE, convn, *status);
       for (i=0; i<convn; i++)
 	sum += fabs(conv[i]);
       for (i=0; i<convn; i++)
@@ -157,26 +152,26 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	  if (conv)
 	    {
 	      free(cdscan);
+	      cdscan = NULL;
 	      if (cdwfield)
-		free(cdwscan);
+		{
+		  free(cdwscan);
+		  cdwscan = NULL;
+		}
 	    }
 	  cdwscan = cdscan = dumscan;
 	}
 
       else
 	{
-	  scan = cfield + stripy*w;
+	  scan = cfield + yl*w;
 	  if (cdwfield)
-	    wscan = cdwfield + stripy*w;
-
-	  /* no separate detection image */
-	  dscan = scan;
-	  dwscan = wscan;
+	    wscan = cdwfield + yl*w;
 
 	  /* filter the lines */
 	  if (conv)
 	    {
-	      convolve(cfield, w, h, stripy, conv, convw, convh, cdscan);
+	      convolve(cfield, w, h, yl, conv, convw, convh, cdscan);
 	      if (cdwfield)
 		convolve(cdwfield, w, h, yl, conv, convw, convh, cdwscan);
 	    }
@@ -219,9 +214,17 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	      /* Running out of pixels, the largest object becomes a "victim" */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
-		  sprintf(gstr, "%d,%d", xl+1, yl+1);
-		  warning("Pixel stack overflow at position ", gstr);
+		  sprintf(errdetail, "Pixel stack overflow at position %d,%d",
+			  xl+1, yl+1);
+		  *status = PIXSTACK_OVERFLOW_ERROR;
+		  goto exit;
 		  
+		  /* NOTE: The above error was originally just a warning.
+		     with the change to an error, the following code in this
+		     if block is never executed. TODO: should this just
+		     be a warning (or nothing?)
+		  */
+
 		  /* loop over pixels in row to find largest object */
 		  maxpixnb = 0;
 		  for (i=0; i<=w; i++)
@@ -241,14 +244,13 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		  
 		  if (!maxpixnb)
 		    {
-		      warning("*Fatal Error*: something is badly bugged in ",
-			      "scanimage()!");
-		      return FATAL_ERROR;
+		      *status = FATAL_ERROR;
+		      goto exit;
 		    }
 		  if (maxpixnb <= 1)
 		    {
-		      warning("Pixel stack overflow in ", "scanimage()");
-		      return PIXSTACK_OVERFLOW_ERROR;
+		      *status = PIXSTACK_OVERFLOW_ERROR;
+		      goto exit;
 		    }
 		  freeinfo.firstpix = PLIST(pixel+victim->firstpix, nextpix);
 		  PLIST(pixel+victim->lastpix, nextpix) = freeinfo.lastpix;
@@ -341,12 +343,16 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		      if (start[co] == UNKNOWN)
 			{
 			  if ((int)info[co].pixnb >= minarea)
-			    exitstatus = sortit(&info[co], &objlist,
-						cdwscan, wscan, minarea,
-						clean_flag, clean_param,
-						cleanobjlist, cleanvictim);
-			  if (exitstatus)
-			    goto exit_extract;
+			    {
+			      *status = sortit(&info[co], &objlist,
+					       cdwscan, wscan, minarea,
+					       clean_flag, clean_param,
+					       cleanobjlist, cleanvictim,
+					       deblend_nthresh,
+					       deblend_mincont);
+			      if (*status != RETURN_OK)
+				goto exit;
+			    }
 
 			  /* free the chain-list */
 			  PLIST(pixel+info[co].lastpix, nextpix) =
@@ -390,9 +396,6 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
       /*-- Prepare markers for the next line */
       yl++;
-      stripy = y = yl;
-      if (cdwfield)
-	wstripy = wy = yl;
 
     } /*--------------------- End of the loop over the y's ------------------*/
 
@@ -408,9 +411,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
     }
   */
 
-  free(cleanobjlist); /* TODO don't free this! return it */
-
- exit_extract:
+ exit:
   if (clean_flag)
     free(cleanvictim);
   freeparcelout();
@@ -425,7 +426,15 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   free(end);
   if (conv)
     free(convnorm);
-  return exitstatus;
+
+  if (*status != RETURN_OK)
+    {
+      free(cdscan);   /* only need to free these in case of early exit */
+      free(cdwscan);
+      return NULL;
+    }
+
+  return cleanobjlist;
 }
 
 
@@ -436,16 +445,14 @@ build the object structure.
 int sortit(infostruct *info, objliststruct *objlist,
 	   PIXTYPE *cdwscan, PIXTYPE *wscan, int minarea,
 	   int clean_flag, double clean_param, objliststruct *cleanobjlist,
-	   LONG *cleanvictim)
+	   LONG *cleanvictim, int deblend_nthresh, double deblend_mincont)
 {
   objliststruct	        objlistout, *objlist2;
   static objstruct	obj;
   objstruct		*cobj;
-  pliststruct		*pixel;
   int 			i,j,n;
-  int status=0;
+  int status=RETURN_OK;
 
-  pixel = objlist->plist;
   objlistout.obj = NULL;
   objlistout.plist = NULL;
   objlistout.nobj = objlistout.npix = 0;
@@ -479,8 +486,9 @@ int sortit(infostruct *info, objliststruct *objlist,
 	  objlist2 = objlist;
 	  for (i=0; i<objlist2->nobj; i++)
 	    objlist2->obj[i].flag |= OBJ_DOVERFLOW;
-	  sprintf(gstr, "%.0f,%.0f", obj.mx+1, obj.my+1);
-	  warning("Deblending overflow for detection at ", gstr);
+	  sprintf(errdetail, "Deblending overflow for detection at %.0f,%.0f", obj.mx+1, obj.my+1);
+	  status = DEBLEND_OVERFLOW_ERROR;
+	  goto exit_sortit;
 	}
       free(obj.submap);
     }
@@ -501,7 +509,7 @@ int sortit(infostruct *info, objliststruct *objlist,
       if ((n=cleanobjlist->nobj) >= CLEAN_STACKSIZE)
 	{
 	  objstruct	*cleanobj;
-	  int		ymin, ymax, victim=0;
+	  int		ymin, victim=0;
 
 	  ymin = 2000000000;	/* No image is expected to be that tall ! */
 	  cleanobj = cleanobjlist->obj;
@@ -523,7 +531,7 @@ int sortit(infostruct *info, objliststruct *objlist,
       if (!clean_flag || clean(i, objlist2, cleanobjlist, cleanvictim,
 			       clean_param, &status))
 	  status = addcleanobj(cobj, cleanobjlist);
-      if (status)
+      if (status != RETURN_OK)
 	    goto exit_sortit;
     }
 
@@ -545,11 +553,10 @@ void	convolve(PIXTYPE *im,                    /* full image (was field) */
 		 int convw, int convh,           /* mask size */
 		 PIXTYPE *mscan)                 /* convolved line */
 {
-  int		convw2,m0,me,m,mx,dmx, y0, dy, sw,sh;
+  int		convw2,m0,me,m,mx,dmx, y0, dy;
   float	        *mask;
   PIXTYPE	*mscane, *s,*s0, *d,*de, mval;
 
-  sh = field->stripheight;  /* TODO remove this */
   convw2 = convw/2;
   mscane = mscan+w; /* limit of scanline */
   y0 = y - (convh/2); /* starting y for convolution */
@@ -642,7 +649,6 @@ PURPOSE	initialize a pixel-list and its components.
 void plistinit(PIXTYPE *conv, PIXTYPE *cdwfield)
 {
   pbliststruct	*pbdum = NULL;
-  int		i;
 
   plistsize = sizeof(pbliststruct);
   plistoff_value = (char *)&pbdum->value - (char *)pbdum;

@@ -6,6 +6,7 @@
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
@@ -21,8 +22,8 @@ int addobj(int, objliststruct *, objliststruct *);
 int belong(int, objliststruct *, int, objliststruct *);
 int gatherup(objliststruct *, objliststruct *);
 
-static objliststruct *objlist;
-static short	     *son, *ok;
+static objliststruct *objlist=NULL;
+static short	     *son=NULL, *ok=NULL;
 
 /******************************** parcelout **********************************
 PURPOSE Divide a list of isophotal detections in several parts (deblending).
@@ -60,9 +61,9 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	dthresh0 = objlistin->obj[l].dthresh;
 	
 	objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-	if ((out = addobj(l, objlistin, &objlist[0])) == RETURN_ERROR)
+	if ((out = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
 	  goto exit_parcelout;
-	if ((out = addobj(l, objlistin, &debobjlist2)) == RETURN_ERROR)
+	if ((out = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
 	  goto exit_parcelout;
 	value0 = objlist[0].obj[0].fdflux*deblend_mincont;
 	ok[0] = (short)1;
@@ -83,7 +84,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	    for (i=0; i<objlist[k-1].nobj; i++)
 	      {
 		if ((out=lutz(objlistin, l, &objlist[k-1].obj[i],
-			      &debobjlist, minarea)) == RETURN_ERROR)
+			      &debobjlist, minarea)) != RETURN_OK)
 		  goto exit_parcelout;
 
 		for (j=h=0; j<debobjlist.nobj; j++)
@@ -132,7 +133,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 			    | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
 			       &debobjlist2.obj[0].flag);
 			  if ((out = addobj(j, &objlist[k+1], &debobjlist2))
-			      == RETURN_ERROR)
+			      != RETURN_OK)
 			    goto exit_parcelout;
 			}
 		    ok[k+xn*i] = (short)0;
@@ -168,26 +169,33 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 /*
 Allocate the memory allocated by global pointers in refine.c
 */
-void	allocparcelout(int deblend_nthresh)
-  {
-  QMALLOC(son, short,  deblend_nthresh*NSONMAX*NBRANCH);
-  QMALLOC(ok, short,  deblend_nthresh*NSONMAX);
-  QMALLOC(objlist, objliststruct,  deblend_nthresh);
+int allocparcelout(int deblend_nthresh)
+{
+  int status=RETURN_OK;
+  QMALLOC(son, short,  deblend_nthresh*NSONMAX*NBRANCH, status);
+  QMALLOC(ok, short,  deblend_nthresh*NSONMAX, status);
+  QMALLOC(objlist, objliststruct, deblend_nthresh, status);
 
-  return;
-  }
+  return status;
+ exit:
+  freeparcelout();
+  return status;
+}
 
 /******************************* freeparcelout *******************************/
 /*
 Free the memory allocated by global pointers in refine.c
 */
-void	freeparcelout(void)
-  {
-  QFREE(son);
-  QFREE(ok);
-  QFREE(objlist);
+void freeparcelout(void)
+{
+  free(son);
+  son = NULL;
+  free(ok);
+  ok = NULL;
+  free(objlist);
+  objlist = NULL;
   return;
-  }
+}
 
 /********************************* gatherup **********************************/
 /*
@@ -196,23 +204,26 @@ progenitor.
 */
 int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 {
-  char		*bmp;
-  float	        *amp, *p, dx,dy, drand, dist, distmin;
-  objstruct	*objin = objlistin->obj, *objout, *objt;
+  char        *bmp;
+  float       *amp, *p, dx,dy, drand, dist, distmin;
+  objstruct   *objin = objlistin->obj, *objout, *objt;
 
-  pliststruct	*pixelin = objlistin->plist, *pixelout, *pixt,*pixt2;
+  pliststruct *pixelin = objlistin->plist, *pixelout, *pixt,*pixt2;
 
-  int		i,k,l, *n, iclst, npix, bmwidth,
-		nobj = objlistin->nobj, xs,ys, x,y, out;
+  int         i,k,l, *n, iclst, npix, bmwidth,
+              nobj = objlistin->nobj, xs,ys, x,y, status;
 
-  out = RETURN_OK;
+  bmp = NULL;
+  amp = p = NULL;
+  n = NULL;
+  status = RETURN_OK;
 
   objlistout->dthresh = objlistin->dthresh;
   objlistout->thresh = objlistin->thresh;
 
-  QMALLOC(amp, float, nobj);
-  QMALLOC(p, float, nobj);
-  QMALLOC(n, int, nobj);
+  QMALLOC(amp, float, nobj, status);
+  QMALLOC(p, float, nobj, status);
+  QMALLOC(n, int, nobj, status);
 
   for (i=1; i<nobj; i++)
     preanalyse(i, objlistin, ANALYSE_FULL);
@@ -222,9 +233,9 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   npix = bmwidth * (objin->ymax - (ys=objin->ymin) + 1);
   if (!(bmp = (char *)calloc(1, npix*sizeof(char))))
     {
-      bmp = 0;
-      out = RETURN_ERROR;
-      goto exit_gatherup;
+      bmp = NULL;
+      status = RETURN_ERROR;
+      goto exit;
     }
   
   for (objt = objin+(i=1); i<nobj; i++, objt++)
@@ -240,8 +251,8 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
       
       if ((n[i] = addobj(i, objlistin, objlistout)) == RETURN_ERROR)
 	{
-	  out = RETURN_ERROR;
-	  goto exit_gatherup;
+	  status = RETURN_ERROR;
+	  goto exit;
 	}
 
       dist = objt->fdnpix/(2*PI*objt->abcor*objt->a*objt->b);
@@ -257,8 +268,8 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   if (!(pixelout=(pliststruct *)realloc(objlistout->plist,
 					(objlistout->npix + npix)*plistsize)))
     {
-      out = RETURN_ERROR;
-      goto exit_gatherup;
+      status = RETURN_ERROR;
+      goto exit;
     }
   
   objlistout->plist = pixelout;
@@ -303,16 +314,15 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   objlistout->npix = k;
   if (!(objlistout->plist = (pliststruct *)realloc(pixelout,
 						   objlistout->npix*plistsize)))
-    out = GATHERUP_MEMORY_ERROR;
+    status = GATHERUP_MEMORY_ERROR;
 
- exit_gatherup:
-
+ exit:
   free(bmp);
   free(amp);
   free(p);
   free(n);
 
-  return out;
+  return status;
 }
 
 /**************** belong (originally in manobjlist.c) ************************/

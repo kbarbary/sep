@@ -22,7 +22,7 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define GATHERUP_MEMORY_ERROR   7 /* Not enough memory to update pixel list in
 				     gatherup()" */
 #define MEMORY_ALLOC_ERROR      8 /* Could not allocate memory for.. */ 
-
+#define DEBLEND_OVERFLOW_ERROR  9
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -120,12 +120,12 @@ typedef struct
   PIXTYPE       thresh;	  /* analysis threshold */
 } objliststruct;
 
-int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-	    int threshabsolute, int minarea,
-	    float *conv, int convw, int convh,
-	    int deblend_nthresh, double deblend_mincont,
-	    int clean_flag, double clean_param);
+objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
+		       PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
+		       int threshabsolute, int minarea,
+		       float *conv, int convw, int convh,
+		       int deblend_nthresh, double deblend_mincont,
+		       int clean_flag, double clean_param, int *status);
 
 /* sextractor defaults show in []                     */
 /*----------------------------------------------------*/

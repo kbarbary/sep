@@ -21,7 +21,7 @@
 #define	PLISTFLAG(ptr, elem)	(*((FLAGTYPE *)((ptr)+plistoff_##elem)))
 
 /* Extraction status */
-typedef	enum {COMPLETE, INCOMPLETE, NONOBJECT, OBJECT} status;
+typedef	enum {COMPLETE, INCOMPLETE, NONOBJECT, OBJECT} pixstatus;
 
 /* Temporary object parameters during extraction */
 typedef struct structinfo
@@ -47,13 +47,13 @@ int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
   plistsize;
 
 void preanalyse(int, objliststruct *, int);
-extern int addcleanobj(objstruct *, objliststruct *);
-extern int subcleanobj(int, objliststruct *);
-extern int clean(int, objliststruct *, objliststruct *, LONG *, double);
-void lutzalloc(int, int);
+int  addcleanobj(objstruct *, objliststruct *);
+int  subcleanobj(int, objliststruct *);
+int  clean(int, objliststruct *, objliststruct *, LONG *, double, int *);
+int  lutzalloc(int, int);
 void lutzfree(void);
 int  lutz(objliststruct *, int, objstruct *, objliststruct *, int);
 void update(infostruct *, infostruct *, pliststruct *);
-void allocparcelout(void);
+int  allocparcelout(int);
 void freeparcelout(void);
-int  parcelout(objliststruct *, objliststruct *, int, int);
+int  parcelout(objliststruct *, objliststruct *, int, double, int);

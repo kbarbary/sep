@@ -7,6 +7,7 @@
 */
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
@@ -18,38 +19,44 @@ void lutzsort(infostruct *, objliststruct *);
 
 /*------------------------- Static buffers for lutz() -----------------------*/
 
-static infostruct	*info, *store;
-static char		*marker;
-static status		*psstack;
-static int		*start, *end, *discan, xmin,ymin,xmax,ymax;
+static infostruct  *info=NULL, *store=NULL;
+static char	   *marker=NULL;
+static pixstatus   *psstack=NULL;
+static int         *start=NULL, *end=NULL, *discan=NULL;
+static int         xmin, ymin, xmax, ymax;
 
 
 /******************************* lutzalloc ***********************************/
 /*
 Allocate once for all memory space for buffers used by lutz().
 */
-void	lutzalloc(int width, int height)
-  {
-   int	*discant,
-	stacksize, i;
+int lutzalloc(int width, int height)
+{
+  int *discant;
+  int stacksize, i, status=RETURN_OK;
 
   stacksize = width+1;
   xmin = ymin = 0;
   xmax = width-1;
   ymax = height-1;
-  QMALLOC(info, infostruct, stacksize);
-  QMALLOC(store, infostruct, stacksize);
-  QMALLOC(marker, char, stacksize);
-  QMALLOC(psstack, status, stacksize);
-  QMALLOC(start, int, stacksize);
-  QMALLOC(end, int, stacksize);
-  QMALLOC(discan, int, stacksize);
+  QMALLOC(info, infostruct, stacksize, status);
+  QMALLOC(store, infostruct, stacksize, status);
+  QMALLOC(marker, char, stacksize, status);
+  QMALLOC(psstack, pixstatus, stacksize, status);
+  QMALLOC(start, int, stacksize, status);
+  QMALLOC(end, int, stacksize, status);
+  QMALLOC(discan, int, stacksize, status);
   discant = discan;
   for (i=stacksize; i--;)
     *(discant++) = -1;
 
-  return;
-  }
+  return status;
+
+ exit:
+  lutzfree();
+
+  return status;
+}
 
 /******************************* lutzfree ************************************/
 /*
@@ -58,13 +65,19 @@ Free once for all memory space for buffers used by lutz().
 void lutzfree()
 {
   free(discan);
+  discan = NULL;
   free(info);
+  info = NULL;
   free(store);
+  store = NULL;
   free(marker);
+  marker = NULL;
   free(psstack);
+  psstack = NULL;
   free(start);
+  start = NULL;
   free(end);
-
+  end = NULL;
   return;
 }
 
@@ -82,13 +95,13 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   pliststruct		*plist,*pixel, *plistin, *plistint;
   
   char			newmarker;
-  int			cn, co, luflag, objnb, pstop, xl,xl2,yl,
+  int			cn, co, luflag, pstop, xl,xl2,yl,
                         out, deb_maxarea, stx,sty,enx,eny, step,
                         nobjm = NOBJ,
 			inewsymbol, *iscan;
   short		        trunflag;
   PIXTYPE		thresh;
-  status		cs, ps;
+  pixstatus		cs, ps;
 
   out = RETURN_OK;
 
@@ -135,7 +148,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   for (xl=stx; xl<=enx; xl++)
     marker[xl] = 0;
 
-  objnb = objlist->nobj = 0;
+  objlist->nobj = 0;
   co = pstop = 0;
   curpixinfo.pixnb = 1;
 
@@ -286,9 +299,11 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
  exit_lutz:
 
   if (objlist->nobj && out == RETURN_OK)
-    if (!(objlist->obj=
-	  (objstruct *)realloc(obj, objlist->nobj*sizeof(objstruct))))
-      out = LUTZ_REALLOC_ERROR;
+    {
+      if (!(objlist->obj=
+	    (objstruct *)realloc(obj, objlist->nobj*sizeof(objstruct))))
+	out = LUTZ_REALLOC_ERROR;
+    }
   else
     {
       free(obj);
@@ -296,15 +311,17 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
     }
 
   if (cn && out == RETURN_OK)
-    if (!(objlist->plist=(pliststruct *)realloc(plist,cn)))
-      out = LUTZ_REALLOC_ERROR;
+    {
+      if (!(objlist->plist=(pliststruct *)realloc(plist,cn)))
+	out = LUTZ_REALLOC_ERROR;
+    }
   else
     {
       free(objlist->plist);
       objlist->plist = NULL;
     }
 
-  return  out;
+  return out;
 }
 
 /********************************* lutzsort ***********************************/

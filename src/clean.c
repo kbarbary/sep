@@ -74,14 +74,12 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
       k = cleanvictim[i];
       obj = cleanobjlist->obj + k;
       mergeobject(obj, objin);
-      (*status) = subcleanobj(k, cleanobjlist);
-      if (*status)
+      if ((*status = subcleanobj(k, cleanobjlist)) != RETURN_OK);
 	return 0;
     }
 
   return 1;
 }
-
 
 /******************************* addcleanobj ********************************/
 /*
@@ -196,5 +194,5 @@ int subcleanobj(int objnb, objliststruct *cleanobjlist)
   else
     free(cleanobjlist->obj);
   
-  return 0;
+  return RETURN_OK;
 }

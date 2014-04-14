@@ -153,13 +153,15 @@ backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
   backmesh = NULL;
 
   /* Median-filter and check suitability of the background map */
-  if ((*status = filterback(bkmap, fbx, fby, fthresh)))
+  if ((*status = filterback(bkmap, fbx, fby, fthresh)) != RETURN_OK)
     goto exit;
 
   /* Compute 2nd derivatives along the y-direction */
-  if ((*status = makebackspline(bkmap, bkmap->back, bkmap->dback)))
+  if ((*status = makebackspline(bkmap, bkmap->back, bkmap->dback)) !=
+      RETURN_OK)
     goto exit;
-  if ((*status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)))
+  if ((*status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)) !=
+      RETURN_OK)
     goto exit;
 
   return bkmap;
@@ -444,7 +446,7 @@ int filterback(backmap *bkmap, int filtersizex, int filtersizey,
    float	*back,*sigma, *back2,*sigma2, *bmask,*smask, *sigmat,
 		d2,d2min, fthresh, med, val,sval;
    int		i,j,px,py, np, nx,ny, npx,npx2, npy,npy2, dpx,dpy, x,y, nmin;
-   int status = 0;
+   int status = RETURN_OK;
    bmask = smask = back2 = sigma2 = NULL;
 
   fthresh = filterthresh;
@@ -578,6 +580,7 @@ int makebackspline(backmap *bkmap, float *map, float *dmap)
   int   x, y, nbx, nby, nbym1, status;
   float *dmapt, *mapt, *u, temp;
   u = NULL;
+  status = RETURN_OK;
 
   nbx = bkmap->nx;
   nby = bkmap->ny;
@@ -630,7 +633,7 @@ int backline(backmap *bkmap, int y, PIXTYPE *line)
   int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
   float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
-  status = 0;
+  status = RETURN_OK;
   node = NULL;
   dnode = NULL;
   u = NULL;
@@ -746,7 +749,7 @@ int backline(backmap *bkmap, int y, PIXTYPE *line)
 int backim(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
-  int status = 0;
+  int status = RETURN_OK;
 
   width = bkmap->imnx;
   for (y=0; y<bkmap->imny; y++, arr+=width)
@@ -817,7 +820,7 @@ int backrmsline(backmap *bkmap, int y, PIXTYPE *line)
   int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
   float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
-  status = 0;
+  status = RETURN_OK;
   node = NULL;
   dnode = NULL;
   u = NULL;
@@ -932,7 +935,7 @@ int backrmsline(backmap *bkmap, int y, PIXTYPE *line)
 int backrmsim(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
-  int status = 0;
+  int status = RETURN_OK;
 
   width = bkmap->imnx;
   for (y=0; y<bkmap->imny; y++, arr+=width)
