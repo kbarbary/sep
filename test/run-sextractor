@@ -1,1 +1,0 @@
-sex -c conf/sextractor.conf -CATALOG_NAME cat.fits -FILTER_NAME conf/default.conv -PARAMETERS_NAME conf/sextractor.param DECam_00179121_24.fits[0]

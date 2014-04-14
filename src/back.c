@@ -1,3 +1,44 @@
+/*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*
+* This file is part of SEP
+*
+* Copyright 2014 Kyle Barbary
+*
+* SEP is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+
+* SEP is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+
+* You should have received a copy of the GNU General Public License
+* along with SEP.  If not, see <http://www.gnu.org/licenses/>.
+*
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
+
+/*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*
+* This file part of: SExtractor
+*
+* Copyright:         (C) 1993-2011 Emmanuel Bertin -- IAP/CNRS/UPMC
+*
+* License:           GNU General Public License
+*
+* SExtractor is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+* SExtractor is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+* You should have received a copy of the GNU General Public License
+* along with SExtractor. If not, see <http://www.gnu.org/licenses/>.
+*
+*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #include <math.h>
 #include <stdio.h>
@@ -68,12 +109,9 @@ float fqmedian(float *ra, int n)
 }
 
 
-/* weight >= wthresh implies that pixel will be used. */
-/* w, h is image size in pixels */
-/* bw, bh is size of a single background tile in pixels */
-backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
-		     int bw, int bh, PIXTYPE wthresh, int fbx, int fby,
-		     float fthresh, int *status)
+backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		  int bw, int bh, PIXTYPE varthresh, int fbx, int fby,
+		  float fthresh, int *status)
 {
   int npix;                   /* size of image */
   int nx, ny, nb;             /* number of background boxes in x, y, total */
@@ -119,14 +157,14 @@ backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
      in increments of a row of background boxes at a time.) */
   for (j=0; j<ny; j++, im+=bufsize)
     {
-      if (weight)
-	weight += bufsize;
+      if (var)
+	var += bufsize;
       /* if the last row, modify the width appropriately*/
       if (j == ny-1 && npix%bufsize)
         bufsize = npix%bufsize;
 
       /* Get clipped mean, sigma for all boxes in the row */
-      backstat(backmesh, im, weight, bufsize, nx, w, bw, weight?wthresh:0.0);
+      backstat(backmesh, im, var, bufsize, nx, w, bw, var?varthresh:0.0);
 
       /* Allocate histograms in each box in this row. */
       bm = backmesh;
@@ -135,7 +173,7 @@ backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
 	  bm->histo=NULL;
 	else
 	  QCALLOC(bm->histo, LONG, bm->nlevels, *status);
-      backhisto(backmesh, im, weight, bufsize, nx, w, bw, weight?wthresh:0.0);
+      backhisto(backmesh, im, var, bufsize, nx, w, bw, var?varthresh:0.0);
 
       /*-- Compute background statistics from the histograms */
       bm = backmesh;
@@ -175,7 +213,7 @@ backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
 	free(bm->histo);
     }
   free(backmesh);
-  freebackmap(bkmap);
+  freeback(bkmap);
   return NULL;
 }
 
@@ -186,7 +224,7 @@ Compute robust statistical estimators in a row of meshes.
 */
 void backstat(backstruct *backmesh,
 	      PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
-	      int n, int w, int bw, PIXTYPE wthresh)
+	      int n, int w, int bw, PIXTYPE varthresh)
 {
   backstruct	*bm;
   double	pix, wpix, sig, mean, sigma, step;
@@ -219,7 +257,7 @@ void backstat(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		pix = *(buft++);
-		if ((wpix = *(wbuft++)) < wthresh && pix > -BIG)
+		if ((wpix = *(wbuft++)) <= varthresh && pix > -BIG)
 		  {
 		    mean += pix;
 		    sigma += pix*pix;
@@ -262,7 +300,7 @@ void backstat(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		pix = *(buft++);
-		if ((wpix = *(wbuft++))<wthresh && pix<=hcut && pix>=lcut)
+		if ((wpix = *(wbuft++))<=varthresh && pix<=hcut && pix>=lcut)
 		  {
 		    mean += pix;
 		    sigma += pix*pix;
@@ -308,7 +346,7 @@ Fill histograms in a row of meshes.
 */
 void backhisto(backstruct *backmesh,
 	       PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
-	       int n, int w, int bw, PIXTYPE wthresh)
+	       int n, int w, int bw, PIXTYPE varthresh)
 {
   backstruct	*bm;
   PIXTYPE	*buft,*wbuft;
@@ -346,7 +384,7 @@ void backhisto(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		bin = (int)(*(buft++)/qscale + cste);
-		if ((wpix = *(wbuft++))<wthresh && bin<nlevels && bin>=0)
+		if ((wpix = *(wbuft++))<=varthresh && bin<nlevels && bin>=0)
 		  (*(histo+bin))++;
 	      }
 	  wbuf += bw;
@@ -943,11 +981,11 @@ int backrmsim(backmap *bkmap, PIXTYPE *arr)
   return status;
 }
 
-/********************************* freebackmap *******************************/
+/********************************* freeback *******************************/
 /*
 Terminate background procedures (free memory) (passing a NULL is OK).
 */
-void freebackmap(backmap *bkmap)
+void freeback(backmap *bkmap)
 {
   if (bkmap)
     {

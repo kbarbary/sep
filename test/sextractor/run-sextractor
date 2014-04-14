@@ -1,0 +1,5 @@
+# This is the command used to run sextractor for testing purposes.
+#
+# usage: run-sextractor IMAGENAME
+#
+sex -c sextractor.conf -CATALOG_NAME cat.fits -FILTER_NAME default.conv -PARAMETERS_NAME sextractor.param $1

@@ -2,7 +2,7 @@
 /* sep public interface                                                      */
 /*---------------------------------------------------------------------------*/
 
-#define	SEP_VERSION  "0.1.0"
+#define	SEP_VERSION  "0.1.dev"
 #define	SEP_DATE     "2014-03-14"
 
 /*------------------------- global typedefs ---------------------------------*/
@@ -38,18 +38,18 @@ typedef struct
   float *dsigma;
 } backmap;
 
-/* weight >= wthresh implies that pixel will be used. */
 /* w, h is image size in pixels */
 /* bw, bh is size of a single background tile in pixels */
-backmap *makebackmap(PIXTYPE *im, PIXTYPE *weight, int w, int h,
-		     int bw, int bh, PIXTYPE wthresh, int fbx, int fby,
-		     float fthresh, int *status);
+/* var > varthresh will be ignored. */
+backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		  int bw, int bh, PIXTYPE varthresh, int fbx, int fby,
+		  float fthresh, int *status);
 PIXTYPE	backpixlinear(backmap *, int, int);
 int backline(backmap *, int, PIXTYPE *);
 int backim(backmap *, PIXTYPE *);
 int backrmsline(backmap *, int, PIXTYPE *);
 int backrmsim(backmap *, PIXTYPE *);
-void freebackmap(backmap *);
+void freeback(backmap *);
 
 
 /*-------------------------- source extraction ------------------------------*/
