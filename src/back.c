@@ -8,12 +8,12 @@
 * it under the terms of the GNU General Public License as published by
 * the Free Software Foundation, either version 3 of the License, or
 * (at your option) any later version.
-
+*
 * SEP is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
-
+*
 * You should have received a copy of the GNU General Public License
 * along with SEP.  If not, see <http://www.gnu.org/licenses/>.
 *
@@ -184,6 +184,7 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	  free(bm->histo);
 	  bm->histo = NULL;
 	}
+
     }
 
   /* free memory */
@@ -216,7 +217,6 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
   freeback(bkmap);
   return NULL;
 }
-
 
 /******************************** backstat **********************************/
 /*
@@ -367,9 +367,11 @@ void backhisto(backstruct *backmesh,
 
       /*-- Skip bad meshes */
       if (bm->mean <= -BIG)
-	if (wbuf)
-	  wbuf += bw;
-	continue;
+	{
+	  if (wbuf)
+	    wbuf += bw;
+	  continue;
+	}
 
       nlevels = bm->nlevels;
       histo = bm->histo;
@@ -394,6 +396,7 @@ void backhisto(backstruct *backmesh,
 	  for (x=bw; x--;)
 	    {
 	      bin = (int)(*(buft++)/qscale + cste);
+	      
 	      if (bin>=0 && bin<nlevels)
 		(*(histo+bin))++;
 	    }
@@ -429,6 +432,8 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
   sig = 10.0*nlevelsm1;
   sig1 = 1.0;
   mea = med = bkg->mean;
+
+  /* iterate until sigma converges or drops below 0.1 (up to 100 iterations) */
   for (n=100; n-- && (sig>=0.1) && (fabs(sig/sig1-1.0)>EPS);)
     {
       sig1 = sig;
@@ -436,6 +441,7 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
       lowsum = highsum = 0;
       histot = hilow = histo+lcut;
       hihigh = histo+hcut;
+
       for (i=lcut; i<=hcut; i++)
 	{
 	  if (lowsum<highsum)
@@ -447,8 +453,8 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
 	  sig += dpix*i;
 	}
 
-      med = hihigh>=histo?
-	((hihigh-histo)+0.5+((double)highsum-lowsum)/(2.0*(*hilow>*hihigh?
+      med = hihigh>=histo?((hihigh-histo) + 0.5 +
+			   ((double)highsum-lowsum)/(2.0*(*hilow>*hihigh?
 							   *hilow:*hihigh)))
 	: 0.0;
       if (sum)
@@ -456,10 +462,12 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
 	  mea /= (double)sum;
 	  sig = sig/sum - mea*mea;
 	}
+
       sig = sig>0.0?sqrt(sig):0.0;
       lcut = (ftemp=med-3.0*sig)>0.0 ?(int)(ftemp>0.0?ftemp+0.5:ftemp-0.5):0;
       hcut = (ftemp=med+3.0*sig)<nlevelsm1 ?(int)(ftemp>0.0?ftemp+0.5:ftemp-0.5)
 	: nlevelsm1;
+
     }
   *mean = fabs(sig)>0.0? (fabs(bkg->sigma/(sig*bkg->qscale)-1) < 0.0 ?
 			  bkg->qzero+mea*bkg->qscale
@@ -469,7 +477,7 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
     :bkg->qzero+mea*bkg->qscale;
   
   *sigma = sig*bkg->qscale;
-  
+
   return *mean;
 }
 

@@ -43,43 +43,46 @@ Note that the returned pointer must be freed by calling `freeback()`.
 * `status` : Set to nonzero if error.
 
 ```c
-void backline(backmap *bkspl, int y, float *line);
+void backline(backmap *bkmap, int y, float *line);
 ```
 
 *Evaluate the background using bicubic spline interpolation at line y*
 
-* `bkspl` : background spline  
+* `bkmap` : pointer to background map
 * `y` : index of the line  
-* `line` : array of size `bkspl->imnx` (image width)
+* `line` : array of size `bkmap->imnx` (image width)
 
 ```c
-void backim(backmap *bkspl, float *arr);
+void backim(backmap *bkmap, float *arr);
 ```
 
 *Evaluate the background using bicubic spline interpolation for the entire
 image*
 
+* `bkmap` : pointer to background map   
+* `arr` : array of size `bkmap->imnx * bkmap->imny` (original image pixels)
+
 ```c
-void backrmsline(backmap *bkspl, int y, float *line);
+void backrmsline(backmap *bkmap, int y, float *line);
 ```
 
 *same as `backline()` but for background RMS*
 
 ```c
-void backrmsim(backmap *bkspl, float *arr);
+void backrmsim(backmap *bkmap, float *arr);
 ```
 
 *same as `backim()` but for background RMS*
 
 ```c
-float backpixlinear(backmap *bkspl, int x, int y);
+float backpixlinear(backmap *bkmap, int x, int y);
 ```
 
 *return background at position x,y using linear interpolation between
 background map vertices*
 
 ```c
-void freeback(backmap *bkspl);
+void freeback(backmap *bkmap);
 ```
 
 *free memory associated with a background spline*
@@ -102,6 +105,15 @@ objliststruct *extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 * `w`, `h`: width and height of arrays (width is fast axis)
 * `dthresh`: detection threshold [SE default: 1.5]
 * `athresh`: analysis threshold [SE default: 1.5]
+* `cdwthresh`: ?
+* `threshabsolute`: Use abolute thresholding (0=relative) [SE default: 0] 
+* `minarea`: Minimum number of pixels for detection [SE default: 5] 
+* `conv`: convolution array (can be NULL) [SE default: {1 2 1 2 4 2 1 2 1}] 
+* `convw`, `convh`: size of convolution array [SE default: 3, 3]
+* `deblend_nthresh`: Number of thresholds in deblending [SE default: 32]
+* `deblend_mincont`: Deblending parameter [SE default: 0.005]
+* `clean_flag`: Perform cleaning? (1 = YES) [SE default: 1]
+* `clean_param`: Cleaning parameter [SE default: 1.0]
 
 Tests
 -----

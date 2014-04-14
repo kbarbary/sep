@@ -1,2 +1,7 @@
-all: test-vs-sextractor.c
-	gcc -I../src -L../src -Wall -Wl,-rpath,../src -o test-vs-sextractor tes-vs-sextractor.c -lcfitsio -lsep
+CC=gcc
+CFLAGS=-I../src -L../src -Wall -Wl,-rpath,../src
+
+testfits : testfits.c
+	$(CC) $(CFLAGS) -o testfits testfits.c -lcfitsio -lsep
+
+all : testfits
