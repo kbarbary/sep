@@ -77,10 +77,9 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
   int			h,i,j,k,l,m,
                         xn,
 			nbm = NBRANCH,
-			out;
+			status;
 
-  out = RETURN_OK;
-
+  status = RETURN_OK;
   xn = deblend_nthresh;
 
   /* ---- initialize lists of objects */
@@ -91,15 +90,15 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
   objlistout->thresh = debobjlist2.thresh = objlistin->thresh;
   memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
 
-  for (l=0; l<objlistin->nobj && out==RETURN_OK; l++)
+  for (l=0; l<objlistin->nobj && status==RETURN_OK; l++)
       {
 	dthresh0 = objlistin->obj[l].dthresh;
 	
 	objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-	if ((out = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
-	  goto exit_parcelout;
-	if ((out = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
-	  goto exit_parcelout;
+	if ((status = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
+	  goto exit;
+	if ((status = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
+	  goto exit;
 	value0 = objlist[0].obj[0].fdflux*deblend_mincont;
 	ok[0] = (short)1;
 	for (k=1; k<xn; k++)
@@ -112,32 +111,35 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	    /*--------- Build tree (bottom->up) */
 	    if (objlist[k-1].nobj>=NSONMAX)
 	      {
-		out = RETURN_ERROR;
-		goto exit_parcelout;
+		status = RETURN_ERROR;
+		goto exit;
 	      }
 
 	    for (i=0; i<objlist[k-1].nobj; i++)
 	      {
-		if ((out=lutz(objlistin, l, &objlist[k-1].obj[i],
-			      &debobjlist, minarea)) != RETURN_OK)
-		  goto exit_parcelout;
+		if ((status=lutz(objlistin, l, &objlist[k-1].obj[i],
+				 &debobjlist, minarea)) != RETURN_OK)
+		  goto exit;
 
 		for (j=h=0; j<debobjlist.nobj; j++)
 		  if (belong(j, &debobjlist, i, &objlist[k-1]))
 		    {
 		      debobjlist.obj[j].dthresh = debobjlist.dthresh;
-		      m = addobj(j, &debobjlist, &objlist[k]);
-		      if (m==RETURN_ERROR || m>=NSONMAX)
+		      if ((status = addobj(j, &debobjlist, &objlist[k]))
+			  != RETURN_OK)
+			goto exit;
+		      m = objlist[k].nobj - 1;
+		      if (m>=NSONMAX)
 			{
-			  out = RETURN_ERROR;
-			  goto exit_parcelout;
+			  status = RETURN_ERROR;
+			  goto exit;
 			}
 		      if (h>=nbm-1)
 			if (!(son = (short *)
 			      realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
 			  {
-			    out = RETURN_ERROR;
-			    goto exit_parcelout;
+			    status = RETURN_ERROR;
+			    goto exit;
 			  }
 		      son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
 		      ok[k+xn*m] = (short)1;
@@ -167,9 +169,9 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 			  objlist[k+1].obj[j].flag |= OBJ_MERGED
 			    | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
 			       &debobjlist2.obj[0].flag);
-			  if ((out = addobj(j, &objlist[k+1], &debobjlist2))
-			      != RETURN_OK)
-			    goto exit_parcelout;
+			  if ((status = addobj(j, &objlist[k+1], &debobjlist2))
+			      == RETURN_ERROR)
+			    goto exit;
 			}
 		    ok[k+xn*i] = (short)0;
 		  }
@@ -177,12 +179,11 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	  }
 
 	if (ok[0])
-	  out = addobj(0, &debobjlist2, objlistout);
+	  status = addobj(0, &debobjlist2, objlistout);
 	else
-	  out = gatherup(&debobjlist2, objlistout);
+	  status = gatherup(&debobjlist2, objlistout);
 
-      exit_parcelout:
-	
+      exit:
 	free(debobjlist2.obj);
 	free(debobjlist2.plist);
 	
@@ -196,7 +197,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
   free(debobjlist.obj);
   free(debobjlist.plist);
   
-  return out;
+  return status;
 }
 
 
@@ -284,11 +285,10 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 	   pixt=pixelin+PLIST(pixt,nextpix))
 	bmp[(PLIST(pixt,x)-xs) + (PLIST(pixt,y)-ys)*bmwidth] = '\1';
       
-      if ((n[i] = addobj(i, objlistin, objlistout)) == RETURN_ERROR)
-	{
-	  status = RETURN_ERROR;
-	  goto exit;
-	}
+      status = addobj(i, objlistin, objlistout);
+      if (status == RETURN_ERROR)
+	goto exit;
+      n[i] = objlistout->nobj - 1;
 
       dist = objt->fdnpix/(2*PI*objt->abcor*objt->a*objt->b);
       amp[i] = dist<70.0? objt->dthresh*expf(dist) : 4.0*objt->fdpeak;
@@ -384,43 +384,39 @@ int belong(int corenb, objliststruct *coreobjlist,
 
 /********** addobj (originally in manobjlist.c) ******************************/
 /*
-Add an object to an objlist.
-*/
-int	addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
+ *  Add object number `objnb` from list `objl1` to list `objl2`.
+ */
+int addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
 {
   objstruct	*objl2obj;
   pliststruct	*plist1 = objl1->plist, *plist2 = objl2->plist;
   int		fp, i, j, npx, objnb2;
   
-  j = (fp = objl2->npix)*plistsize;
-  objnb2 = objl2->nobj;
+  j = (fp = objl2->npix)*plistsize; /* fp = 2nd lists's plist size in pix */
+                                    /* j = 2nd list's plist size in bytes */
+  objnb2 = objl2->nobj;             /* # of objects currently in 2nd list*/
 
-  /* Update the object list */
+  /* Allocate space in `objl2` for the new object */
   if (objl2->nobj)
-    {
-      if (!(objl2obj = (objstruct *)realloc(objl2->obj, (++objl2->nobj) *
-					    sizeof(objstruct))))
-	goto exit_addobj;
-    }
+    objl2obj = (objstruct *)realloc(objl2->obj, (++objl2->nobj) *
+				    sizeof(objstruct));
   else
-    if (!(objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct))))
-      goto exit_addobj;
+    objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct));
+  if (!objl2obj)
+    goto exit_addobj;
+  objl2->obj = objl2obj;
 
-  /* Update the pixel list */
+  /* Allocate space for the new object's pixels in 2nd list's plist */
   npx = objl1->obj[objnb].fdnpix;
   if (fp)
-    {
-      if (!(plist2 = (pliststruct *)realloc(plist2,
-					    (objl2->npix+=npx) * plistsize)))
-	goto exit_addobj;
-    }
+    plist2 = (pliststruct *)realloc(plist2, (objl2->npix+=npx) * plistsize);
   else
-    if (!(plist2=(pliststruct *)malloc((objl2->npix=npx)*plistsize)))
-      goto exit_addobj;
-
-  objl2->obj = objl2obj;
+    plist2 = (pliststruct *)malloc((objl2->npix=npx)*plistsize);
+  if (!plist2)
+    goto exit_addobj;
   objl2->plist = plist2;
   
+  /* copy the plist */
   plist2 += j;
   for(i=objl1->obj[objnb].firstpix; i!=-1; i=PLIST(plist1+i,nextpix))
     {
@@ -428,16 +424,17 @@ int	addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
       PLIST(plist2,nextpix) = (j+=plistsize);
       plist2 += plistsize;
     }
-  
   PLIST(plist2-=plistsize, nextpix) = -1;
   
+  /* copy the object itself */
   objl2->obj[objnb2] = objl1->obj[objnb];
   objl2->obj[objnb2].firstpix = fp*plistsize;
   objl2->obj[objnb2].lastpix = j-plistsize;
-  return objnb2;
-  
- exit_addobj:
 
+  return RETURN_OK;
+  
+  /* if early exit, reset 2nd list */
+ exit_addobj:
   objl2->nobj--;
   objl2->npix = fp;
   return RETURN_ERROR;

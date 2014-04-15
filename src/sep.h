@@ -79,31 +79,37 @@ typedef struct
 /* w, h is image size in pixels */
 /* bw, bh is size of a single background tile in pixels */
 /* var > varthresh will be ignored. */
-backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		  int bw, int bh, PIXTYPE varthresh, int fbx, int fby,
-		  float fthresh, int *status);
+int makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
+	     int bw, int bh, PIXTYPE maskthresh, int fbx, int fby,
+	     float fthresh, backmap **bkm);
 PIXTYPE	backpixlinear(backmap *, int, int);
 int backline(backmap *, int, PIXTYPE *);
-int backim(backmap *, PIXTYPE *);
 int backrmsline(backmap *, int, PIXTYPE *);
-int backrmsim(backmap *, PIXTYPE *);
+int backvarline(backmap *, int, PIXTYPE *);  /* TODO: implement */
+int backarray(backmap *, PIXTYPE *);
+int backrmsarray(backmap *, PIXTYPE *);
+int backvararray(backmap *, PIXTYPE *);  /* TODO: implement */
+int subbackline(backmap *, int, PIXTYPE *);
+int subbackarray(backmap *, PIXTYPE *);
+
+
 void freeback(backmap *);
 
 
 /*-------------------------- source extraction ------------------------------*/
 
-#define		OBJ_CROWDED	0x0001
-#define		OBJ_MERGED	0x0002
-#define		OBJ_SATUR	0x0004
-#define		OBJ_TRUNC	0x0008
-#define		OBJ_APERT_PB	0x0010
-#define		OBJ_ISO_PB	0x0020
-#define		OBJ_DOVERFLOW	0x0040
-#define		OBJ_OVERFLOW	0x0080
-#define	NISO	       8		/* number of isophotes */
+#define	OBJ_CROWDED   0x0001
+#define	OBJ_MERGED    0x0002
+#define	OBJ_SATUR     0x0004
+#define	OBJ_TRUNC     0x0008
+#define OBJ_APERT_PB  0x0010
+#define	OBJ_ISO_PB    0x0020
+#define	OBJ_DOVERFLOW 0x0040
+#define	OBJ_OVERFLOW  0x0080
+#define	NISO          8	     /* number of isophotes */
 
-typedef	unsigned char	BYTE;			/* a byte */
-typedef	char pliststruct;  /* Dummy type for plist */
+typedef	unsigned char	BYTE;  /* a byte */
+typedef	char pliststruct;      /* Dummy type for plist */
 
 typedef struct
 {
@@ -158,12 +164,13 @@ typedef struct
   PIXTYPE       thresh;	  /* analysis threshold */
 } objliststruct;
 
-objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-		       PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-		       int threshabsolute, int minarea,
-		       float *conv, int convw, int convh,
-		       int deblend_nthresh, double deblend_mincont,
-		       int clean_flag, double clean_param, int *status);
+int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
+	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
+	    int threshabsolute, int minarea,
+	    float *conv, int convw, int convh,
+	    int deblend_nthresh, double deblend_mincont,
+	    int clean_flag, double clean_param,
+	    objliststruct **catalog);
 
 /* sextractor defaults show in []                     */
 /*----------------------------------------------------*/

@@ -109,17 +109,18 @@ float fqmedian(float *ra, int n)
 }
 
 
-backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		  int bw, int bh, PIXTYPE varthresh, int fbx, int fby,
-		  float fthresh, int *status)
+int makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
+	     int bw, int bh, PIXTYPE maskthresh, int fbx, int fby,
+	     float fthresh, backmap **bkm)
 {
   int npix;                   /* size of image */
   int nx, ny, nb;             /* number of background boxes in x, y, total */
   int bufsize;                /* size of a "row" of boxes in pixels (w*bh) */
   backstruct *backmesh, *bm;  /* info about each background "box" */
   backmap *bkmap=NULL;        /* output */
-  int j,k,m;
+  int j,k,m, status;
 
+  status = RETURN_OK;
   npix = w*h;
   bufsize = w*bh;
 
@@ -131,10 +132,10 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
   nb = nx*ny;
 
   /* Allocate memory */
-  QMALLOC(backmesh, backstruct, nx, *status);
+  QMALLOC(backmesh, backstruct, nx, status);
 
   /* Allocate the returned struct */
-  QMALLOC(bkmap, backmap, 1, *status);
+  QMALLOC(bkmap, backmap, 1, status);
   bkmap->imnx = w;
   bkmap->imny = h;
   bkmap->nx = nx;
@@ -146,10 +147,10 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
   bkmap->sigma = NULL;
   bkmap->dback = NULL;
   bkmap->dsigma = NULL;
-  QMALLOC(bkmap->back, float, nb, *status);
-  QMALLOC(bkmap->sigma, float, nb, *status);
-  QMALLOC(bkmap->dback, float, nb, *status);
-  QMALLOC(bkmap->dsigma, float, nb, *status);
+  QMALLOC(bkmap->back, float, nb, status);
+  QMALLOC(bkmap->sigma, float, nb, status);
+  QMALLOC(bkmap->dback, float, nb, status);
+  QMALLOC(bkmap->dsigma, float, nb, status);
 
   /* loop over rows of background boxes.
      (here, we could loop over all boxes, but this is how its done in
@@ -157,14 +158,14 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
      in increments of a row of background boxes at a time.) */
   for (j=0; j<ny; j++, im+=bufsize)
     {
-      if (var)
-	var += bufsize;
+      if (mask)
+	mask += bufsize;
       /* if the last row, modify the width appropriately*/
       if (j == ny-1 && npix%bufsize)
         bufsize = npix%bufsize;
 
       /* Get clipped mean, sigma for all boxes in the row */
-      backstat(backmesh, im, var, bufsize, nx, w, bw, var?varthresh:0.0);
+      backstat(backmesh, im, mask, bufsize, nx, w, bw, mask?maskthresh:0.0);
 
       /* Allocate histograms in each box in this row. */
       bm = backmesh;
@@ -172,8 +173,8 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	if (bm->mean <= -BIG)
 	  bm->histo=NULL;
 	else
-	  QCALLOC(bm->histo, LONG, bm->nlevels, *status);
-      backhisto(backmesh, im, var, bufsize, nx, w, bw, var?varthresh:0.0);
+	  QCALLOC(bm->histo, LONG, bm->nlevels, status);
+      backhisto(backmesh, im, mask, bufsize, nx, w, bw, mask?maskthresh:0.0);
 
       /*-- Compute background statistics from the histograms */
       bm = backmesh;
@@ -192,18 +193,19 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
   backmesh = NULL;
 
   /* Median-filter and check suitability of the background map */
-  if ((*status = filterback(bkmap, fbx, fby, fthresh)) != RETURN_OK)
+  if ((status = filterback(bkmap, fbx, fby, fthresh)) != RETURN_OK)
     goto exit;
 
   /* Compute 2nd derivatives along the y-direction */
-  if ((*status = makebackspline(bkmap, bkmap->back, bkmap->dback)) !=
+  if ((status = makebackspline(bkmap, bkmap->back, bkmap->dback)) !=
       RETURN_OK)
     goto exit;
-  if ((*status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)) !=
+  if ((status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)) !=
       RETURN_OK)
     goto exit;
 
-  return bkmap;
+  *bkm = bkmap;
+  return status;
 
   /* If we encountered a problem, clean up allocated memory */
  exit:
@@ -215,7 +217,9 @@ backmap *makeback(PIXTYPE *im, PIXTYPE *var, int w, int h,
     }
   free(backmesh);
   freeback(bkmap);
-  return NULL;
+
+  *bkm = NULL;
+  return status;
 }
 
 /******************************** backstat **********************************/
@@ -224,7 +228,7 @@ Compute robust statistical estimators in a row of meshes.
 */
 void backstat(backstruct *backmesh,
 	      PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
-	      int n, int w, int bw, PIXTYPE varthresh)
+	      int n, int w, int bw, PIXTYPE maskthresh)
 {
   backstruct	*bm;
   double	pix, wpix, sig, mean, sigma, step;
@@ -257,7 +261,7 @@ void backstat(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		pix = *(buft++);
-		if ((wpix = *(wbuft++)) <= varthresh && pix > -BIG)
+		if ((wpix = *(wbuft++)) <= maskthresh && pix > -BIG)
 		  {
 		    mean += pix;
 		    sigma += pix*pix;
@@ -300,7 +304,7 @@ void backstat(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		pix = *(buft++);
-		if ((wpix = *(wbuft++))<=varthresh && pix<=hcut && pix>=lcut)
+		if ((wpix = *(wbuft++))<=maskthresh && pix<=hcut && pix>=lcut)
 		  {
 		    mean += pix;
 		    sigma += pix*pix;
@@ -346,7 +350,7 @@ Fill histograms in a row of meshes.
 */
 void backhisto(backstruct *backmesh,
 	       PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
-	       int n, int w, int bw, PIXTYPE varthresh)
+	       int n, int w, int bw, PIXTYPE maskthresh)
 {
   backstruct	*bm;
   PIXTYPE	*buft,*wbuft;
@@ -386,7 +390,7 @@ void backhisto(backstruct *backmesh,
 	    for (x=bw; x--;)
 	      {
 		bin = (int)(*(buft++)/qscale + cste);
-		if ((wpix = *(wbuft++))<=varthresh && bin<nlevels && bin>=0)
+		if ((wpix = *(wbuft++))<=maskthresh && bin<nlevels && bin>=0)
 		  (*(histo+bin))++;
 	      }
 	  wbuf += bw;
@@ -669,7 +673,7 @@ int makebackspline(backmap *bkmap, float *map, float *dmap)
 }
 
 
-/******************************* subbackline *********************************/
+/******************************* backline *********************************/
 /*
 Interpolate background at line y (bicubic spline interpolation between
 background map vertices) and save to line */
@@ -792,7 +796,7 @@ int backline(backmap *bkmap, int y, PIXTYPE *line)
   return status;
 }
 
-int backim(backmap *bkmap, PIXTYPE *arr)
+int backarr(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
   int status = RETURN_OK;
@@ -978,7 +982,23 @@ int backrmsline(backmap *bkmap, int y, PIXTYPE *line)
   return status;
 }
 
-int backrmsim(backmap *bkmap, PIXTYPE *arr)
+/********************** convenience functions *******************************/
+/*
+   Mostly wrap the *line functions.
+*/
+
+int backarray(backmap *bkmap, PIXTYPE *arr)
+{
+  int y, width;
+  int status = RETURN_OK;
+
+  width = bkmap->imnx;
+  for (y=0; y<bkmap->imny; y++, arr+=width)
+    status = backline(bkmap, y, arr);
+  return status;
+}
+
+int backrmsarray(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
   int status = RETURN_OK;
@@ -986,6 +1006,56 @@ int backrmsim(backmap *bkmap, PIXTYPE *arr)
   width = bkmap->imnx;
   for (y=0; y<bkmap->imny; y++, arr+=width)
     status = backrmsline(bkmap, y, arr);
+  return status;
+}
+
+int subbackline(backmap *bkmap, int y, PIXTYPE *line)
+{
+  int i, width, status;
+  PIXTYPE *bkline;
+
+  bkline = NULL;
+  status = RETURN_OK;
+  width = bkmap->imnx;
+  QMALLOC(bkline, PIXTYPE, width, status);
+
+  status = backline(bkmap, y, bkline);
+  if (status != RETURN_OK)
+    goto exit;
+
+  /* subtract */
+  for (i=width; i--;)
+    *(line++) -= *(bkline++);
+
+ exit:
+  free(bkline);
+  return status;
+}
+
+int subbackarray(backmap *bkmap, PIXTYPE *arr)
+{
+  int i, width, status, y;
+  PIXTYPE *buf, *buft;
+
+  buf = NULL;
+  status = RETURN_OK;
+  width = bkmap->imnx;
+  QMALLOC(buf, PIXTYPE, width, status);
+
+  
+  for (y=0; y<bkmap->imny; y++)
+    { 
+      status = backline(bkmap, y, buf);
+      if (status != RETURN_OK)
+	goto exit;
+
+      /* subtract */
+      for (i=width, buft = buf; i--;)
+	*(arr++) -= *(buft++);
+    }
+
+ exit:
+  free(buf);
   return status;
 }
 

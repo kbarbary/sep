@@ -64,13 +64,13 @@ int  createsubmap(objliststruct *, int);
 void plistinit(PIXTYPE *, PIXTYPE *);
 
 /****************************** extract **************************************/
-objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-		       PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-		       int threshabsolute, int minarea,
-		       float *conv, int convw, int convh,
-		       int deblend_nthresh, double deblend_mincont,
-		       int clean_flag, double clean_param,
-		       int *status)
+int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
+	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
+	    int threshabsolute, int minarea,
+	    float *conv, int convw, int convh,
+	    int deblend_nthresh, double deblend_mincont,
+	    int clean_flag, double clean_param,
+	    objliststruct **catalog)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *cleanobjlist;
@@ -78,7 +78,7 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   char			*marker, newmarker;
   int			co, i,j, flag, luflag,pstop, xl,xl2,yl, cn,
 			nposize, stacksize, maxpixnb,
-                        varthreshflag, convn;
+                        varthreshflag, convn, status;
   short	       	        trunflag;
   PIXTYPE		thresh, relthresh, cdnewsymbol;
   PIXTYPE               *scan,*cdscan,*cdwscan,*wscan,*dumscan;
@@ -87,7 +87,7 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   int			*start, *end;
   LONG                  *cleanvictim;
 
-  *status = RETURN_OK;
+  status = RETURN_OK;
 
   /*----- Beginning of the main loop: Initialisations  */
   pixel = NULL;
@@ -100,7 +100,7 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   marker = NULL;
   psstack = NULL;
   start = end = NULL;
-  cleanobjlist = NULL;
+  cleanobjlist = NULL; /* final return value */
   convn = 0;
   sum = 0.0;
 
@@ -116,16 +116,16 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
   /*Allocate memory for buffers */
   stacksize = w+1;
-  QMALLOC(info, infostruct, stacksize, *status);
-  QCALLOC(store, infostruct, stacksize, *status);
-  QMALLOC(marker, char, stacksize, *status);
-  QMALLOC(dumscan, PIXTYPE, stacksize, *status);
-  QMALLOC(psstack, pixstatus, stacksize, *status);
-  QCALLOC(start, int, stacksize, *status);
-  QMALLOC(end, int, stacksize, *status);
-  if ((*status = lutzalloc(w, h)) != RETURN_OK)
+  QMALLOC(info, infostruct, stacksize, status);
+  QCALLOC(store, infostruct, stacksize, status);
+  QMALLOC(marker, char, stacksize, status);
+  QMALLOC(dumscan, PIXTYPE, stacksize, status);
+  QMALLOC(psstack, pixstatus, stacksize, status);
+  QCALLOC(start, int, stacksize, status);
+  QMALLOC(end, int, stacksize, status);
+  if ((status = lutzalloc(w, h)) != RETURN_OK)
     goto exit;
-  if ((*status = allocparcelout(deblend_nthresh)) != RETURN_OK)
+  if ((status = allocparcelout(deblend_nthresh)) != RETURN_OK)
     goto exit;
 
   /* Some initializations */
@@ -146,8 +146,8 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
   /* Init cleaning procedure */
   if (clean_flag)
-    QMALLOC(cleanvictim, LONG, CLEAN_STACKSIZE, *status);
-  QMALLOC(cleanobjlist, objliststruct, 1, *status);
+    QMALLOC(cleanvictim, LONG, CLEAN_STACKSIZE, status);
+  QMALLOC(cleanobjlist, objliststruct, 1, status);
   cleanobjlist->obj = NULL;
   cleanobjlist->plist = NULL;
   cleanobjlist->nobj = cleanobjlist->npix = 0;
@@ -157,7 +157,7 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   plistinit(conv, cdwfield);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
     {
-      *status = MEMORY_PIXSTACK_ERROR;
+      status = MEMORY_PIXSTACK_ERROR;
       goto exit;
     }
 
@@ -172,13 +172,13 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   if (conv)
     {
       /* allocate memory for convolved buffers */
-      QMALLOC(cdscan, PIXTYPE, stacksize, *status);
+      QMALLOC(cdscan, PIXTYPE, stacksize, status);
       if (cdwfield)
-	QCALLOC(cdwscan, PIXTYPE, stacksize, *status);
+	QCALLOC(cdwscan, PIXTYPE, stacksize, status);
 
       /* normalize the filter */
       convn = convw * convh;
-      QMALLOC(convnorm, PIXTYPE, convn, *status);
+      QMALLOC(convnorm, PIXTYPE, convn, status);
       for (i=0; i<convn; i++)
 	sum += fabs(conv[i]);
       for (i=0; i<convn; i++)
@@ -232,7 +232,6 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
       
       for (xl=0; xl<=w; xl++)
 	{
-
 	  if (xl == w)
 	    cdnewsymbol = -BIG;
 	  else
@@ -262,7 +261,7 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		{
 		  sprintf(errdetail, "Pixel stack overflow at position %d,%d",
 			  xl+1, yl+1);
-		  *status = PIXSTACK_OVERFLOW_ERROR;
+		  status = PIXSTACK_OVERFLOW_ERROR;
 		  goto exit;
 		  
 		  /* NOTE: The above error was originally just a warning.
@@ -290,12 +289,12 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		  
 		  if (!maxpixnb)
 		    {
-		      *status = FATAL_ERROR;
+		      status = FATAL_ERROR;
 		      goto exit;
 		    }
 		  if (maxpixnb <= 1)
 		    {
-		      *status = PIXSTACK_OVERFLOW_ERROR;
+		      status = PIXSTACK_OVERFLOW_ERROR;
 		      goto exit;
 		    }
 		  freeinfo.firstpix = PLIST(pixel+victim->firstpix, nextpix);
@@ -390,13 +389,13 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 			{
 			  if ((int)info[co].pixnb >= minarea)
 			    {
-			      *status = sortit(&info[co], &objlist,
+			      status = sortit(&info[co], &objlist,
 					       cdwscan, wscan, minarea,
 					       clean_flag, clean_param,
 					       cleanobjlist, cleanvictim,
 					       deblend_nthresh,
 					       deblend_mincont);
-			      if (*status != RETURN_OK)
+			      if (status != RETURN_OK)
 				goto exit;
 			    }
 
@@ -473,14 +472,15 @@ objliststruct *extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   if (conv)
     free(convnorm);
 
-  if (*status != RETURN_OK)
+  if (status != RETURN_OK)
     {
       free(cdscan);   /* only need to free these in case of early exit */
       free(cdwscan);
-      return NULL;
+      *catalog = NULL;
     }
 
-  return cleanobjlist;
+  *catalog = cleanobjlist;
+  return status;
 }
 
 
