@@ -46,21 +46,27 @@
 #include "sep.h"
 #include "extract.h"
 
+/* preallocate this so we don't have to realloacate it in
+   every call to clean() */
+static LONG cleanvictim[CLEAN_STACKSIZE];
+
 void mergeobject(objstruct *, objstruct *);
 
 /********************************** clean ***********************************
 PURPOSE Remove object from frame -buffer and put it in the "CLEANlist".
 INPUT   Object number,
         Object list (source).
-OUTPUT  0 if the object was CLEANed, 1 otherwise.
+OUTPUT  `cleaned` is 1 if the object was CLEANed, 0 otherwise.
  ***/
 int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
-	  LONG *cleanvictim, double clean_param, int *status)
+	  double clean_param, int *cleaned)
 {
   objstruct     *objin, *obj;
-  int	        i,j,k;
+  int	        i,j,k, status;
   double        amp,ampin,alpha,alphain, unitarea,unitareain,beta,val;
   float	       	dx,dy,rlim;
+
+  status = RETURN_OK;
 
   objin = objlistin->obj+objnb;
   beta = clean_param;
@@ -83,8 +89,17 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
 				 objin->cxy*dx*dy);
 	      if (val>1.0 &&
 		  ((float)(val<1e10?ampin*pow(val,-beta) : 0.0) > obj->mthresh))
-		/*------- the newcomer puts that object in its menu! */
-		cleanvictim[j++] = i;
+		{
+		  /* ensure that cleanvictim doesn't overflow */
+		  if (j >= CLEAN_STACKSIZE)
+		    {
+		      status = CLEAN_OVERFLOW_ERROR;
+		      goto exit;
+		    }
+
+		  /*------- the newcomer puts that object in its menu! */
+		  cleanvictim[j++] = i;
+		}
 	    }
 	  else
 	    {
@@ -99,7 +114,8 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
 		{
 		  /*------- the newcomer is eaten!! */
 		  mergeobject(objin, obj);
-		  return 0;
+		  *cleaned = 1;
+		  return status;
 		}
 	    }
 	}
@@ -111,11 +127,12 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
       k = cleanvictim[i];
       obj = cleanobjlist->obj + k;
       mergeobject(obj, objin);
-      if ((*status = subcleanobj(k, cleanobjlist)) != RETURN_OK);
-	return 0;
+      status = subcleanobj(k, cleanobjlist);
     }
 
-  return 1;
+ exit:
+  *cleaned = 0;
+  return status;
 }
 
 /******************************* addcleanobj ********************************/
@@ -161,7 +178,7 @@ int addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
 
   cleanobjlist->obj[cleanobjlist->nobj-1] = *objin;
 
-  return 0;
+  return RETURN_OK;
   }
 
 

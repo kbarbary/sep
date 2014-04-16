@@ -61,6 +61,7 @@ typedef float PIXTYPE;   /* type of image arrays */
 				     gatherup()" */
 #define MEMORY_ALLOC_ERROR      8 /* Could not allocate memory for.. */ 
 #define DEBLEND_OVERFLOW_ERROR  9
+#define CLEAN_OVERFLOW_ERROR    10
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -163,8 +164,7 @@ typedef struct
 } objliststruct;
 
 int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-	    PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-	    int threshabsolute, int minarea,
+	    PIXTYPE dthresh, PIXTYPE athresh, int threshabsolute, int minarea,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
@@ -177,7 +177,6 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 /* size of arrays (w, h)                              */
 /* detection threshold                          [1.5] */
 /* analysis threshold                           [1.5] */
-/* cdwthresh (???)                                    */
 /* threshabsolute (0=relative)                    [0] */
 /* minarea                                        [5] */
 /* conv array (can be NULL)     [{1 2 1 2 4 2 1 2 1}] */

@@ -12,6 +12,11 @@ uint64_t gettime_ns()
   return (uint64_t)tv.tv_sec * 1000000000ULL + tv.tv_usec * 1000ULL;
 }
 
+void write_region_file(objliststruct *catalog, char *fname)
+{
+
+}
+
 int main(int argc, char **argv)
 {
   char fname[] = "DECam_00179121_24.fits[0]";
@@ -23,6 +28,7 @@ int main(int argc, char **argv)
   long fpixel[2] = {1, 1};
   long naxes[2];
   int *anynull=0;
+  int i;
 
   /* Get filename
   if (argc != 2)
@@ -57,21 +63,21 @@ int main(int argc, char **argv)
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
 
   /* skip this for now */
-  if (0)
+  if (1)
     {
       /* write background image out */
       float *bkim = (float*)malloc(npix*sizeof(float));
       printf("evaluting background map...");
       t0 = gettime_ns();
-      status = backarray(bkmap, bkim);
+      status = backrmsarray(bkmap, bkim);
       if (status)
 	goto exit;
       t1 = gettime_ns();
       printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
 
-      printf("writing to file: sepback.fits...");
+      printf("writing to file: sepbackrms.fits...");
       fitsfile *f;
-      ffinit(&f, "!sepback.fits", &status); /* open new image */
+      ffinit(&f, "!sepbackrms.fits", &status); /* open new image */
       ffcrim(f, FLOAT_IMG, 2, naxes, &status); /* create image extension */
       ffppx(f, TFLOAT, fpixel, npix, bkim, &status); 
       fits_close_file(f, &status);
@@ -86,23 +92,33 @@ int main(int argc, char **argv)
   float *bkgvar = (float*)malloc(npix*sizeof(float));
   status = backvararray(bkmap, bkgvar);
 
-  freeback(bkmap);
-
   /* find objects */
   float conv[] = {1,2,1, 2,4,2, 1,2,1};
   objliststruct *catalog = NULL;
 
   printf("extracting...");
   t0 = gettime_ns();
-  status = extract(im, bkgvar, naxes[0], naxes[1], 1.5, 1.5, 0.0,
-		   0, 5, conv, 3, 3, 32, 0.005, 1, 1.0, &catalog);
+  float thresh = 1.5 * bkmap->backsig;
+  status = extract(im, NULL, naxes[0], naxes[1], thresh, thresh, 0, 5,
+		   conv, 3, 3, 32, 0.005, 0, 1.0, &catalog);
   if (status)
     goto exit;
   t1 = gettime_ns();
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
   printf("%d objects\n", catalog->nobj);
 
+  /* create a ds9 region file*/
+  FILE *fp = fopen("catalog.reg", "w");
+  objstruct *obj;
+  for (i=0; i<catalog->nobj; i++)
+    {
+      obj = &catalog->obj[i];
+      fprintf(fp, "circle %f %f %f\n",
+	      obj->mx+1, obj->my+1, 3.0);
+    }
+  fclose(fp);
 
+  freeback(bkmap);
  exit:
   printf("status: %d\n", status);
   puts(errdetail);

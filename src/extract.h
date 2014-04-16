@@ -91,7 +91,7 @@ int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
 void preanalyse(int, objliststruct *, int);
 int  addcleanobj(objstruct *, objliststruct *);
 int  subcleanobj(int, objliststruct *);
-int  clean(int, objliststruct *, objliststruct *, LONG *, double, int *);
+int  clean(int, objliststruct *, objliststruct *, double, int *);
 int  lutzalloc(int, int);
 void lutzfree(void);
 int  lutz(objliststruct *, int, objstruct *, objliststruct *, int);
