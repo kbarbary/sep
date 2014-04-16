@@ -49,59 +49,42 @@ int main(int argc, char **argv)
   printf("Running makeback... ");
   backmap *bkmap;
   t0 = gettime_ns();
-  bkmap = makeback(im, NULL, naxes[0], naxes[1], 64, 64, 0.0, 3, 3, 0.0,
-		   &status);
+  status = makeback(im, NULL, naxes[0], naxes[1], 64, 64, 0.0, 3, 3, 0.0,
+		    &bkmap);
   if (status)
     goto exit;
   t1 = gettime_ns();
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
-
-  /* write background image out */
-  float *bkim;
-  bkim = (float*)malloc(npix*sizeof(float));
-
-  printf("evaluting background map...");
-  t0 = gettime_ns();
-  status = backim(bkmap, bkim);
-  if (status)
-    goto exit;
-  t1 = gettime_ns();
-  printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
-
 
   /* skip this for now */
   if (0)
     {
+      /* write background image out */
+      float *bkim = (float*)malloc(npix*sizeof(float));
+      printf("evaluting background map...");
+      t0 = gettime_ns();
+      status = backarray(bkmap, bkim);
+      if (status)
+	goto exit;
+      t1 = gettime_ns();
+      printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
+
       printf("writing to file: sepback.fits...");
       fitsfile *f;
       ffinit(&f, "!sepback.fits", &status); /* open new image */
       ffcrim(f, FLOAT_IMG, 2, naxes, &status); /* create image extension */
       ffppx(f, TFLOAT, fpixel, npix, bkim, &status); 
       fits_close_file(f, &status);
-    }
-  free(bkim);
-  bkim = NULL;
-
-  /* subtract background map from image data */
-  int x, y;
-  float *imsub = (float*)malloc(npix*sizeof(float));
-  float *buf = (float*)malloc(naxes[0]*sizeof(float));
-  float *imsubt = imsub;
-  float *imt = im;
-  float *buft = buf;
-  for (y=0; y<naxes[1]; y++)
-    {
-      backline(bkmap, y, buf);
-      for (x=0, buft=buf; x<naxes[0]; x++, imsubt++, buft++, imt++)
-	{
-	  *imsubt = *imt - *buft;
-	}
+      free(bkim);
+      bkim = NULL;
     }
 
-  float *bkgrms = (float*)malloc(npix*sizeof(float));
-  backrmsim(bkmap, bkgrms);
-  for (x=0; x<npix; x++)
-    bkgrms[x] = bkgrms[x]*bkgrms[x];
+  /* subtract background */
+  status = subbackarray(bkmap, im);
+
+  /* background variance */
+  float *bkgvar = (float*)malloc(npix*sizeof(float));
+  status = backvararray(bkmap, bkgvar);
 
   freeback(bkmap);
 
@@ -111,7 +94,7 @@ int main(int argc, char **argv)
 
   printf("extracting...");
   t0 = gettime_ns();
-  status = extract(imsub, bkgrms, naxes[0], naxes[1], 1.5, 1.5, 0.0,
+  status = extract(im, bkgvar, naxes[0], naxes[1], 1.5, 1.5, 0.0,
 		   0, 5, conv, 3, 3, 32, 0.005, 1, 1.0, &catalog);
   if (status)
     goto exit;

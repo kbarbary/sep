@@ -987,6 +987,15 @@ int backrmsline(backmap *bkmap, int y, PIXTYPE *line)
    Mostly wrap the *line functions.
 */
 
+int backvarline(backmap *bkmap, int y, PIXTYPE *line)
+{
+  int i, status;
+  status = backrmsline(bkmap, y, line);
+  for (i=bkmap->imnx; i--; line++)
+    *line = *line * *line;
+  return status;
+}
+
 int backarray(backmap *bkmap, PIXTYPE *arr)
 {
   int y, width;
@@ -1006,6 +1015,21 @@ int backrmsarray(backmap *bkmap, PIXTYPE *arr)
   width = bkmap->imnx;
   for (y=0; y<bkmap->imny; y++, arr+=width)
     status = backrmsline(bkmap, y, arr);
+  return status;
+}
+
+int backvararray(backmap *bkmap, PIXTYPE *arr)
+{
+  int i, y, width;
+  int status = RETURN_OK;
+
+  width = bkmap->imnx;
+  for (y=0; y<bkmap->imny; y++)
+    {
+      status = backrmsline(bkmap, y, arr);
+      for (i=width; i--; arr++)
+	*arr = *arr * *arr;
+    }
   return status;
 }
 

@@ -85,14 +85,12 @@ int makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
 PIXTYPE	backpixlinear(backmap *, int, int);
 int backline(backmap *, int, PIXTYPE *);
 int backrmsline(backmap *, int, PIXTYPE *);
-int backvarline(backmap *, int, PIXTYPE *);  /* TODO: implement */
+int backvarline(backmap *, int, PIXTYPE *);
 int backarray(backmap *, PIXTYPE *);
 int backrmsarray(backmap *, PIXTYPE *);
-int backvararray(backmap *, PIXTYPE *);  /* TODO: implement */
+int backvararray(backmap *, PIXTYPE *);
 int subbackline(backmap *, int, PIXTYPE *);
 int subbackarray(backmap *, PIXTYPE *);
-
-
 void freeback(backmap *);
 
 
