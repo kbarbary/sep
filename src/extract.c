@@ -58,15 +58,14 @@
 			        /* thresholding filtered weight-maps */
 
 void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
-int  sortit(infostruct *, objliststruct *, PIXTYPE *, PIXTYPE *, int,
+int  sortit(infostruct *, objliststruct *, int,
 	    int, double, objliststruct *, int, double);
 int  createsubmap(objliststruct *, int);
 void plistinit(PIXTYPE *, PIXTYPE *);
 
 /****************************** extract **************************************/
-int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-	    PIXTYPE dthresh, PIXTYPE athresh,
-	    int threshabsolute, int minarea,
+int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
+	    PIXTYPE thresh, int minarea,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
@@ -76,9 +75,8 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   objliststruct       	objlist, *cleanobjlist;
   pliststruct		*pixel, *pixt; 
   char			*marker, newmarker;
-  int			co, i,j, flag, luflag,pstop, xl,xl2,yl, cn,
-			nposize, stacksize, maxpixnb,
-                        varthreshflag, convn, status;
+  int			co, i, j, flag, luflag, pstop, xl, xl2, yl, cn,
+			nposize, stacksize, maxpixnb, convn, status;
   short	       	        trunflag;
   PIXTYPE		relthresh, cdnewsymbol;
   PIXTYPE               *scan,*cdscan,*cdwscan,*wscan,*dumscan;
@@ -102,13 +100,11 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   convn = 0;
   sum = 0.0;
 
-  /* cdwfield is the detection weight-field if available (can be null)*/
-  /* If WEIGHTing and no absolute thresholding, activate threshold scaling */
-  varthreshflag = (cdwfield && threshabsolute==0);
-  relthresh = varthreshflag ? dthresh : 0.0;/* To avoid gcc warnings*/
+  /* var is the image variance to use for thresholding, if available */
+  relthresh = var? thresh : 0.0;/* To avoid gcc warnings*/
 
-  objlist.dthresh = dthresh;
-  objlist.thresh = athresh;
+  objlist.dthresh = thresh;
+  objlist.thresh = thresh;
 
   /*Allocate memory for buffers */
   stacksize = w+1;
@@ -124,7 +120,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   if ((status = allocparcelout(deblend_nthresh)) != RETURN_OK)
     goto exit;
 
-  /* Some initializations */
+  /* More initializations */
   initinfo.pixnb = 0;
   initinfo.flag = 0;
   initinfo.firstpix = initinfo.lastpix = -1;
@@ -139,7 +135,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
   objlist.nobj = 1;
   curpixinfo.pixnb = 1;
 
-  /* Init cleanobjlist (return value) */
+  /* Init cleanobjlist (the return catalog) */
   QMALLOC(cleanobjlist, objliststruct, 1, status);
   cleanobjlist->obj = NULL;
   cleanobjlist->plist = NULL;
@@ -147,7 +143,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
 
   /* Allocate memory for the pixel list */
-  plistinit(conv, cdwfield);
+  plistinit(conv, var);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
     {
       status = MEMORY_PIXSTACK_ERROR;
@@ -166,7 +162,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
     {
       /* allocate memory for convolved buffers */
       QMALLOC(cdscan, PIXTYPE, stacksize, status);
-      if (cdwfield)
+      if (var)
 	QCALLOC(cdwscan, PIXTYPE, stacksize, status);
 
       /* normalize the filter */
@@ -192,7 +188,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	    {
 	      free(cdscan);
 	      cdscan = NULL;
-	      if (cdwfield)
+	      if (var)
 		{
 		  free(cdwscan);
 		  cdwscan = NULL;
@@ -203,16 +199,16 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
       else
 	{
-	  scan = cfield + yl*w;
-	  if (cdwfield)
-	    wscan = cdwfield + yl*w;
+	  scan = im + yl*w;
+	  if (var)
+	    wscan = var + yl*w;
 
 	  /* filter the lines */
 	  if (conv)
 	    {
-	      convolve(cfield, w, h, yl, convnorm, convw, convh, cdscan);
-	      if (cdwfield)
-		convolve(cdwfield, w, h, yl, convnorm, convw, convh, cdwscan);
+	      convolve(im, w, h, yl, convnorm, convw, convh, cdscan);
+	      if (var)
+		convolve(var, w, h, yl, convnorm, convw, convh, cdwscan);
 	    }
 	  else
 	    {
@@ -234,16 +230,10 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 	  marker[xl] = 0;
 
 	  curpixinfo.flag = trunflag;
-	  if (varthreshflag)
-	    dthresh = relthresh*sqrt((xl==w || yl==h)? 0.0:cdwscan[xl]);
-	  luflag = cdnewsymbol > dthresh? 1: 0;  /* is pixel above thresh? */
+	  if (var)
+	    thresh = relthresh*sqrt((xl==w || yl==h)? 0.0:cdwscan[xl]);
+	  luflag = cdnewsymbol > thresh? 1: 0;  /* is pixel above thresh? */
 
-	  /*debug*/
-	  if (0 && (xl > 1000) && (xl < 1003))
-	    {
-	      printf("y = %d, x = %d, pix = %f, pixconv = %f, var = %f, dthresh = %f, flag = %d\n",
-		     yl, xl, *(scan+xl), cdnewsymbol, cdwscan[xl], dthresh, luflag);
-	    }
 	  if (luflag)
 	    {
 	      /* flag the current object if we're near the image bounds */
@@ -288,7 +278,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 		  
 		  if (!maxpixnb)
 		    {
-		      status = FATAL_ERROR;
+		      status = RETURN_ERROR;
 		      goto exit;
 		    }
 		  if (maxpixnb <= 1)
@@ -389,7 +379,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 			  if ((int)info[co].pixnb >= minarea)
 			    {
 			      status = sortit(&info[co], &objlist,
-					       cdwscan, wscan, minarea,
+					       minarea,
 					       clean_flag, clean_param,
 					       cleanobjlist,
 					       deblend_nthresh,
@@ -438,22 +428,9 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 
 	} /*------------ End of the loop over the x's -----------------------*/
 
-      /*-- Prepare markers for the next line */
       yl++;
 
     } /*--------------------- End of the loop over the y's ------------------*/
-
-  
-  /* Now that all "detected" pixels have been removed, analyse detections */
-  /* removed this!
-  ontotal = 0;
-  for (j=cleanobjlist->nobj; j--;)
-    {
-      ontotal = thecat.ntotal;
-      endobject(field, dfield, wfield, cdwfield, 0, cleanobjlist);
-      subcleanobj(0);
-    }
-  */
 
  exit:
   freeparcelout();
@@ -485,8 +462,7 @@ int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
 /*
 build the object structure.
 */
-int sortit(infostruct *info, objliststruct *objlist,
-	   PIXTYPE *cdwscan, PIXTYPE *wscan, int minarea,
+int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   int clean_flag, double clean_param, objliststruct *cleanobjlist,
 	   int deblend_nthresh, double deblend_mincont)
 {
@@ -494,7 +470,8 @@ int sortit(infostruct *info, objliststruct *objlist,
   static objstruct	obj;
   objstruct		*cobj;
   int 			i, cleaned, status;
-  
+  PIXTYPE thresh;
+
   status=RETURN_OK;  
   cleaned = 0;
   objlistout.obj = NULL;
@@ -510,7 +487,7 @@ int sortit(infostruct *info, objliststruct *objlist,
   obj.firstpix = info->firstpix;
   obj.lastpix = info->lastpix;
   obj.flag = info->flag;
-  obj.dthresh = objlist->dthresh;
+  obj.dthresh = thresh = objlist->dthresh;
   obj.thresh = objlist->thresh;
 
   preanalyse(0, objlist, ANALYSE_FAST);
@@ -543,24 +520,38 @@ int sortit(infostruct *info, objliststruct *objlist,
     {
       preanalyse(i, objlist2, ANALYSE_FULL|ANALYSE_ROBUST);
 
-      /* this does nothing if DETECT_MAXAREA is 0 (currently is) */
+      /* this does nothing if DETECT_MAXAREA is 0 (and it currently is) */
       if (DETECT_MAXAREA && objlist2->obj[i].fdnpix > DETECT_MAXAREA)
 	continue;
 
-      /* removed analyse() from here (defined in analyse.c in sextractor) */
-      /* analyse(field, dfield, i, objlist2); */
-      
       cobj = objlist2->obj + i;
 
+      /* calculate object's mthresh (used in cleaning procedure) */
       if (clean_flag)
-	if ((status = clean(i, objlist2, cleanobjlist, clean_param, &cleaned))
-	    != RETURN_OK)
-	  goto exit_sortit;
+	{
+	  status = objmthresh(i, objlist2, minarea, thresh);
+	  if (status != RETURN_OK)
+	    goto exit_sortit;
+	}
+      else
+	{
+	  cobj->mthresh = 0.0;
+	}
+
+      if (clean_flag)
+	{
+	  status = clean(i, objlist2, cleanobjlist, clean_param, &cleaned);
+	  if (status != RETURN_OK)
+	    goto exit_sortit;
+	}
 
       /* only add the object manually if it was not swallowed by cleaning */
       if (!cleaned)
-	if ((status = addcleanobj(cobj, cleanobjlist)) != RETURN_OK)
-	  goto exit_sortit;
+	{
+	  status = addcleanobj(cobj, cleanobjlist);
+	  if (status != RETURN_OK)
+	    goto exit_sortit;
+	}
     }
 
  exit_sortit:
@@ -674,7 +665,7 @@ int createsubmap(objliststruct *objlist, int no)
  * (originally init_plist() in sextractor)
 PURPOSE	initialize a pixel-list and its components.
  ***/
-void plistinit(PIXTYPE *conv, PIXTYPE *cdwfield)
+void plistinit(PIXTYPE *conv, PIXTYPE *var)
 {
   pbliststruct	*pbdum = NULL;
 
@@ -693,7 +684,7 @@ void plistinit(PIXTYPE *conv, PIXTYPE *cdwfield)
       plistoff_cdvalue = plistoff_dvalue;
     }
 
-  if (cdwfield)
+  if (var)
     {
       plistexist_var = 1;
       plistoff_var = plistsize;
@@ -702,7 +693,7 @@ void plistinit(PIXTYPE *conv, PIXTYPE *cdwfield)
   else
     plistexist_var = 0;
 
-  if (cdwfield)
+  if (var)
     {
       plistexist_dthresh = 1;
       plistoff_dthresh = plistsize;

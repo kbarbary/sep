@@ -42,9 +42,81 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "sep.h"
 #include "extract.h"
+
+/********************************** cleanprep ********************************/
+/*
+ * Prepare object for cleaning, by calculating mthresh.
+ * This used to be in analyse() / examineiso().
+ */
+
+int objmthresh(int objnb, objliststruct *objlist, int minarea, PIXTYPE dthresh)
+{
+  objstruct *obj = objlist->obj+objnb;
+  pliststruct *pixel = objlist->plist;
+  pliststruct *pixt;
+  PIXTYPE tpix;
+  float     *heap,*heapt,*heapj,*heapk, swap;
+  int       j, k, h, status;
+
+  status = RETURN_OK;
+  heap = heapt = heapj = heapk = NULL;
+  h = minarea;
+
+  if (obj->fdnpix < minarea)
+    {
+      obj->mthresh = 0.0;
+      return status;
+    }
+
+  QMALLOC(heap, float, minarea, status);
+  heapt = heap;
+
+  /*-- Find the minareath pixel in decreasing intensity for CLEANing */
+  for (pixt=pixel+obj->firstpix; pixt>=pixel; pixt=pixel+PLIST(pixt,nextpix))
+    {
+      /* amount pixel is above threshold */
+      tpix = PLISTPIX(pixt, cdvalue) - (PLISTEXIST(dthresh)?
+					PLISTPIX(pixt, dthresh):dthresh);
+      if (h>0)
+        *(heapt++) = (float)tpix;
+      else if (h)
+        {
+	  if ((float)tpix>*heap)
+	    {
+	      *heap = (float)tpix;
+	      for (j=0; (k=(j+1)<<1)<=minarea; j=k)
+		{
+		  heapk = heap+k;
+		  heapj = heap+j;
+		  if (k != minarea && *(heapk-1) > *heapk)
+		    {
+		      heapk++;
+		      k++;
+		    }
+		  if (*heapj <= *(--heapk))
+		    break;
+		  swap = *heapk;
+		  *heapk = *heapj;
+		  *heapj = swap;
+		}
+	    }
+        }
+      else
+        fqmedian(heap, minarea);
+      h--;
+    }
+
+  obj->mthresh = *heap;
+
+ exit:
+  free(heap);
+  return status;
+}
+
 
 /******************************** preanalyse *********************************
 PROTO   void preanalyse(int no, objliststruct *objlist, int analyse_type)

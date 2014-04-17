@@ -14,7 +14,7 @@ the algorithms used in SExtractor as stand-alone pieces.
 Install
 -------
 
-The library has no external dependencies.
+The library has no dependencies outside the C standard library.
 
 API
 ---
@@ -22,25 +22,27 @@ API
 ### Background estimation
 
 ```c
-backmap *makeback(float *im, float *var, int w, int h,
-                  int bw, int bh, float varthresh, int fbx, int fby,
-                  float fthresh, *status);
+int makeback(float *im, float *mask, int w, int h,
+             int bw, int bh, float maskthresh, int fbx, int fby,
+             float fthresh, backmap **bkmap);
 ```
 *create a representation of the image background and its variance*
 
 Note that the returned pointer must be freed by calling `freeback()`.
 
 * `im` : image data  
-* `var` : variance/mask data (ignored if NULL)  
+* `mask` : mask data (ignored if NULL)  
 * `w`, `h` : width and height of image and variance arrays
   (width is the fast axis)  
 * `bw`, `bh` : box size (width, height) used for estimating background
   [default in SExtractor: 64]  
-* `varthresh` : pixels with `var > varthresh` are ignored.  
+* `maskthresh` : pixels with `mask > maskthresh` are ignored.  
 * `fbx`, `fby` : Filter size in x and y directions used in median-filtering
   background meshes [SE default: 3]  
 * `fthresh` : Threshold used in filtering [SE default: 0.0]
-* `status` : Set to nonzero if error.
+* `bkmap` : Returned background map.
+
+Returns: `status` error code (0 if OK).
 
 ```c
 void backline(backmap *bkmap, int y, float *line);
@@ -53,7 +55,7 @@ void backline(backmap *bkmap, int y, float *line);
 * `line` : array of size `bkmap->imnx` (image width)
 
 ```c
-void backim(backmap *bkmap, float *arr);
+void backarray(backmap *bkmap, float *arr);
 ```
 
 *Evaluate the background using bicubic spline interpolation for the entire
@@ -69,10 +71,10 @@ void backrmsline(backmap *bkmap, int y, float *line);
 *same as `backline()` but for background RMS*
 
 ```c
-void backrmsim(backmap *bkmap, float *arr);
+void backrmsarray(backmap *bkmap, float *arr);
 ```
 
-*same as `backim()` but for background RMS*
+*same as `backarray()` but for background RMS*
 
 ```c
 float backpixlinear(backmap *bkmap, int x, int y);
@@ -90,23 +92,20 @@ void freeback(backmap *bkmap);
 ### Object detection
 
 ```c
-objliststruct *extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		       PIXTYPE dthresh, PIXTYPE athresh, PIXTYPE cdwthresh,
-		       int threshabsolute, int minarea,
-		       float *conv, int convw, int convh,
-		       int deblend_nthresh, double deblend_mincont,
-		       int clean_flag, double clean_param, int *status);
+int extract(float *im, float *var, int w, int h,
+            float thresh, int minarea,
+            float *conv, int convw, int convh,
+            int deblend_nthresh, double deblend_mincont,
+            int clean_flag, double clean_param,
+            objliststruct **catalog);
 ```
 
 *Detect objects in an image*
 
 * `im`: image array
-* `var`: variance array (can be NULL)
+* `var`: variance array (can be NULL), used for thresholding
 * `w`, `h`: width and height of arrays (width is fast axis)
-* `dthresh`: detection threshold [SE default: 1.5]
-* `athresh`: analysis threshold [SE default: 1.5]
-* `cdwthresh`: ?
-* `threshabsolute`: Use abolute thresholding (0=relative) [SE default: 0] 
+* `thresh`: detection threshold [SE default: 1.5*(background sigma)]
 * `minarea`: Minimum number of pixels for detection [SE default: 5] 
 * `conv`: convolution array (can be NULL) [SE default: {1 2 1 2 4 2 1 2 1}] 
 * `convw`, `convh`: size of convolution array [SE default: 3, 3]
@@ -115,9 +114,14 @@ objliststruct *extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 * `clean_flag`: Perform cleaning? (1 = YES) [SE default: 1]
 * `clean_param`: Cleaning parameter [SE default: 1.0]
 
-Tests
------
+If `var` is NULL, `thresh` is taken to be be an absolute threshold in ADU.
+Otherwise, `thresh` is taken to be sigma and a variable threshold of
+`thresh * sqrt(var)` is calculated for each pixel.
 
+Running Tests
+-------------
+
+In `test` directory, type `make` then run the executable `runtests`. 
 
 
 License

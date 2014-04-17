@@ -7,7 +7,7 @@ LDFLAGS=-shared
 ARFLAGS=rcs
 
 NAME=sep
-SOURCES=analyse.c back.c clean.c extract.c lutz.c refine.c
+SOURCES=analyse.c back.c clean.c extract.c lutz.c refine.c util.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
@@ -24,6 +24,7 @@ clean.o : sep.h extract.h
 extract.o : sep.h extract.h
 lutz.o : sep.h extract.h
 refine.o : sep.h extract.h
+util.o : sep.h
 
 clean :
 	rm -f $(OBJECTS) lib$(NAME).so

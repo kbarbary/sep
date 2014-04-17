@@ -88,6 +88,8 @@ int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
   plistoff_flag[MAXFLAG], plistoff_wflag, plistoff_dthresh, plistoff_var,
   plistsize;
 
+int objmthresh(int objnb, objliststruct *objlist, int minarea,
+	       PIXTYPE dthresh);
 void preanalyse(int, objliststruct *, int);
 int  addcleanobj(objstruct *, objliststruct *);
 int  subcleanobj(int, objliststruct *);

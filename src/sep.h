@@ -52,7 +52,6 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define	RETURN_ERROR		(-1) /* general unspecified error */
 #define MEMORY_PIXSTACK_ERROR   1
 #define PIXSTACK_OVERFLOW_ERROR 2
-#define FATAL_ERROR             3
 #define MEMORY_CLEAN_ERROR      4
 #define NO_CLEAN_OBJ_ERROR      5 /* Internal Error: no CLEAN object to
                                      remove in subcleanobj()*/
@@ -62,6 +61,8 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define MEMORY_ALLOC_ERROR      8 /* Could not allocate memory for.. */ 
 #define DEBLEND_OVERFLOW_ERROR  9
 #define CLEAN_OVERFLOW_ERROR    10
+
+void sep_errmsg(int status, char *errtext);
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -112,13 +113,29 @@ typedef	char pliststruct;      /* Dummy type for plist */
 
 typedef struct
 {
-  /* ---- basic parameters */
-  int	   number;			/* ID */
+  /* thresholds */
+  float	   thresh;		             /* measur. threshold (ADU) */
+  float	   dthresh;		       	     /* detect. threshold (ADU) */
+  float	   mthresh;		             /* max. threshold (ADU) */
+
+  /* # pixels */
   int	   fdnpix;		       	/* nb of extracted pix */
   int	   dnpix;	       		/* nb of pix above thresh  */
   int	   npix;       			/* "" in measured frame */
   int	   nzdwpix;			/* nb of zero-dweights around */
   int	   nzwpix;		       	/* nb of zero-weights inside */
+  
+  /* position */
+  int	   peakx,peaky;                      /* pos of brightest pix */
+  double   mx, my;        	             /* barycenter */
+  int	   xmin,xmax,ymin,ymax,ycmin,ycmax;  /* x,y limits */
+
+  /* shape */
+  double   mx2,my2,mxy;			     /* variances and covariance */
+  float	   a, b, theta, abcor;		     /* moments and angle */
+  float	   cxx,cyy,cxy;			     /* ellipse parameters */
+
+  /* flux */
   float	   fdflux;	       		/* integrated ext. flux */
   float	   dflux;      			/* integrated det. flux */
   float	   flux;       			/* integrated mes. flux */
@@ -126,31 +143,16 @@ typedef struct
   PIXTYPE  fdpeak;	       		/* peak intensity (ADU) */
   PIXTYPE  dpeak;      			/* peak intensity (ADU) */
   PIXTYPE  peak;       			/* peak intensity (ADU) */
-  /* ---- astrometric data */
-  int	   peakx,peaky;                       /* pos of brightest pix */
-  double   mx, my;	       		      /* barycenter */
-  double   poserr_mx2,poserr_my2,poserr_mxy;  /* Error ellips moments */
-  /* ---- morphological data */			
-  int	   xmin,xmax,ymin,ymax,ycmin,ycmax;  /* x,y limits */
-  PIXTYPE  *blank, *dblank;                  /* BLANKing sub-images  */
+
+  /* flags */
+  short	   flag;			     /* extraction flags */
+  BYTE	   singuflag;			     /* flags for singularities */
+
+  /* accessing individual pixels */
   int	   *submap;                          /* Pixel-index sub-map */
   int	   subx,suby, subw,subh;	     /* sub-image pos. and size */
-  short	   flag;			     /* extraction flags */
-  /* BYTE	   wflag; */	       	     /* weighted extraction flags */
-  /* FLAGTYPE imaflag[MAXFLAG]; */     	     /* flags from FLAG-images */
-  BYTE	   singuflag;			     /* flags for singularities */
-  /* int      imanflag[MAXFLAG]; */    	     /* number of MOST flags */
-  double   mx2,my2,mxy;			     /* variances and covariance */
-  float	   a, b, theta, abcor;		     /* moments and angle */
-  float	   cxx,cyy,cxy;			     /* ellipse parameters */
   int	   firstpix;			     /* ptr to first pixel */
   int	   lastpix;			     /* ptr to last pixel */
-  float	   bkg, dbkg, sigbkg, dsigbkg;	     /* Background stats (ADU) */
-  float	   thresh;		             /* measur. threshold (ADU) */
-  float	   dthresh;		       	     /* detect. threshold (ADU) */
-  float	   mthresh;		             /* max. threshold (ADU) */
-  int	   iso[NISO];			     /* isophotal areas */
-  float	   fwhm;			     /* IMAGE FWHM */
 } objstruct;
 
 typedef struct
@@ -163,26 +165,24 @@ typedef struct
   PIXTYPE       thresh;	  /* analysis threshold */
 } objliststruct;
 
-int extract(PIXTYPE *cfield, PIXTYPE *cdwfield, int w, int h,
-	    PIXTYPE dthresh, PIXTYPE athresh, int threshabsolute, int minarea,
+int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
+	    PIXTYPE thresh, int minarea,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
 	    objliststruct **catalog);
 
-/* sextractor defaults show in []                     */
+/* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/
 /* image array                                        */
 /* variance array (can be NULL)                       */
 /* size of arrays (w, h)                              */
 /* detection threshold                          [1.5] */
-/* analysis threshold                           [1.5] */
-/* threshabsolute (0=relative)                    [0] */
 /* minarea                                        [5] */
 /* conv array (can be NULL)     [{1 2 1 2 4 2 1 2 1}] */
 /* conv size (w, h)                            [3, 3] */
 /* deblend_nthresh                               [32] */
-/* deblend_mincont                             [0.005] */
+/* deblend_mincont                            [0.005] */
 /* clean_flag (1 = YES)                           [1] */
 /* clean_param                                  [1.0] */
 
@@ -222,3 +222,5 @@ char errdetail[512];
 	goto exit;							\
       };								\
   }
+
+float fqmedian(float *ra, int n);

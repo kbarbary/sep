@@ -1,7 +1,5 @@
 CC=gcc
 CFLAGS=-I../src -L../src -Wall -Wl,-rpath,../src
 
-testfits : testfits.c
-	$(CC) $(CFLAGS) -o testfits testfits.c -lcfitsio -lsep
-
-all : testfits
+runtests : runtests.c
+	$(CC) $(CFLAGS) -o runtests runtests.c -lcfitsio -lsep
