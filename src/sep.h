@@ -148,11 +148,13 @@ typedef struct
   short	   flag;			     /* extraction flags */
   BYTE	   singuflag;			     /* flags for singularities */
 
-  /* accessing individual pixels */
-  int	   *submap;                          /* Pixel-index sub-map */
-  int	   subx,suby, subw,subh;	     /* sub-image pos. and size */
+  /* accessing individual pixels in plist*/
   int	   firstpix;			     /* ptr to first pixel */
   int	   lastpix;			     /* ptr to last pixel */
+
+  /* temporary storage used during deblending */
+  int	   *submap;                          /* Pixel-index sub-map */
+  int	   subx,suby, subw,subh;	     /* sub-image pos. and size */
 } objstruct;
 
 typedef struct

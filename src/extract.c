@@ -226,7 +226,7 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	  else
 	    cdnewsymbol = cdscan[xl];
 
-	  newmarker = marker[xl];
+	  newmarker = marker[xl];  /* marker at this pixel */
 	  marker[xl] = 0;
 
 	  curpixinfo.flag = trunflag;
@@ -244,8 +244,20 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	      /* and increment the "first free pixel" */
 	      pixt = pixel + (cn=freeinfo.firstpix);
 	      freeinfo.firstpix = PLIST(pixt, nextpix);
-	      
-	      /* Running out of pixels, the largest object becomes a "victim" */
+	      curpixinfo.lastpix = curpixinfo.firstpix = cn;
+
+	      /* set values for the new pixel */ 
+	      PLIST(pixt, nextpix) = -1;
+	      PLIST(pixt, x) = xl;
+	      PLIST(pixt, y) = yl;
+	      PLIST(pixt, value) = scan[xl];
+	      if (PLISTEXIST(cdvalue))
+		PLISTPIX(pixt, cdvalue) = cdnewsymbol;
+	      if (PLISTEXIST(var))
+		PLISTPIX(pixt, var) = wscan[xl];
+
+	      /* Check if we are running out of free pixels in objlist.plist */
+	      /* (previously, the largest object became a "victim") */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
 		  sprintf(errdetail, "Pixel stack overflow at position %d,%d.",
@@ -294,20 +306,9 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		}
 	      /*------------------------------------------------------------*/
 
-	      curpixinfo.lastpix = curpixinfo.firstpix = cn;
-	      PLIST(pixt, nextpix) = -1;
-	      PLIST(pixt, x) = xl;
-	      PLIST(pixt, y) = yl;
-	      PLIST(pixt, value) = scan[xl];
-	      if (PLISTEXIST(cdvalue))
-		PLISTPIX(pixt, cdvalue) = cdnewsymbol;
-
-	      /* Detect pixels with a low weight ----------------------------*/
-	      if (PLISTEXIST(var))
-		PLISTPIX(pixt, var) = wscan[xl];
-	      
+	      /* if the current status on this line is not already OBJECT... */
+	      /* start segment */
 	      if (cs != OBJECT)
-/*------------------------------- Start Segment -----------------------------*/
 		{
 		  cs = OBJECT;
 		  if (ps == OBJECT)
@@ -333,8 +334,9 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    } /* closes if pixel above threshold */
 
 	  /* process new marker ---------------------------------------------*/
-	  /* newmarker is marker[ ] at this pixel position. We'll only       */
-	  /* enter this if marker[ ] was set on a previous loop iteration.   */
+	  /* newmarker is marker[ ] at this pixel position before we got to
+	     it. We'll only enter this if marker[ ] was set on a previous
+	     loop iteration.   */
 	  if (newmarker)
 	    {
 	      if (newmarker == 'S')
@@ -379,11 +381,11 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 			  if ((int)info[co].pixnb >= minarea)
 			    {
 			      status = sortit(&info[co], &objlist,
-					       minarea,
-					       clean_flag, clean_param,
-					       cleanobjlist,
-					       deblend_nthresh,
-					       deblend_mincont);
+					      minarea,
+					      clean_flag, clean_param,
+					      cleanobjlist,
+					      deblend_nthresh,
+					      deblend_mincont);
 			      if (status != RETURN_OK)
 				goto exit;
 			    }

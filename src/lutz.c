@@ -364,7 +364,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
 
 /********************************* lutzsort ***********************************/
 /*
-Build the object structure.
+Add an object to the object list based on info (pixel info)
 */
 void  lutzsort(infostruct *info, objliststruct *objlist)
 {
