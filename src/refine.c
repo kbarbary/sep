@@ -55,6 +55,7 @@
 
 int addobj(int, objliststruct *, objliststruct *);
 int belong(int, objliststruct *, int, objliststruct *);
+int *createsubmap(objliststruct *, int, int *, int *, int *, int *);
 int gatherup(objliststruct *, objliststruct *);
 
 static objliststruct *objlist=NULL;
@@ -74,11 +75,13 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
   objstruct		*obj;
   static objliststruct	debobjlist, debobjlist2;
   double		dthresh, dthresh0, value0;
-  int			h,i,j,k,l,m,
+  int			h,i,j,k,l,m,subx,suby,subh,subw,
                         xn,
 			nbm = NBRANCH,
 			status;
+  int *submap;
 
+  submap = NULL;
   status = RETURN_OK;
   xn = deblend_nthresh;
 
@@ -91,109 +94,123 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
   memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
 
   for (l=0; l<objlistin->nobj && status==RETURN_OK; l++)
-      {
-	dthresh0 = objlistin->obj[l].dthresh;
-	
-	objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-	if ((status = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
+    {
+      /* Create the submap for the object. 
+       * The submap is used in lutz(). We create it here because we may call
+       * lutz multiple times below, and we only want to create it once.
+       */
+      submap = createsubmap(objlistin, l, &subx, &suby, &subw, &subh);
+      if (!submap)
+	{
+	  status = MEMORY_ALLOC_ERROR;
 	  goto exit;
-	if ((status = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
-	  goto exit;
-	value0 = objlist[0].obj[0].fdflux*deblend_mincont;
-	ok[0] = (short)1;
-	for (k=1; k<xn; k++)
-	  {
-	    /*------ Calculate threshold */
-	    dthresh = objlistin->obj[l].fdpeak;
-	    debobjlist.dthresh = dthresh > 0.0? 
-	      dthresh0*pow(dthresh/dthresh0,(double)k/xn) : dthresh0;
-	    
-	    /*--------- Build tree (bottom->up) */
-	    if (objlist[k-1].nobj>=NSONMAX)
-	      {
-		status = RETURN_ERROR;
+	}
+
+      dthresh0 = objlistin->obj[l].dthresh;
+      
+      objlistout->dthresh = debobjlist2.dthresh = dthresh0;
+      if ((status = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
+	goto exit;
+      if ((status = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
+	goto exit;
+      value0 = objlist[0].obj[0].fdflux*deblend_mincont;
+      ok[0] = (short)1;
+      for (k=1; k<xn; k++)
+	{
+	  /*------ Calculate threshold */
+	  dthresh = objlistin->obj[l].fdpeak;
+	  debobjlist.dthresh = dthresh > 0.0? 
+	    dthresh0*pow(dthresh/dthresh0,(double)k/xn) : dthresh0;
+	  
+	  /*--------- Build tree (bottom->up) */
+	  if (objlist[k-1].nobj>=NSONMAX)
+	    {
+	      status = RETURN_ERROR;
+	      goto exit;
+	    }
+	  
+	  for (i=0; i<objlist[k-1].nobj; i++)
+	    {
+	      status = lutz(objlistin, l, &objlist[k-1].obj[i], &debobjlist,
+			    minarea, submap, subx, suby, subw, subh);
+	      if (status != RETURN_OK)
 		goto exit;
-	      }
-
-	    for (i=0; i<objlist[k-1].nobj; i++)
-	      {
-		if ((status=lutz(objlistin, l, &objlist[k-1].obj[i],
-				 &debobjlist, minarea)) != RETURN_OK)
-		  goto exit;
-
-		for (j=h=0; j<debobjlist.nobj; j++)
-		  if (belong(j, &debobjlist, i, &objlist[k-1]))
-		    {
-		      debobjlist.obj[j].dthresh = debobjlist.dthresh;
-		      if ((status = addobj(j, &debobjlist, &objlist[k]))
-			  != RETURN_OK)
+	      
+	      for (j=h=0; j<debobjlist.nobj; j++)
+		if (belong(j, &debobjlist, i, &objlist[k-1]))
+		  {
+		    debobjlist.obj[j].dthresh = debobjlist.dthresh;
+		    if ((status = addobj(j, &debobjlist, &objlist[k]))
+			!= RETURN_OK)
+		      goto exit;
+		    m = objlist[k].nobj - 1;
+		    if (m>=NSONMAX)
+		      {
+			status = RETURN_ERROR;
 			goto exit;
-		      m = objlist[k].nobj - 1;
-		      if (m>=NSONMAX)
+		      }
+		    if (h>=nbm-1)
+		      if (!(son = (short *)
+			    realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
 			{
 			  status = RETURN_ERROR;
 			  goto exit;
 			}
-		      if (h>=nbm-1)
-			if (!(son = (short *)
-			      realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
-			  {
-			    status = RETURN_ERROR;
-			    goto exit;
-			  }
-		      son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
-		      ok[k+xn*m] = (short)1;
-		    }
-		son[k-1+xn*(i+NSONMAX*h)] = (short)-1;
-	      }
-	  }
-
-	/*------- cut the right branches (top->down) */
-	for (k = xn-2; k>=0; k--)
-	  {
-	    obj = objlist[k+1].obj;
-	    for (i=0; i<objlist[k].nobj; i++)
-	      {
-		for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
-		  {
-		    if (obj[j].fdflux - obj[j].dthresh*obj[j].fdnpix > value0)
-		      m++;
-		    ok[k+xn*i] &= ok[k+1+xn*j];
+		    son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
+		    ok[k+xn*m] = (short)1;
 		  }
-		if (m>1)	
-		  {
-		    for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
-		      if (ok[k+1+xn*j] &&
-			  obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
-			{
-			  objlist[k+1].obj[j].flag |= OBJ_MERGED
-			    | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
-			       &debobjlist2.obj[0].flag);
-			  if ((status = addobj(j, &objlist[k+1], &debobjlist2))
-			      == RETURN_ERROR)
-			    goto exit;
-			}
-		    ok[k+xn*i] = (short)0;
-		  }
-	      }
-	  }
-
-	if (ok[0])
-	  status = addobj(0, &debobjlist2, objlistout);
-	else
-	  status = gatherup(&debobjlist2, objlistout);
-
-      exit:
-	free(debobjlist2.obj);
-	free(debobjlist2.plist);
-	
-	for (k=0; k<xn; k++)
-	  {
-	    free(objlist[k].obj);
-	    free(objlist[k].plist);
-	  }
-      }
-
+	      son[k-1+xn*(i+NSONMAX*h)] = (short)-1;
+	    }
+	}
+      
+      /*------- cut the right branches (top->down) */
+      for (k = xn-2; k>=0; k--)
+	{
+	  obj = objlist[k+1].obj;
+	  for (i=0; i<objlist[k].nobj; i++)
+	    {
+	      for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+		{
+		  if (obj[j].fdflux - obj[j].dthresh*obj[j].fdnpix > value0)
+		    m++;
+		  ok[k+xn*i] &= ok[k+1+xn*j];
+		}
+	      if (m>1)	
+		{
+		  for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+		    if (ok[k+1+xn*j] &&
+			obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
+		      {
+			objlist[k+1].obj[j].flag |= OBJ_MERGED
+			  | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
+			     &debobjlist2.obj[0].flag);
+			if ((status = addobj(j, &objlist[k+1], &debobjlist2))
+			    == RETURN_ERROR)
+			  goto exit;
+		      }
+		  ok[k+xn*i] = (short)0;
+		}
+	    }
+	}
+      
+      if (ok[0])
+	status = addobj(0, &debobjlist2, objlistout);
+      else
+	status = gatherup(&debobjlist2, objlistout);
+      
+    exit:
+      free(submap);
+      submap = NULL;
+      free(debobjlist2.obj);
+      free(debobjlist2.plist);
+      
+      for (k=0; k<xn; k++)
+	{
+	  free(objlist[k].obj);
+	  free(objlist[k].plist);
+	}
+    } /* end loop over l (index of objlistin) */
+  
   free(debobjlist.obj);
   free(debobjlist.plist);
   
@@ -441,4 +458,37 @@ int addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
 }
 
 
+/******************************** createsubmap *******************************
+PURPOSE Create pixel-index submap for deblending.
+OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
+*/
+int *createsubmap(objliststruct *objlist, int no,
+		  int *subx, int *suby, int *subw, int *subh)
+{
+  objstruct	*obj;
+  pliststruct	*pixel, *pixt;
+  int		i, n, xmin,ymin, w, *pix, *pt, *submap;
 
+  obj = objlist->obj+no;
+  pixel = objlist->plist;
+  
+  *subx = xmin = obj->xmin;
+  *suby = ymin = obj->ymin;
+  *subw = w = obj->xmax - xmin + 1;
+  *subh = obj->ymax - ymin + 1;
+
+  n = w**subh;
+  if (!(submap = pix = (int *)malloc(n*sizeof(int))))
+    return NULL;
+  pt = pix;
+  for (i=n; i--;)
+    *(pt++) = -1;
+  
+  for (i=obj->firstpix; i!=-1; i=PLIST(pixt,nextpix))
+    {
+      pixt = pixel+i;
+      *(pix+(PLIST(pixt,x)-xmin) + (PLIST(pixt,y)-ymin)*w) = i;
+    }
+  
+  return submap;
+}

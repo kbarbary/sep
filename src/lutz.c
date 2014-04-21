@@ -126,10 +126,11 @@ C implementation of R.K LUTZ' algorithm for the extraction of 8-connected pi-
 xels in an image
 */
 int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
-	 objliststruct *objlist, int minarea)
+	 objliststruct *objlist, int minarea,
+	 int *objrootsubmap, int subx, int suby, int subw, int subh)
 {
   static infostruct	curpixinfo,initinfo;
-  objstruct		*obj, *objroot;
+  objstruct		*obj;
   pliststruct		*plist,*pixel, *plistin, *plistint;
   
   char			newmarker;
@@ -145,7 +146,6 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
 
   deb_maxarea = minarea<MAXDEBAREA?minarea:MAXDEBAREA; /* 3 or less */
   plistint = plistin = objlistroot->plist;
-  objroot = &objlistroot->obj[nroot];
   stx = objparent->xmin;
   sty = objparent->ymin;
   enx = objparent->xmax;
@@ -155,10 +155,9 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   initinfo.flag = 0;
   initinfo.firstpix = initinfo.lastpix = -1;
   cn = 0;
-  iscan = objroot->submap + (sty-objroot->suby)*objroot->subw
-	+ (stx-objroot->subx);
+  iscan = objrootsubmap + (sty-suby)*subw + (stx-subx);
   /* As we only analyse a fraction of the map, a step occurs between lines */
-  step = objroot->subw - (++enx-stx);
+  step = subw - (++enx-stx);
   eny++;
 
   /*------Allocate memory to store object data */

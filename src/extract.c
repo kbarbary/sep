@@ -60,7 +60,6 @@
 void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
 int  sortit(infostruct *, objliststruct *, int,
 	    int, double, objliststruct *, int, double);
-int  createsubmap(objliststruct *, int);
 void plistinit(PIXTYPE *, PIXTYPE *);
 
 /****************************** extract **************************************/
@@ -499,7 +498,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   if ((int)obj.ymin < 0)
     obj.flag |= OBJ_ISO_PB;
 
-  if (!(obj.flag & OBJ_OVERFLOW) && (createsubmap(objlist, 0) == RETURN_OK))
+  if (!(obj.flag & OBJ_OVERFLOW))
     {
       if (parcelout(objlist, &objlistout, deblend_nthresh, deblend_mincont,
 		    minarea) == RETURN_OK)
@@ -513,7 +512,6 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	  status = DEBLEND_OVERFLOW_ERROR;
 	  goto exit_sortit;
 	}
-      free(obj.submap);
     }
   else
     objlist2 = objlist;
@@ -627,40 +625,6 @@ void	convolve(PIXTYPE *im,                    /* full image (was field) */
     }
 
   return;
-}
-
-
-/******************************** createsubmap *******************************
-PURPOSE Create pixel-index submap for deblending.
-OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
-*/
-int createsubmap(objliststruct *objlist, int no)
-{
-  objstruct	*obj;
-  pliststruct	*pixel, *pixt;
-  int		i, n, xmin,ymin, w, *pix, *pt;
-  
-  obj = objlist->obj+no;
-  pixel = objlist->plist;
-  
-  obj->subx = xmin = obj->xmin;
-  obj->suby = ymin = obj->ymin;
-  obj->subw = w = obj->xmax - xmin + 1;
-  obj->subh = obj->ymax - ymin + 1;
-  n = w*obj->subh;
-  if (!(obj->submap = pix = (int *)malloc(n*sizeof(int))))
-    return RETURN_ERROR;
-  pt = pix;
-  for (i=n; i--;)
-    *(pt++) = -1;
-  
-  for (i=obj->firstpix; i!=-1; i=PLIST(pixt,nextpix))
-    {
-      pixt = pixel+i;
-      *(pix+(PLIST(pixt,x)-xmin) + (PLIST(pixt,y)-ymin)*w) = i;
-    }
-  
-  return RETURN_OK;
 }
 
 /****************************** plistinit ************************************

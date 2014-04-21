@@ -96,7 +96,8 @@ int  subcleanobj(int, objliststruct *);
 int  clean(int, objliststruct *, objliststruct *, double, int *);
 int  lutzalloc(int, int);
 void lutzfree(void);
-int  lutz(objliststruct *, int, objstruct *, objliststruct *, int);
+int  lutz(objliststruct *, int, objstruct *, objliststruct *, int, int *,
+	  int, int, int, int);
 void update(infostruct *, infostruct *, pliststruct *);
 int  allocparcelout(int);
 void freeparcelout(void);
