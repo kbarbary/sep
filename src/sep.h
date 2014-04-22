@@ -148,13 +148,12 @@ typedef struct
   short	   flag;			     /* extraction flags */
   BYTE	   singuflag;			     /* flags for singularities */
 
+  /* indicies of member pixels */
+  int *pix;
+
   /* accessing individual pixels in plist*/
   int	   firstpix;			     /* ptr to first pixel */
   int	   lastpix;			     /* ptr to last pixel */
-
-  /* temporary storage used during deblending */
-  int	   *submap;                          /* Pixel-index sub-map */
-  int	   subx,suby, subw,subh;	     /* sub-image pos. and size */
 } objstruct;
 
 typedef struct
@@ -172,7 +171,7 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
-	    objliststruct **catalog);
+	    int *nobj, objstruct *catalog);
 
 /* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/

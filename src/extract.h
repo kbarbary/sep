@@ -91,14 +91,19 @@ int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
 int objmthresh(int objnb, objliststruct *objlist, int minarea,
 	       PIXTYPE dthresh);
 void preanalyse(int, objliststruct *, int);
-int  addcleanobj(objstruct *, objliststruct *);
-int  subcleanobj(int, objliststruct *);
-int  clean(int, objliststruct *, objliststruct *, double, int *);
+int  addobjcleanly(int, objliststruct *, objliststruct *, double, int *);
 int  lutzalloc(int, int);
 void lutzfree(void);
 int  lutz(objliststruct *, int, objstruct *, objliststruct *, int, int *,
 	  int, int, int, int);
 void update(infostruct *, infostruct *, pliststruct *);
-int  allocparcelout(int);
-void freeparcelout(void);
-int  parcelout(objliststruct *, objliststruct *, int, double, int);
+int  allocdeblend(int);
+void freedeblend(void);
+int  deblend(objliststruct *, objliststruct *, int, double, int);
+
+int addobjcleanly(objstruct *, objliststruct *, double);
+
+int addobjshallow(objstruct *, objliststruct *);
+int rmobjshallow(int, objliststruct *);
+void mergeobjshallow(objstruct *, objstruct *);
+int addobjdeep(int, objliststruct *, objliststruct *);

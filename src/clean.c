@@ -50,32 +50,29 @@
    every call to clean() */
 static LONG cleanvictim[CLEAN_STACKSIZE];
 
-void mergeobject(objstruct *, objstruct *);
+/********************************** clean ***********************************/
+/*
+Add `objin` to `objlist` shallowly, and with cleaning. "With cleaning" means
+that it may be merged into an existing object.
+*/
 
-/********************************** clean ***********************************
-PURPOSE Remove object from frame -buffer and put it in the "CLEANlist".
-INPUT   Object number,
-        Object list (source).
-OUTPUT  `cleaned` is 1 if the object was CLEANed, 0 otherwise.
- ***/
-int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
-	  double clean_param, int *cleaned)
+int addobjcleanly(objstruct *objin, objliststruct *objlist,
+		  double clean_param)
 {
-  objstruct     *objin, *obj;
+  objstruct     *obj;
   int	        i,j,k, status;
   double        amp,ampin,alpha,alphain, unitarea,unitareain,beta,val;
   float	       	dx,dy,rlim;
 
   status = RETURN_OK;
 
-  objin = objlistin->obj+objnb;
   beta = clean_param;
   unitareain = PI*objin->a*objin->b;
   ampin = objin->fdflux/(2*unitareain*objin->abcor);
   alphain = (pow(ampin/objin->dthresh, 1.0/beta)-1)*unitareain/objin->fdnpix;
   j=0;
-  obj = cleanobjlist->obj;
-  for (i=0; i<cleanobjlist->nobj; i++, obj++)
+  obj = objlist->obj;
+  for (i=0; i<objlist->nobj; i++, obj++)
     {
       dx = objin->mx - obj->mx;
       dy = objin->my - obj->my;
@@ -110,11 +107,10 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
 	      val = 1 + alpha*(obj->cxx*dx*dx + obj->cyy*dy*dy +
 			       obj->cxy*dx*dy);
 	      if (val>1.0 &&
-		  ((float)(val<1e10?amp*pow(val,-beta) : 0.0) > objin->mthresh))
+		  ((float)(val<1e10?amp*pow(val,-beta):0.0) > objin->mthresh))
 		{
 		  /*------- the newcomer is eaten!! */
-		  mergeobject(objin, obj);
-		  *cleaned = 1;
+		  mergeobjshallow(objin, obj);
 		  return status;
 		}
 	    }
@@ -125,128 +121,16 @@ int clean(int objnb, objliststruct *objlistin, objliststruct *cleanobjlist,
   for (i=j; i--;)
     {
       k = cleanvictim[i];
-      obj = cleanobjlist->obj + k;
-      mergeobject(obj, objin);
-      status = subcleanobj(k, cleanobjlist);
+      obj = objlist->obj + k;
+      mergeobjshallow(obj, objin);
+      status = rmobjshallow(k, objlist);
+      if (status != RETURN_OK)
+	goto exit;
     }
+
+  /* and then gets added to the list! */
+  status = addobjshallow(objin, objlist);
 
  exit:
-  *cleaned = 0;
   return status;
-}
-
-/******************************* addcleanobj ********************************/
-/*
-Add an object to the "cleanobjlist".
-*/
-int addcleanobj(objstruct *objin, objliststruct *cleanobjlist)
-{
-  int	margin, y;
-  float	hh1,hh2;
-
-  /*Update the object list */
-  if (cleanobjlist->nobj)
-    {
-      if (!(cleanobjlist->obj =
-	    (objstruct *)realloc(cleanobjlist->obj,
-				 (++cleanobjlist->nobj) * sizeof(objstruct))))
-	return MEMORY_CLEAN_ERROR;
-    }
-  else
-    {
-      if (!(cleanobjlist->obj = (objstruct *)malloc((++cleanobjlist->nobj) *
-						    sizeof(objstruct))))
-	return MEMORY_CLEAN_ERROR;
-    }
-
-  /* Compute the max. vertical extent of the object: */
-  /* First from 2nd order moments, compute y-limit of the 3-sigma ellips... */
-  hh1 = objin->cyy - objin->cxy*objin->cxy/(4.0*objin->cxx);
-  hh1 = hh1 > 0.0 ? 1/sqrt(3*hh1) : 0.0;
-
-  /* ... then from the isophotal limit, which should not be TOO different... */
-  hh2 = (objin->ymax-objin->ymin+1.0);
-  margin = (int)((hh1>hh2?hh1:hh2)*MARGIN_SCALE+MARGIN_OFFSET+0.49999);
-  objin->ycmax = objin->ymax+margin;
-
-  /* ... and finally compare with the predefined margin */
-  if ((y=(int)(objin->my+0.49999)+CLEAN_MARGIN)>objin->ycmax)
-    objin->ycmax = y;
-  objin->ycmin = objin->ymin-margin;
-  if ((y=(int)(objin->my+0.49999)-CLEAN_MARGIN)<objin->ycmin)
-    objin->ycmin = y;
-
-  cleanobjlist->obj[cleanobjlist->nobj-1] = *objin;
-
-  return RETURN_OK;
-  }
-
-
-/******************************** mergeobject *******************************/
-/*
-Merge twos objects from "objlist".
-*/
-/* TODO: are all these fields actually initialized
-   (since we're skipping some analysis)?? */
-
-void mergeobject(objstruct *objslave, objstruct *objmaster)
-{
-  objmaster->fdnpix += objslave->fdnpix;
-  objmaster->dnpix += objslave->dnpix;
-  objmaster->fdflux += objslave->fdflux;
-  objmaster->dflux += objslave->dflux;
-  objmaster->flux += objslave->flux;
-  objmaster->fluxerr += objslave->fluxerr;
-
-  if (objslave->fdpeak>objmaster->fdpeak)
-    {
-      objmaster->fdpeak = objslave->fdpeak;
-      objmaster->peakx = objslave->peakx;
-      objmaster->peaky = objslave->peaky;
-    }
-  if (objslave->dpeak>objmaster->dpeak)
-    objmaster->dpeak = objslave->dpeak;
-  if (objslave->peak>objmaster->peak)
-    objmaster->peak = objslave->peak;
-
-  if (objslave->xmin<objmaster->xmin)
-    objmaster->xmin = objslave->xmin;
-  if (objslave->xmax>objmaster->xmax)
-    objmaster->xmax = objslave->xmax;
-
-  if (objslave->ymin<objmaster->ymin)
-    objmaster->ymin = objslave->ymin;
-  if (objslave->ymax>objmaster->ymax)
-    objmaster->ymax = objslave->ymax;
-
-  objmaster->flag |= (objslave->flag & (~(OBJ_MERGED|OBJ_CROWDED)));
-
-  /* removed next line because it only applies to external flag maps */
-  /* mergeflags(objmaster, objslave); */
-  
-  return;
-}
-
-/******************************* subcleanobj ********************************/
-/* 
-remove an object from a "cleanobjlist".
-*/
-int subcleanobj(int objnb, objliststruct *cleanobjlist)
-{
-  /* Update the object list */
-  if (objnb>=cleanobjlist->nobj)
-    return NO_CLEAN_OBJ_ERROR;
-  
-  if (--cleanobjlist->nobj)
-    {
-      if (cleanobjlist->nobj != objnb)
-	cleanobjlist->obj[objnb] = cleanobjlist->obj[cleanobjlist->nobj];
-      if (!(cleanobjlist->obj = (objstruct *)realloc(cleanobjlist->obj,
-						     cleanobjlist->nobj * sizeof(objstruct))))
-	return MEMORY_CLEAN_ERROR;
-    }
-  else
-    free(cleanobjlist->obj);
-  
-  return RETURN_OK;
 }

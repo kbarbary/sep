@@ -53,7 +53,6 @@
 #define	NSONMAX	1024  /* max. number per level */
 #define	NBRANCH	16    /* starting number per branch */
 
-int addobj(int, objliststruct *, objliststruct *);
 int belong(int, objliststruct *, int, objliststruct *);
 int *createsubmap(objliststruct *, int, int *, int *, int *, int *);
 int gatherup(objliststruct *, objliststruct *);
@@ -61,7 +60,7 @@ int gatherup(objliststruct *, objliststruct *);
 static objliststruct *objlist=NULL;
 static short	     *son=NULL, *ok=NULL;
 
-/******************************** parcelout **********************************
+/******************************** deblend **********************************
 PURPOSE Divide a list of isophotal detections in several parts (deblending).
 INPUT   input objlist,
         output objlist,
@@ -69,8 +68,8 @@ OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
 NOTES   Even if the object is not deblended, the output objlist threshold is
         recomputed if a variable threshold is used.
  ***/
-int parcelout(objliststruct *objlistin, objliststruct *objlistout,
-	      int deblend_nthresh, double deblend_mincont, int minarea)
+int deblend(objliststruct *objlistin, objliststruct *objlistout,
+	    int deblend_nthresh, double deblend_mincont, int minarea)
 {
   objstruct		*obj;
   static objliststruct	debobjlist, debobjlist2;
@@ -79,7 +78,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
                         xn,
 			nbm = NBRANCH,
 			status;
-  int *submap;
+  int                   *submap;
 
   submap = NULL;
   status = RETURN_OK;
@@ -109,9 +108,9 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
       dthresh0 = objlistin->obj[l].dthresh;
       
       objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-      if ((status = addobj(l, objlistin, &objlist[0])) != RETURN_OK)
+      if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
 	goto exit;
-      if ((status = addobj(l, objlistin, &debobjlist2)) != RETURN_OK)
+      if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
 	goto exit;
       value0 = objlist[0].obj[0].fdflux*deblend_mincont;
       ok[0] = (short)1;
@@ -140,7 +139,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 		if (belong(j, &debobjlist, i, &objlist[k-1]))
 		  {
 		    debobjlist.obj[j].dthresh = debobjlist.dthresh;
-		    if ((status = addobj(j, &debobjlist, &objlist[k]))
+		    if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
 			!= RETURN_OK)
 		      goto exit;
 		    m = objlist[k].nobj - 1;
@@ -184,8 +183,8 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 			objlist[k+1].obj[j].flag |= OBJ_MERGED
 			  | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
 			     &debobjlist2.obj[0].flag);
-			if ((status = addobj(j, &objlist[k+1], &debobjlist2))
-			    == RETURN_ERROR)
+			status = addobjdeep(j, &objlist[k+1], &debobjlist2);
+			if (status != RETURN_OK)
 			  goto exit;
 		      }
 		  ok[k+xn*i] = (short)0;
@@ -194,7 +193,7 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 	}
       
       if (ok[0])
-	status = addobj(0, &debobjlist2, objlistout);
+	status = addobjdeep(0, &debobjlist2, objlistout);
       else
 	status = gatherup(&debobjlist2, objlistout);
       
@@ -218,11 +217,11 @@ int parcelout(objliststruct *objlistin, objliststruct *objlistout,
 }
 
 
-/******************************* allocparcelout ******************************/
+/******************************* allocdeblend ******************************/
 /*
 Allocate the memory allocated by global pointers in refine.c
 */
-int allocparcelout(int deblend_nthresh)
+int allocdeblend(int deblend_nthresh)
 {
   int status=RETURN_OK;
   QMALLOC(son, short,  deblend_nthresh*NSONMAX*NBRANCH, status);
@@ -231,15 +230,15 @@ int allocparcelout(int deblend_nthresh)
 
   return status;
  exit:
-  freeparcelout();
+  freedeblend();
   return status;
 }
 
-/******************************* freeparcelout *******************************/
+/******************************* freedeblend *******************************/
 /*
 Free the memory allocated by global pointers in refine.c
 */
-void freeparcelout(void)
+void freedeblend(void)
 {
   free(son);
   son = NULL;
@@ -302,7 +301,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 	   pixt=pixelin+PLIST(pixt,nextpix))
 	bmp[(PLIST(pixt,x)-xs) + (PLIST(pixt,y)-ys)*bmwidth] = '\1';
       
-      status = addobj(i, objlistin, objlistout);
+      status = addobjdeep(i, objlistin, objlistout);
       if (status == RETURN_ERROR)
 	goto exit;
       n[i] = objlistout->nobj - 1;
@@ -379,8 +378,9 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 
 /**************** belong (originally in manobjlist.c) ************************/
 /*
-say if an object is "included" in another.
-*/
+ * say if an object is "included" in another. Returns 1 if the pixels of the
+ * first object are included in the pixels of the second object.
+ */
 
 int belong(int corenb, objliststruct *coreobjlist,
 	   int shellnb, objliststruct *shellobjlist)
@@ -396,65 +396,6 @@ int belong(int corenb, objliststruct *coreobjlist,
       return 1;
 
   return 0;
-}
-
-
-/********** addobj (originally in manobjlist.c) ******************************/
-/*
- *  Add object number `objnb` from list `objl1` to list `objl2`.
- */
-int addobj(int objnb, objliststruct *objl1, objliststruct *objl2)
-{
-  objstruct	*objl2obj;
-  pliststruct	*plist1 = objl1->plist, *plist2 = objl2->plist;
-  int		fp, i, j, npx, objnb2;
-  
-  j = (fp = objl2->npix)*plistsize; /* fp = 2nd lists's plist size in pix */
-                                    /* j = 2nd list's plist size in bytes */
-  objnb2 = objl2->nobj;             /* # of objects currently in 2nd list*/
-
-  /* Allocate space in `objl2` for the new object */
-  if (objl2->nobj)
-    objl2obj = (objstruct *)realloc(objl2->obj, (++objl2->nobj) *
-				    sizeof(objstruct));
-  else
-    objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct));
-  if (!objl2obj)
-    goto exit_addobj;
-  objl2->obj = objl2obj;
-
-  /* Allocate space for the new object's pixels in 2nd list's plist */
-  npx = objl1->obj[objnb].fdnpix;
-  if (fp)
-    plist2 = (pliststruct *)realloc(plist2, (objl2->npix+=npx) * plistsize);
-  else
-    plist2 = (pliststruct *)malloc((objl2->npix=npx)*plistsize);
-  if (!plist2)
-    goto exit_addobj;
-  objl2->plist = plist2;
-  
-  /* copy the plist */
-  plist2 += j;
-  for(i=objl1->obj[objnb].firstpix; i!=-1; i=PLIST(plist1+i,nextpix))
-    {
-      memcpy(plist2, plist1+i, (size_t)plistsize);
-      PLIST(plist2,nextpix) = (j+=plistsize);
-      plist2 += plistsize;
-    }
-  PLIST(plist2-=plistsize, nextpix) = -1;
-  
-  /* copy the object itself */
-  objl2->obj[objnb2] = objl1->obj[objnb];
-  objl2->obj[objnb2].firstpix = fp*plistsize;
-  objl2->obj[objnb2].lastpix = j-plistsize;
-
-  return RETURN_OK;
-  
-  /* if early exit, reset 2nd list */
- exit_addobj:
-  objl2->nobj--;
-  objl2->npix = fp;
-  return RETURN_ERROR;
 }
 
 

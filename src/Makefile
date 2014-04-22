@@ -7,7 +7,7 @@ LDFLAGS=-shared
 ARFLAGS=rcs
 
 NAME=sep
-SOURCES=analyse.c back.c clean.c extract.c lutz.c refine.c util.c
+SOURCES=analyse.c back.c clean.c deblend.c extract.c lutz.c objlist.c util.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
