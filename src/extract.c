@@ -518,7 +518,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 
   if (!(obj.flag & OBJ_OVERFLOW))
     {
-      if (deblend(objlist, &objlistout, deblend_nthresh, deblend_mincont,
+      if (deblend(objlist, 0, &objlistout, deblend_nthresh, deblend_mincont,
 		  minarea) == RETURN_OK)
 	objlist2 = &objlistout;
       else

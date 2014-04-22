@@ -92,14 +92,18 @@ int objmthresh(int objnb, objliststruct *objlist, int minarea,
 	       PIXTYPE dthresh);
 void preanalyse(int, objliststruct *, int);
 int  addobjcleanly(int, objliststruct *, objliststruct *, double, int *);
+
 int  lutzalloc(int, int);
 void lutzfree(void);
-int  lutz(objliststruct *, int, objstruct *, objliststruct *, int, int *,
-	  int, int, int, int);
+int  lutz(pliststruct *plistin,
+	  int *objrootsubmap, int subx, int suby, int subw, int subh,
+	  objstruct *objparent, objliststruct *objlist, int minarea);
+
 void update(infostruct *, infostruct *, pliststruct *);
+
 int  allocdeblend(int);
 void freedeblend(void);
-int  deblend(objliststruct *, objliststruct *, int, double, int);
+int  deblend(objliststruct *, int, objliststruct *, int, double, int);
 
 int addobjcleanly(objstruct *, objliststruct *, double);
 

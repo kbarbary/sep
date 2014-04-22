@@ -68,13 +68,13 @@ OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
 NOTES   Even if the object is not deblended, the output objlist threshold is
         recomputed if a variable threshold is used.
  ***/
-int deblend(objliststruct *objlistin, objliststruct *objlistout,
+int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    int deblend_nthresh, double deblend_mincont, int minarea)
 {
   objstruct		*obj;
   static objliststruct	debobjlist, debobjlist2;
   double		dthresh, dthresh0, value0;
-  int			h,i,j,k,l,m,subx,suby,subh,subw,
+  int			h,i,j,k,m,subx,suby,subh,subw,
                         xn,
 			nbm = NBRANCH,
 			status;
@@ -92,124 +92,121 @@ int deblend(objliststruct *objlistin, objliststruct *objlistout,
   objlistout->thresh = debobjlist2.thresh = objlistin->thresh;
   memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
 
-  for (l=0; l<objlistin->nobj && status==RETURN_OK; l++)
+  /* Create the submap for the object. 
+   * The submap is used in lutz(). We create it here because we may call
+   * lutz multiple times below, and we only want to create it once.
+   */
+  submap = createsubmap(objlistin, l, &subx, &suby, &subw, &subh);
+  if (!submap)
     {
-      /* Create the submap for the object. 
-       * The submap is used in lutz(). We create it here because we may call
-       * lutz multiple times below, and we only want to create it once.
-       */
-      submap = createsubmap(objlistin, l, &subx, &suby, &subw, &subh);
-      if (!submap)
+      status = MEMORY_ALLOC_ERROR;
+      goto exit;
+    }
+  
+  dthresh0 = objlistin->obj[l].dthresh;
+  
+  objlistout->dthresh = debobjlist2.dthresh = dthresh0;
+  if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
+    goto exit;
+  if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
+    goto exit;
+  value0 = objlist[0].obj[0].fdflux*deblend_mincont;
+  ok[0] = (short)1;
+  for (k=1; k<xn; k++)
+    {
+      /*------ Calculate threshold */
+      dthresh = objlistin->obj[l].fdpeak;
+      debobjlist.dthresh = dthresh > 0.0? 
+	dthresh0*pow(dthresh/dthresh0,(double)k/xn) : dthresh0;
+      
+      /*--------- Build tree (bottom->up) */
+      if (objlist[k-1].nobj>=NSONMAX)
 	{
-	  status = MEMORY_ALLOC_ERROR;
+	  status = RETURN_ERROR;
 	  goto exit;
 	}
-
-      dthresh0 = objlistin->obj[l].dthresh;
       
-      objlistout->dthresh = debobjlist2.dthresh = dthresh0;
-      if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
-	goto exit;
-      if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
-	goto exit;
-      value0 = objlist[0].obj[0].fdflux*deblend_mincont;
-      ok[0] = (short)1;
-      for (k=1; k<xn; k++)
+      for (i=0; i<objlist[k-1].nobj; i++)
 	{
-	  /*------ Calculate threshold */
-	  dthresh = objlistin->obj[l].fdpeak;
-	  debobjlist.dthresh = dthresh > 0.0? 
-	    dthresh0*pow(dthresh/dthresh0,(double)k/xn) : dthresh0;
+	  status = lutz(objlistin->plist, submap, subx, suby, subw, subh,
+			&objlist[k-1].obj[i], &debobjlist, minarea);
+	  if (status != RETURN_OK)
+	    goto exit;
 	  
-	  /*--------- Build tree (bottom->up) */
-	  if (objlist[k-1].nobj>=NSONMAX)
-	    {
-	      status = RETURN_ERROR;
-	      goto exit;
-	    }
-	  
-	  for (i=0; i<objlist[k-1].nobj; i++)
-	    {
-	      status = lutz(objlistin, l, &objlist[k-1].obj[i], &debobjlist,
-			    minarea, submap, subx, suby, subw, subh);
-	      if (status != RETURN_OK)
-		goto exit;
-	      
-	      for (j=h=0; j<debobjlist.nobj; j++)
-		if (belong(j, &debobjlist, i, &objlist[k-1]))
+	  for (j=h=0; j<debobjlist.nobj; j++)
+	    if (belong(j, &debobjlist, i, &objlist[k-1]))
+	      {
+		debobjlist.obj[j].dthresh = debobjlist.dthresh;
+		if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
+		    != RETURN_OK)
+		  goto exit;
+		m = objlist[k].nobj - 1;
+		if (m>=NSONMAX)
 		  {
-		    debobjlist.obj[j].dthresh = debobjlist.dthresh;
-		    if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
-			!= RETURN_OK)
-		      goto exit;
-		    m = objlist[k].nobj - 1;
-		    if (m>=NSONMAX)
-		      {
-			status = RETURN_ERROR;
-			goto exit;
-		      }
-		    if (h>=nbm-1)
-		      if (!(son = (short *)
-			    realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
-			{
-			  status = RETURN_ERROR;
-			  goto exit;
-			}
-		    son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
-		    ok[k+xn*m] = (short)1;
+		    status = RETURN_ERROR;
+		    goto exit;
 		  }
-	      son[k-1+xn*(i+NSONMAX*h)] = (short)-1;
-	    }
+		if (h>=nbm-1)
+		  if (!(son = (short *)
+			realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
+		    {
+		      status = RETURN_ERROR;
+		      goto exit;
+		    }
+		son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
+		ok[k+xn*m] = (short)1;
+	      }
+	  son[k-1+xn*(i+NSONMAX*h)] = (short)-1;
 	}
-      
-      /*------- cut the right branches (top->down) */
-      for (k = xn-2; k>=0; k--)
-	{
-	  obj = objlist[k+1].obj;
-	  for (i=0; i<objlist[k].nobj; i++)
-	    {
-	      for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
-		{
-		  if (obj[j].fdflux - obj[j].dthresh*obj[j].fdnpix > value0)
-		    m++;
-		  ok[k+xn*i] &= ok[k+1+xn*j];
-		}
-	      if (m>1)	
-		{
-		  for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
-		    if (ok[k+1+xn*j] &&
-			obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
-		      {
-			objlist[k+1].obj[j].flag |= OBJ_MERGED
-			  | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
-			     &debobjlist2.obj[0].flag);
-			status = addobjdeep(j, &objlist[k+1], &debobjlist2);
-			if (status != RETURN_OK)
-			  goto exit;
-		      }
-		  ok[k+xn*i] = (short)0;
-		}
-	    }
-	}
-      
-      if (ok[0])
-	status = addobjdeep(0, &debobjlist2, objlistout);
-      else
-	status = gatherup(&debobjlist2, objlistout);
-      
-    exit:
-      free(submap);
-      submap = NULL;
-      free(debobjlist2.obj);
-      free(debobjlist2.plist);
-      
-      for (k=0; k<xn; k++)
-	{
-	  free(objlist[k].obj);
-	  free(objlist[k].plist);
-	}
-    } /* end loop over l (index of objlistin) */
+    }
   
+  /*------- cut the right branches (top->down) */
+  for (k = xn-2; k>=0; k--)
+    {
+      obj = objlist[k+1].obj;
+      for (i=0; i<objlist[k].nobj; i++)
+	{
+	  for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+	    {
+	      if (obj[j].fdflux - obj[j].dthresh*obj[j].fdnpix > value0)
+		m++;
+	      ok[k+xn*i] &= ok[k+1+xn*j];
+	    }
+	  if (m>1)	
+	    {
+	      for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+		if (ok[k+1+xn*j] &&
+		    obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
+		  {
+		    objlist[k+1].obj[j].flag |= OBJ_MERGED
+		      | ((OBJ_ISO_PB|OBJ_APERT_PB|OBJ_OVERFLOW)
+			 &debobjlist2.obj[0].flag);
+		    status = addobjdeep(j, &objlist[k+1], &debobjlist2);
+		    if (status != RETURN_OK)
+		      goto exit;
+		  }
+	      ok[k+xn*i] = (short)0;
+	    }
+	}
+    }
+  
+  if (ok[0])
+    status = addobjdeep(0, &debobjlist2, objlistout);
+  else
+    status = gatherup(&debobjlist2, objlistout);
+  
+ exit:
+  free(submap);
+  submap = NULL;
+  free(debobjlist2.obj);
+  free(debobjlist2.plist);
+  
+  for (k=0; k<xn; k++)
+    {
+      free(objlist[k].obj);
+      free(objlist[k].plist);
+    }
+
   free(debobjlist.obj);
   free(debobjlist.plist);
   

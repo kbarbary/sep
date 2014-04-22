@@ -125,13 +125,13 @@ void lutzfree()
 C implementation of R.K LUTZ' algorithm for the extraction of 8-connected pi-
 xels in an image
 */
-int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
-	 objliststruct *objlist, int minarea,
-	 int *objrootsubmap, int subx, int suby, int subw, int subh)
+int lutz(pliststruct *plistin,
+	 int *objrootsubmap, int subx, int suby, int subw, int subh,
+	 objstruct *objparent, objliststruct *objlist, int minarea)
 {
   static infostruct	curpixinfo,initinfo;
   objstruct		*obj;
-  pliststruct		*plist,*pixel, *plistin, *plistint;
+  pliststruct		*plist,*pixel, *plistint;
   
   char			newmarker;
   int			cn, co, luflag, pstop, xl,xl2,yl,
@@ -145,7 +145,7 @@ int lutz(objliststruct *objlistroot, int nroot, objstruct *objparent,
   out = RETURN_OK;
 
   deb_maxarea = minarea<MAXDEBAREA?minarea:MAXDEBAREA; /* 3 or less */
-  plistint = plistin = objlistroot->plist;
+  plistint = plistin;
   stx = objparent->xmin;
   sty = objparent->ymin;
   enx = objparent->xmax;
