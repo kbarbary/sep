@@ -88,10 +88,62 @@ int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
   plistoff_flag[MAXFLAG], plistoff_wflag, plistoff_dthresh, plistoff_var,
   plistsize;
 
+typedef struct
+{
+  /* thresholds */
+  float	   thresh;		             /* measur. threshold (ADU) */
+  float	   dthresh;		       	     /* detect. threshold (ADU) */
+  float	   mthresh;		             /* max. threshold (ADU) */
+
+  /* # pixels */
+  int	   fdnpix;		       	/* nb of extracted pix */
+  int	   dnpix;	       		/* nb of pix above thresh  */
+  int	   npix;       			/* "" in measured frame */
+  int	   nzdwpix;			/* nb of zero-dweights around */
+  int	   nzwpix;		       	/* nb of zero-weights inside */
+  
+  /* position */
+  int	   peakx,peaky;                      /* pos of brightest pix */
+  double   mx, my;        	             /* barycenter */
+  int	   xmin,xmax,ymin,ymax,ycmin,ycmax;  /* x,y limits */
+
+  /* shape */
+  double   mx2,my2,mxy;			     /* variances and covariance */
+  float	   a, b, theta, abcor;		     /* moments and angle */
+  float	   cxx,cyy,cxy;			     /* ellipse parameters */
+
+  /* flux */
+  float	   fdflux;	       		/* integrated ext. flux */
+  float	   dflux;      			/* integrated det. flux */
+  float	   flux;       			/* integrated mes. flux */
+  float	   fluxerr;			/* integrated variance */
+  PIXTYPE  fdpeak;	       		/* peak intensity (ADU) */
+  PIXTYPE  dpeak;      			/* peak intensity (ADU) */
+  PIXTYPE  peak;       			/* peak intensity (ADU) */
+
+  /* flags */
+  short	   flag;			     /* extraction flags */
+  BYTE	   singuflag;			     /* flags for singularities */
+
+  /* accessing individual pixels in plist*/
+  int	   firstpix;			     /* ptr to first pixel */
+  int	   lastpix;			     /* ptr to last pixel */
+} objstruct;
+
+typedef struct
+{
+  int           nobj;	  /* number of objects in list */
+  objstruct     *obj;	  /* pointer to the object array */
+  int           npix;	  /* number of pixels in pixel-list */
+  pliststruct   *plist;	  /* pointer to the pixel-list */
+  PIXTYPE       dthresh;  /* detection threshold */
+  PIXTYPE       thresh;	  /* analysis threshold */
+} objliststruct;
+
+
 int objmthresh(int objnb, objliststruct *objlist, int minarea,
 	       PIXTYPE dthresh);
 void preanalyse(int, objliststruct *, int);
-int  addobjcleanly(int, objliststruct *, objliststruct *, double, int *);
 
 int  lutzalloc(int, int);
 void lutzfree(void);
@@ -104,8 +156,6 @@ void update(infostruct *, infostruct *, pliststruct *);
 int  allocdeblend(int);
 void freedeblend(void);
 int  deblend(objliststruct *, int, objliststruct *, int, double, int);
-
-int addobjcleanly(objstruct *, objliststruct *, double);
 
 int addobjshallow(objstruct *, objliststruct *);
 int rmobjshallow(int, objliststruct *);

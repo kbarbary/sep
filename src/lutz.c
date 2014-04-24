@@ -155,13 +155,16 @@ int lutz(pliststruct *plistin,
   initinfo.flag = 0;
   initinfo.firstpix = initinfo.lastpix = -1;
   cn = 0;
+
   iscan = objrootsubmap + (sty-suby)*subw + (stx-subx);
+
   /* As we only analyse a fraction of the map, a step occurs between lines */
   step = subw - (++enx-stx);
   eny++;
 
   /*------Allocate memory to store object data */
   free(objlist->obj);
+
   if (!(obj=objlist->obj=(objstruct *)malloc(nobjm*sizeof(objstruct))))
     {
       out = RETURN_ERROR;

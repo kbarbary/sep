@@ -59,8 +59,11 @@
 
 void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
 int  sortit(infostruct *, objliststruct *, int,
-	    int, double, objliststruct *, int, double);
+	    objliststruct *, int, double);
 void plistinit(PIXTYPE *, PIXTYPE *);
+void clean(objliststruct *objlist, double clean_param, int *survives);
+int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
+
 
 /****************************** extract **************************************/
 int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
@@ -68,11 +71,10 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
-	    int *nobj, objstruct **catalog)
+	    int *nobj, sepobj **objects)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *finalobjlist;
-  objstruct             *obj;
   pliststruct		*pixel, *pixt; 
   char			*marker, newmarker;
   int			co, i, j, flag, luflag, pstop, xl, xl2, yl, cn,
@@ -82,11 +84,10 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
   PIXTYPE               *scan,*cdscan,*cdwscan,*wscan,*dumscan;
   float                 sum, *convnorm;
   pixstatus		cs, ps, *psstack;
-  int			*start, *end;
+  int			*start, *end, *survives;
 
   status = RETURN_OK;
 
-  /*----- Beginning of the main loop: Initialisations  */
   pixel = NULL;
   convnorm = NULL;
   scan = wscan = cdscan = cdwscan = dumscan = NULL;
@@ -175,7 +176,7 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
     }
 
   /*----- MAIN LOOP ------ */
-  for (yl=0; yl<=h;)
+  for (yl=0; yl<=h; yl++)
     {
 
       ps = COMPLETE;
@@ -380,12 +381,9 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 			{
 			  if ((int)info[co].pixnb >= minarea)
 			    {
-			      status = sortit(&info[co], &objlist,
-					      minarea,
-					      clean_flag, clean_param,
+			      status = sortit(&info[co], &objlist, minarea,
 					      finalobjlist,
-					      deblend_nthresh,
-					      deblend_mincont);
+					      deblend_nthresh,deblend_mincont);
 			      if (status != RETURN_OK)
 				goto exit;
 			    }
@@ -407,10 +405,11 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    }
 	  /* end of if (newmarker) ------------------------------------------*/
 
+	  /* update the info or end segment */
 	  if (luflag)
-	    update(&info[co], &curpixinfo, pixel);
-
-	  /*---------------------- End Segment ------------------------------*/
+	    {
+	      update(&info[co], &curpixinfo, pixel);
+	    }
 	  else if (cs == OBJECT)
 	    {
 	      cs = NONOBJECT;
@@ -429,30 +428,46 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    }
 
 	} /*------------ End of the loop over the x's -----------------------*/
+    } /*---------------- End of the loop over the y's -----------------------*/
 
-      yl++;
-
-    } /*--------------------- End of the loop over the y's ------------------*/
-
-
-  /* populate explicit pixel lists for objects*/
-  /* I think I have to do this earlier, perhaps near preanalyse().
-     finalobjlist->plist is never made.*/
-  /*
-  for (i=0, obj=finalobjlist->obj; i<finalobjlist->nobj; i++, obj++)
+  /* convert `finalobjlist` to an array of `sepobj` structs */
+  if (clean_flag)
     {
-      QMALLOC(obj->pix, int, obj->fdnpix, status);
-      for (pixt=finalobjlist->plist+obj->firstpix, j=0;
-	   pixt>=finalobjlist->plist;
-	   pixt=finalobjlist->plist+PLIST(pixt,nextpix), j++)
-	obj->pix[j] = w*PLIST(pixt,y) + PLIST(pixt,x);
-    }
-  */
+      /* Calculate mthresh for all objects in the list (needed for cleaning) */
+      for (i=0; i<finalobjlist->nobj; i++)
+	{
+	  status = objmthresh(i, finalobjlist, minarea, thresh);
+	  if (status != RETURN_OK)
+	    goto exit;
+	}
 
-  *nobj = finalobjlist->nobj;
-  *catalog = finalobjlist->obj;
+      QMALLOC(survives, int, finalobjlist->nobj, status);
+      clean(finalobjlist, clean_param, survives);
+
+      /* count surviving objects and allocate space accordingly*/
+      *nobj = 0;
+      for (i=0; i<finalobjlist->nobj; i++)
+	*nobj += survives[i];
+      QMALLOC(*objects, sepobj, *nobj, status);
+
+      /* fill */
+      j=0;
+      for (i=0; i<finalobjlist->nobj; i++)
+	if (survives[i])
+	    convertobj(i, finalobjlist, (*objects) + j++, w);
+    }
+  else
+    {
+      *nobj = finalobjlist->nobj;
+      QMALLOC(*objects, sepobj, *nobj, status);
+      for (i=0; i<finalobjlist->nobj; i++)
+	convertobj(i, finalobjlist, (*objects) + i, w);
+    }
 
  exit:
+  free(finalobjlist->obj);
+  free(finalobjlist->plist);
+  free(finalobjlist);
   freedeblend();
   free(pixel);
   lutzfree();
@@ -470,7 +485,7 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
     {
       free(cdscan);   /* only need to free these in case of early exit */
       free(cdwscan);
-      *catalog = NULL;
+      *objects = NULL;
       *nobj = 0;
     }
 
@@ -483,12 +498,11 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 build the object structure.
 */
 int sortit(infostruct *info, objliststruct *objlist, int minarea,
-	   int clean_flag, double clean_param, objliststruct *finalobjlist,
+	   objliststruct *finalobjlist,
 	   int deblend_nthresh, double deblend_mincont)
 {
   objliststruct	        objlistout, *objlist2;
   static objstruct	obj;
-  objstruct		*cobj;
   int 			i, status;
   PIXTYPE thresh;
 
@@ -529,12 +543,13 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	  sprintf(errdetail, "Deblending overflow for detection at %.0f,%.0f",
 		  obj.mx+1, obj.my+1);
 	  status = DEBLEND_OVERFLOW_ERROR;
-	  goto exit_sortit;
+	  goto exit;
 	}
     }
   else
     objlist2 = objlist;
   
+  /* Analyze the deblended objects and add to the final list */
   for (i=0; i<objlist2->nobj; i++)
     {
       preanalyse(i, objlist2, ANALYSE_FULL|ANALYSE_ROBUST);
@@ -543,31 +558,13 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
       if (DETECT_MAXAREA && objlist2->obj[i].fdnpix > DETECT_MAXAREA)
 	continue;
 
-      cobj = objlist2->obj + i;
-
-      if (clean_flag)
-	{
-	  status = objmthresh(i, objlist2, minarea, thresh);
-	  if (status != RETURN_OK)
-	    goto exit_sortit;
-
-	  status = addobjcleanly(cobj, finalobjlist, clean_param);
-	  if (status != RETURN_OK)
-	    goto exit_sortit;
-	}
-
-      /* If not cleaning, simply add the object */
-      else
-	{
-	  cobj->mthresh = 0.0;
-	  status = addobjshallow(cobj, finalobjlist);
-	  if (status != RETURN_OK)
-	    goto exit_sortit;
-	}
-
+      /* add the object to the final list */
+      status = addobjdeep(i, objlist2, finalobjlist);
+      if (status != RETURN_OK)
+	goto exit;
     }
 
- exit_sortit:
+ exit:
   free(objlistout.plist);
   free(objlistout.obj);
   return status;
@@ -692,32 +689,109 @@ void plistinit(PIXTYPE *conv, PIXTYPE *var)
   return;
 }
 
-/******************************* addcleanobj ********************************/
+
+/************************** clean an objliststruct ***************************/
 /*
- * Compute ycmin, ycmax for the object
- */
-void setclims(objstruct *obj)
+Fill a list with whether each object in the list survived the cleaning 
+(assumes that mthresh has already been calculated for all objects in the list)
+*/
+
+void clean(objliststruct *objlist, double clean_param, int *survives)
 {
-  int margin, y;
-  float hh1, hh2;
+  objstruct     *obj1, *obj2;
+  int	        i,j;
+  double        amp,ampin,alpha,alphain, unitarea,unitareain,beta,val;
+  float	       	dx,dy,rlim;
 
-  /* Compute the max. vertical extent of the object: */
-  /* First from 2nd order moments, compute y-limit of the 3-sigma ellips... */
-  hh1 = obj->cyy - obj->cxy*obj->cxy/(4.0*obj->cxx);
-  hh1 = hh1 > 0.0 ? 1/sqrt(3*hh1) : 0.0;
+  beta = clean_param;
 
-  /* ... then from the isophotal limit, which should not be TOO different... */
-  hh2 = (obj->ymax-obj->ymin+1.0);
-  margin = (int)((hh1>hh2?hh1:hh2)*MARGIN_SCALE+MARGIN_OFFSET+0.49999);
-  obj->ycmax = obj->ymax+margin;
+  /* initialize to all surviving */
+  for (i=0; i<objlist->nobj; i++)
+    survives[i] = 1;
 
-  /* ... and finally compare with the predefined margin */
-  if ((y=(int)(obj->my+0.49999)+CLEAN_MARGIN)>obj->ycmax)
-    obj->ycmax = y;
-  obj->ycmin = obj->ymin-margin;
-  if ((y=(int)(obj->my+0.49999)-CLEAN_MARGIN)<obj->ycmin)
-    obj->ycmin = y;
+  obj1 = objlist->obj;
+  for (i=0; i<objlist->nobj; i++, obj1++)
+    {
+      if (!survives[i])
+	continue;
 
-  return;
+      /* parameters for test object */
+      unitareain = PI*obj1->a*obj1->b;
+      ampin = obj1->fdflux/(2*unitareain*obj1->abcor);
+      alphain = (pow(ampin/obj1->dthresh, 1.0/beta)-1)*unitareain/obj1->fdnpix;
+
+      /* loop over remaining objects in list*/
+      obj2 = obj1 + 1;
+      for (j=i+1; j<objlist->nobj; j++, obj2++)
+	{
+	  if (!survives[j])
+	    continue;
+
+	  dx = obj1->mx - obj2->mx;
+	  dy = obj1->my - obj2->my;
+	  rlim = obj1->a + obj2->a;
+	  rlim *= rlim;
+	  if (dx*dx + dy*dy > rlim*CLEAN_ZONE*CLEAN_ZONE)
+	    continue;
+
+	  /* if obj1 is bigger, see if it eats obj2 */
+	  if (obj2->fdflux < obj1->fdflux)
+	    {
+	      val = 1 + alphain*(obj1->cxx*dx*dx + obj1->cyy*dy*dy +
+				 obj1->cxy*dx*dy);
+	      if (val>1.0 && ((float)(val<1e10?ampin*pow(val,-beta):0.0) >
+			      obj2->mthresh))
+		  survives[j] = 0; /* the test object eats this one */
+	    }
+
+	  /* if obj2 is bigger, see if it eats obj1 */
+	  else
+	    {
+	      unitarea = PI*obj2->a*obj2->b;
+	      amp = obj2->fdflux/(2*unitarea*obj2->abcor);
+	      alpha = (pow(amp/obj2->dthresh, 1.0/beta) - 1) *
+		unitarea/obj2->fdnpix;
+	      val = 1 + alpha*(obj2->cxx*dx*dx + obj2->cyy*dy*dy +
+			       obj2->cxy*dx*dy);
+	      if (val>1.0 && ((float)(val<1e10?amp*pow(val,-beta):0.0) >
+			      obj1->mthresh))
+		survives[i] = 0;  /* this object eats the test object */
+	    }
+
+	} /* inner loop over objlist (obj2) */
+    } /* outer loop of objlist (obj1) */
 }
 
+
+/*****************************************************************************/
+/*
+Convert to an output object.
+*/
+
+int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
+{
+  int j, status = RETURN_OK;
+  objstruct *obj = objlist->obj + l;
+  pliststruct *pixt, *pixel;
+
+  pixel = objlist->plist;
+
+  /* copy everything */
+  objout->thresh = obj->thresh;
+  objout->dthresh = obj->dthresh;
+  objout->mthresh = obj->mthresh;
+  objout->npix = obj->fdnpix; /* or should be dnpix? */
+
+  /* TODO ADD MORE HERE!!!! */
+  
+  /* Allocate object's pixel list */
+  QMALLOC(objout->pix, int, objout->npix, status);
+
+  /* fill it */
+  for (pixt=pixel+obj->firstpix, j=0; pixt>=pixel;
+       pixt=pixel+PLIST(pixt,nextpix), j++)
+      objout->pix[j] = PLIST(pixt,x) + w*PLIST(pixt,y);
+
+ exit:
+  return status;
+}

@@ -82,7 +82,12 @@ remove an object from an objlist
 int rmobjshallow(int objnb, objliststruct *objlist)
 {
   if (objnb>=objlist->nobj)
-    return NO_CLEAN_OBJ_ERROR;
+    {
+      sprintf(errdetail,
+	      "tried to remove object index %d from objlist of length %d",
+	      objnb, objlist->nobj);
+      return SEP_INTERNAL_ERROR;
+    }
   
   /* if there are any objects left, need to reallocate memory */
   if (--objlist->nobj)
@@ -109,7 +114,7 @@ int rmobjshallow(int objnb, objliststruct *objlist)
 
 /******************************** mergeobject *******************************/
 /*
-Merge twos objects.
+Merge two objects.
 */
 
 void mergeobjshallow(objstruct *objslave, objstruct *objmaster)
@@ -176,7 +181,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
     objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct));
 
   if (!objl2obj)
-    goto exit;
+    goto earlyexit;
   objl2->obj = objl2obj;
 
   /* Allocate space for the new object's pixels in 2nd list's plist */
@@ -187,7 +192,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
     plist2 = (pliststruct *)malloc((objl2->npix=npx)*plistsize);
 
   if (!plist2)
-    goto exit;
+    goto earlyexit;
   objl2->plist = plist2;
   
   /* copy the plist */
@@ -208,7 +213,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
   return RETURN_OK;
   
   /* if early exit, reset 2nd list */
- exit:
+ earlyexit:
   objl2->nobj--;
   objl2->npix = fp;
   return RETURN_ERROR;

@@ -61,6 +61,7 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define MEMORY_ALLOC_ERROR      8 /* Could not allocate memory for.. */ 
 #define DEBLEND_OVERFLOW_ERROR  9
 #define CLEAN_OVERFLOW_ERROR    10
+#define SEP_INTERNAL_ERROR      11
 
 void sep_errmsg(int status, char *errtext);
 
@@ -118,60 +119,18 @@ typedef struct
   float	   dthresh;		       	     /* detect. threshold (ADU) */
   float	   mthresh;		             /* max. threshold (ADU) */
 
-  /* # pixels */
-  int	   fdnpix;		       	/* nb of extracted pix */
-  int	   dnpix;	       		/* nb of pix above thresh  */
   int	   npix;       			/* "" in measured frame */
-  int	   nzdwpix;			/* nb of zero-dweights around */
-  int	   nzwpix;		       	/* nb of zero-weights inside */
   
-  /* position */
-  int	   peakx,peaky;                      /* pos of brightest pix */
-  double   mx, my;        	             /* barycenter */
-  int	   xmin,xmax,ymin,ymax,ycmin,ycmax;  /* x,y limits */
-
-  /* shape */
-  double   mx2,my2,mxy;			     /* variances and covariance */
-  float	   a, b, theta, abcor;		     /* moments and angle */
-  float	   cxx,cyy,cxy;			     /* ellipse parameters */
-
-  /* flux */
-  float	   fdflux;	       		/* integrated ext. flux */
-  float	   dflux;      			/* integrated det. flux */
-  float	   flux;       			/* integrated mes. flux */
-  float	   fluxerr;			/* integrated variance */
-  PIXTYPE  fdpeak;	       		/* peak intensity (ADU) */
-  PIXTYPE  dpeak;      			/* peak intensity (ADU) */
-  PIXTYPE  peak;       			/* peak intensity (ADU) */
-
-  /* flags */
-  short	   flag;			     /* extraction flags */
-  BYTE	   singuflag;			     /* flags for singularities */
-
-  /* indicies of member pixels */
   int *pix;
 
-  /* accessing individual pixels in plist*/
-  int	   firstpix;			     /* ptr to first pixel */
-  int	   lastpix;			     /* ptr to last pixel */
-} objstruct;
-
-typedef struct
-{
-  int           nobj;	  /* number of objects in list */
-  objstruct     *obj;	  /* pointer to the object array */
-  int           npix;	  /* number of pixels in pixel-list */
-  pliststruct   *plist;	  /* pointer to the pixel-list */
-  PIXTYPE       dthresh;  /* detection threshold */
-  PIXTYPE       thresh;	  /* analysis threshold */
-} objliststruct;
+} sepobj;
 
 int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    PIXTYPE thresh, int minarea,
 	    float *conv, int convw, int convh,
 	    int deblend_nthresh, double deblend_mincont,
 	    int clean_flag, double clean_param,
-	    int *nobj, objstruct *catalog);
+	    int *nobj, sepobj **objects);
 
 /* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/

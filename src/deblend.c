@@ -382,11 +382,11 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 int belong(int corenb, objliststruct *coreobjlist,
 	   int shellnb, objliststruct *shellobjlist)
 {
-  objstruct	*cobj = &(coreobjlist->obj[corenb]),
-                *sobj = &(shellobjlist->obj[shellnb]);
-  pliststruct	*cpl = coreobjlist->plist, *spl = shellobjlist->plist, *pixt;
+  objstruct   *cobj = &(coreobjlist->obj[corenb]),
+              *sobj = &(shellobjlist->obj[shellnb]);
+  pliststruct *cpl = coreobjlist->plist, *spl = shellobjlist->plist, *pixt;
 
-  int		xc=PLIST(cpl+cobj->firstpix,x), yc=PLIST(cpl+cobj->firstpix,y);
+  int         xc=PLIST(cpl+cobj->firstpix,x), yc=PLIST(cpl+cobj->firstpix,y);
 
   for (pixt = spl+sobj->firstpix; pixt>=spl; pixt = spl+PLIST(pixt,nextpix))
     if ((PLIST(pixt,x) == xc) && (PLIST(pixt,y) == yc))

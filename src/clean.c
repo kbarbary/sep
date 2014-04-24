@@ -55,24 +55,25 @@ static LONG cleanvictim[CLEAN_STACKSIZE];
 Add `objin` to `objlist` shallowly, and with cleaning. "With cleaning" means
 that it may be merged into an existing object.
 */
-
 int addobjcleanly(objstruct *objin, objliststruct *objlist,
 		  double clean_param)
 {
-  objstruct     *obj;
+  objstruct     *obj, *objin;
   int	        i,j,k, status;
   double        amp,ampin,alpha,alphain, unitarea,unitareain,beta,val;
   float	       	dx,dy,rlim;
 
   status = RETURN_OK;
 
+  objin = objl1->obj + objnb;
+
   beta = clean_param;
   unitareain = PI*objin->a*objin->b;
   ampin = objin->fdflux/(2*unitareain*objin->abcor);
   alphain = (pow(ampin/objin->dthresh, 1.0/beta)-1)*unitareain/objin->fdnpix;
   j=0;
-  obj = objlist->obj;
-  for (i=0; i<objlist->nobj; i++, obj++)
+  obj = objl2->obj;
+  for (i=0; i<objl2->nobj; i++, obj++)
     {
       dx = objin->mx - obj->mx;
       dy = objin->my - obj->my;
@@ -121,15 +122,15 @@ int addobjcleanly(objstruct *objin, objliststruct *objlist,
   for (i=j; i--;)
     {
       k = cleanvictim[i];
-      obj = objlist->obj + k;
+      obj = objl2->obj + k;
       mergeobjshallow(obj, objin);
-      status = rmobjshallow(k, objlist);
+      status = rmobjshallow(k, objl2);
       if (status != RETURN_OK)
 	goto exit;
     }
 
   /* and then gets added to the list! */
-  status = addobjshallow(objin, objlist);
+  status = addobjshallow(objin, objl2);
 
  exit:
   return status;
