@@ -92,12 +92,12 @@ void freeback(backmap *bkmap);
 ### Object detection
 
 ```c
-int extract(float *im, float *var, int w, int h,
-            float thresh, int minarea,
-            float *conv, int convw, int convh,
-            int deblend_nthresh, double deblend_mincont,
-            int clean_flag, double clean_param,
-            objliststruct **catalog);
+int extractobj(float *im, float *var, int w, int h,
+               float thresh, int minarea,
+               float *conv, int convw, int convh,
+               int deblend_nthresh, double deblend_mincont,
+               int clean_flag, double clean_param,
+               int *nobj, sepobj **objects);
 ```
 
 *Detect objects in an image*
@@ -117,6 +117,11 @@ int extract(float *im, float *var, int w, int h,
 If `var` is NULL, `thresh` is taken to be be an absolute threshold in ADU.
 Otherwise, `thresh` is taken to be sigma and a variable threshold of
 `thresh * sqrt(var)` is calculated for each pixel.
+
+Return values:
+
+* `nobj` : number of objects detected
+* `objects` : array of `sepobj` structs of length `nobj`
 
 Running Tests
 -------------

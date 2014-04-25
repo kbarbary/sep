@@ -107,30 +107,35 @@ void freeback(backmap *);
 #define	OBJ_ISO_PB    0x0020
 #define	OBJ_DOVERFLOW 0x0040
 #define	OBJ_OVERFLOW  0x0080
-#define	NISO          8	     /* number of isophotes */
+#define OBJ_SINGU     0x0100
 
 typedef	unsigned char	BYTE;  /* a byte */
 typedef	char pliststruct;      /* Dummy type for plist */
 
 typedef struct
 {
-  /* thresholds */
-  float	   thresh;		             /* measur. threshold (ADU) */
-  float	   dthresh;		       	     /* detect. threshold (ADU) */
-  float	   mthresh;		             /* max. threshold (ADU) */
-
-  int	   npix;       			/* "" in measured frame */
-  
-  int *pix;
-
+  float	   thresh;               /* threshold (ADU) */
+  int	   npix;                 /* # pixels extracted (size of pix array) */
+  int      tnpix;                /* # pixels above thresh (unconvolved) */
+  int	   xmin,xmax,ymin,ymax;  /* x,y limits */  
+  double   mx, my;               /* barycenter */
+  double   mx2,my2,mxy;		 /* variances and covariance */
+  float	   a, b, theta, abcor;   /* moments and angle */
+  float	   cxx,cyy,cxy;	         /* ellipse parameters */
+  float	   cflux;                /* total flux of pixels (convolved im) */
+  float	   flux;      		 /* total flux of pixels (unconvolved) */
+  PIXTYPE  cpeak;                /* peak intensity (ADU) (convolved) */
+  PIXTYPE  peak;                 /* peak intensity (ADU) (unconvolved) */
+  short	   flag;                 /* extraction flags */
+  int      *pix;                 /* pixel array */
 } sepobj;
 
-int extractobjs(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		PIXTYPE thresh, int minarea,
-		float *conv, int convw, int convh,
-		int deblend_nthresh, double deblend_mincont,
-		int clean_flag, double clean_param,
-		int *nobj, sepobj **objects);
+int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
+	       PIXTYPE thresh, int minarea,
+	       float *conv, int convw, int convh,
+	       int deblend_nthresh, double deblend_mincont,
+	       int clean_flag, double clean_param,
+	       int *nobj, sepobj **objects);
 
 /* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/

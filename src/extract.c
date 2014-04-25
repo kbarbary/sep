@@ -66,12 +66,12 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
 
 /****************************** extract **************************************/
-int extractobjs(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		PIXTYPE thresh, int minarea,
-		float *conv, int convw, int convh,
-		int deblend_nthresh, double deblend_mincont,
-		int clean_flag, double clean_param,
-		int *nobj, sepobj **objects)
+int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
+	       PIXTYPE thresh, int minarea,
+	       float *conv, int convw, int convh,
+	       int deblend_nthresh, double deblend_mincont,
+	       int clean_flag, double clean_param,
+	       int *nobj, sepobj **objects)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *finalobjlist;
@@ -842,13 +842,35 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
 
   pixel = objlist->plist;
 
-  /* copy everything */
-  objout->thresh = obj->thresh;
-  objout->dthresh = obj->dthresh;
-  objout->mthresh = obj->mthresh;
-  objout->npix = obj->fdnpix; /* or should be dnpix? */
+  objout->thresh = obj->dthresh;  /* these change names */
+  objout->npix = obj->fdnpix;
+  objout->tnpix = obj->dnpix;
 
-  /* TODO ADD MORE HERE!!!! */
+  objout->xmin = obj->xmin;
+  objout->xmax = obj->xmax;
+  objout->ymin = obj->ymin;
+  objout->ymax = obj->ymax;
+  objout->mx = obj->mx;
+  objout->my = obj->my;
+  objout->mx2 = obj->mx2;
+  objout->my2 = obj->my2;
+  objout->mxy = obj->mxy;
+  objout->a = obj->a;
+  objout->b = obj->b;
+  objout->theta = obj->theta;
+  objout->abcor = obj->abcor;
+  objout->cxx = obj->cxx;
+  objout->cyy = obj->cyy;
+  objout->cxy = obj->cxy;
+
+  objout->cflux = obj->fdflux; /* these change names */
+  objout->flux = obj->dflux;
+  objout->cpeak = obj->fdpeak;
+  objout->peak = obj->dpeak;
+
+  objout->flag = obj->flag;
+  if (obj->singuflag)
+    objout->flag |= OBJ_SINGU;
   
   /* Allocate object's pixel list */
   QMALLOC(objout->pix, int, objout->npix, status);

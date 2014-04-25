@@ -12,7 +12,6 @@ SOURCES=analyse.c back.c deblend.c extract.c lutz.c util.c
 OBJECTS=$(SOURCES:.c=.o)
 
 lib : $(OBJECTS)
-#	$(AR) $(ARFLAGS) lib$(NAME).a $(OBJECTS)
 	$(LD) $(LDFLAGS) -o lib$(NAME).so $(OBJECTS) -lc -lm
 
 # The following use the implicit rule for making a .o file from .c file:
