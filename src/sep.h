@@ -40,8 +40,8 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#define	SEP_VERSION  "0.1.dev"
-#define	SEP_DATE     "2014-03-14"
+#define	SEP_VERSION  "0.1.0"
+#define	SEP_DATE     "2014-04-25"
 
 /*------------------------- global typedefs ---------------------------------*/
 
@@ -64,6 +64,7 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define SEP_INTERNAL_ERROR      11
 
 void seperrmsg(int status, char *errtext);
+char seperrdetail[512];
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -127,7 +128,7 @@ typedef struct
   PIXTYPE  cpeak;                /* peak intensity (ADU) (convolved) */
   PIXTYPE  peak;                 /* peak intensity (ADU) (unconvolved) */
   short	   flag;                 /* extraction flags */
-  int      *pix;                 /* pixel array */
+  int      *pix;                 /* pixel array (length is npix)*/
 } sepobj;
 
 int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
@@ -163,8 +164,6 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 
 typedef	int	      LONG;
 typedef	unsigned int  ULONG;
-
-char seperrdetail[512];
 
 #define	QCALLOC(ptr, typ, nel, status)				     	\
   {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\

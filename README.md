@@ -9,7 +9,11 @@ C library for Source Extraction and Photometry
 [Source Extractor](http://www.astromatic.net/software/sextractor) is
 great, but sometimes you just want to use some of the pieces from it
 without running the entire executable. This library implements a few of
-the algorithms used in SExtractor as stand-alone pieces.
+the algorithms used in SExtractor as stand-alone pieces. So far this
+includes:
+
+* background estimation
+* source detection
 
 Install
 -------
@@ -87,9 +91,9 @@ background map vertices*
 void freeback(backmap *bkmap);
 ```
 
-*free memory associated with a background spline*
+*free memory associated with a background map*
 
-### Object detection
+### Source detection
 
 ```c
 int extractobj(float *im, float *var, int w, int h,
@@ -123,11 +127,23 @@ Return values:
 * `nobj` : number of objects detected
 * `objects` : array of `sepobj` structs of length `nobj`
 
+An `sepobj` struct holds a collection of parameters characterizing the
+size, shape, and brightness of the object. It also contains an array
+of ints giving the pixels belonging to the object. Note that these arrays
+must eventually be `free`d. 
+
 Running Tests
 -------------
 
 In `test` directory, type `make` then run the executable `runtests`. 
 
+
+Speed
+-----
+
+For a 2k x 4k image with ~2000 sources, `makeback` takes ~250ms and
+`extractobjs` takes ~450ms, with SE default settings.
+Tested on a 1.7 GHz Core i5 Ivybridge laptop.
 
 License
 -------
