@@ -378,7 +378,7 @@ void  lutzsort(infostruct *info, objliststruct *objlist)
   obj->flag = info->flag;
   objlist->npix += info->pixnb;
   
-  preanalyse(objlist->nobj, objlist, ANALYSE_FAST);
+  preanalyse(objlist->nobj, objlist);
   
   objlist->nobj++;
   

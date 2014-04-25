@@ -42,9 +42,6 @@
 
 
 #define	UNKNOWN	        -1  /* flag for LUTZ */
-#define	ANALYSE_FAST	 0  /* flags for preanalyse */
-#define	ANALYSE_FULL	 1
-#define	ANALYSE_ROBUST	 2
 #define	CLEAN_ZONE      10.0  /* zone (in sigma) to consider for processing */
 #define CLEAN_STACKSIZE 3000  /* replaces prefs.clean_stacksize  */
                               /* (MEMORY_OBJSTACK in sextractor inputs) */
@@ -141,9 +138,10 @@ typedef struct
 } objliststruct;
 
 
-int objmthresh(int objnb, objliststruct *objlist, int minarea,
-	       PIXTYPE dthresh);
-void preanalyse(int, objliststruct *, int);
+int analysemthresh(int objnb, objliststruct *objlist, int minarea,
+		   PIXTYPE dthresh);
+void preanalyse(int, objliststruct *);
+void analyse(int, objliststruct *, int);
 
 int  lutzalloc(int, int);
 void lutzfree(void);

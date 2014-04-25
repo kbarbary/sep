@@ -63,7 +63,7 @@ typedef float PIXTYPE;   /* type of image arrays */
 #define CLEAN_OVERFLOW_ERROR    10
 #define SEP_INTERNAL_ERROR      11
 
-void sep_errmsg(int status, char *errtext);
+void seperrmsg(int status, char *errtext);
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -125,12 +125,12 @@ typedef struct
 
 } sepobj;
 
-int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
-	    PIXTYPE thresh, int minarea,
-	    float *conv, int convw, int convh,
-	    int deblend_nthresh, double deblend_mincont,
-	    int clean_flag, double clean_param,
-	    int *nobj, sepobj **objects);
+int extractobjs(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		PIXTYPE thresh, int minarea,
+		float *conv, int convw, int convh,
+		int deblend_nthresh, double deblend_mincont,
+		int clean_flag, double clean_param,
+		int *nobj, sepobj **objects);
 
 /* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/
@@ -159,12 +159,12 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 typedef	int	      LONG;
 typedef	unsigned int  ULONG;
 
-char errdetail[512];
+char seperrdetail[512];
 
 #define	QCALLOC(ptr, typ, nel, status)				     	\
   {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\
       {									\
-	sprintf(errdetail, #ptr " (" #nel "=%lu elements) "		\
+	sprintf(seperrdetail, #ptr " (" #nel "=%lu elements) "		\
 		"at line %d in module " __FILE__ " !",			\
 		(size_t)(nel)*sizeof(typ), __LINE__);			\
 	status = MEMORY_ALLOC_ERROR;					\
@@ -175,7 +175,7 @@ char errdetail[512];
 #define	QMALLOC(ptr, typ, nel, status)					\
   {if (!(ptr = (typ *)malloc((size_t)(nel)*sizeof(typ))))		\
       {									\
-	sprintf(errdetail, #ptr " (" #nel "=%lu elements) "		\
+	sprintf(seperrdetail, #ptr " (" #nel "=%lu elements) "		\
 		"at line %d in module " __FILE__ " !",			\
 		(size_t)(nel)*sizeof(typ), __LINE__);			\
 	status = MEMORY_ALLOC_ERROR;					\

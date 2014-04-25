@@ -66,12 +66,12 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
 
 /****************************** extract **************************************/
-int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
-	    PIXTYPE thresh, int minarea,
-	    float *conv, int convw, int convh,
-	    int deblend_nthresh, double deblend_mincont,
-	    int clean_flag, double clean_param,
-	    int *nobj, sepobj **objects)
+int extractobjs(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		PIXTYPE thresh, int minarea,
+		float *conv, int convw, int convh,
+		int deblend_nthresh, double deblend_mincont,
+		int clean_flag, double clean_param,
+		int *nobj, sepobj **objects)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *finalobjlist;
@@ -261,7 +261,8 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	      /* (previously, the largest object became a "victim") */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
-		  sprintf(errdetail, "Pixel stack overflow at position %d,%d.",
+		  sprintf(seperrdetail,
+			  "Pixel stack overflow at position %d,%d.",
 			  xl+1, yl+1);
 		  status = PIXSTACK_OVERFLOW_ERROR;
 		  goto exit;
@@ -436,7 +437,7 @@ int extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
       /* Calculate mthresh for all objects in the list (needed for cleaning) */
       for (i=0; i<finalobjlist->nobj; i++)
 	{
-	  status = objmthresh(i, finalobjlist, minarea, thresh);
+	  status = analysemthresh(i, finalobjlist, minarea, thresh);
 	  if (status != RETURN_OK)
 	    goto exit;
 	}
@@ -523,7 +524,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   obj.dthresh = thresh = objlist->dthresh;
   obj.thresh = objlist->thresh;
 
-  preanalyse(0, objlist, ANALYSE_FAST);
+  preanalyse(0, objlist);
 
   /*----- Check if the current strip contains the lower isophote
     (it always should since the "current strip" is the entire image!) */
@@ -540,7 +541,8 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	  objlist2 = objlist;
 	  for (i=0; i<objlist2->nobj; i++)
 	    objlist2->obj[i].flag |= OBJ_DOVERFLOW;
-	  sprintf(errdetail, "Deblending overflow for detection at %.0f,%.0f",
+	  sprintf(seperrdetail,
+		  "Deblending overflow for detection at %.0f,%.0f",
 		  obj.mx+1, obj.my+1);
 	  status = DEBLEND_OVERFLOW_ERROR;
 	  goto exit;
@@ -552,7 +554,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   /* Analyze the deblended objects and add to the final list */
   for (i=0; i<objlist2->nobj; i++)
     {
-      preanalyse(i, objlist2, ANALYSE_FULL|ANALYSE_ROBUST);
+      analyse(i, objlist2, 1);
 
       /* this does nothing if DETECT_MAXAREA is 0 (and it currently is) */
       if (DETECT_MAXAREA && objlist2->obj[i].fdnpix > DETECT_MAXAREA)
@@ -569,6 +571,70 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   free(objlistout.obj);
   return status;
 }
+
+
+/********** addobjdeep (originally in manobjlist.c) **************************/
+/*
+Add object number `objnb` from list `objl1` to list `objl2`.
+Unlike `addobjshallow` this also copies plist pixels to the second list.
+*/
+
+int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
+{
+  objstruct	*objl2obj;
+  pliststruct	*plist1 = objl1->plist, *plist2 = objl2->plist;
+  int		fp, i, j, npx, objnb2;
+  
+  fp = objl2->npix;      /* 2nd list's plist size in pixels */
+  j = fp*plistsize;      /* 2nd list's plist size in bytes */
+  objnb2 = objl2->nobj;  /* # of objects currently in 2nd list*/
+
+  /* Allocate space in `objl2` for the new object */
+  if (objnb2)
+    objl2obj = (objstruct *)realloc(objl2->obj,
+				    (++objl2->nobj)*sizeof(objstruct));
+  else
+    objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct));
+
+  if (!objl2obj)
+    goto earlyexit;
+  objl2->obj = objl2obj;
+
+  /* Allocate space for the new object's pixels in 2nd list's plist */
+  npx = objl1->obj[objnb].fdnpix;
+  if (fp)
+    plist2 = (pliststruct *)realloc(plist2, (objl2->npix+=npx)*plistsize);
+  else
+    plist2 = (pliststruct *)malloc((objl2->npix=npx)*plistsize);
+
+  if (!plist2)
+    goto earlyexit;
+  objl2->plist = plist2;
+  
+  /* copy the plist */
+  plist2 += j;
+  for(i=objl1->obj[objnb].firstpix; i!=-1; i=PLIST(plist1+i,nextpix))
+    {
+      memcpy(plist2, plist1+i, (size_t)plistsize);
+      PLIST(plist2,nextpix) = (j+=plistsize);
+      plist2 += plistsize;
+    }
+  PLIST(plist2-=plistsize, nextpix) = -1;
+  
+  /* copy the object itself */
+  objl2->obj[objnb2] = objl1->obj[objnb];
+  objl2->obj[objnb2].firstpix = fp*plistsize;
+  objl2->obj[objnb2].lastpix = j-plistsize;
+
+  return RETURN_OK;
+  
+  /* if early exit, reset 2nd list */
+ earlyexit:
+  objl2->nobj--;
+  objl2->npix = fp;
+  return RETURN_ERROR;
+}
+
 
 
 /******************************** convolve ***********************************/
