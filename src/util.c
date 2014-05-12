@@ -90,7 +90,7 @@ float fqmedian(float *ra, int n)
   error status value.  The message may be up to 60 characters long, plus
   the terminating null character.
 */
-void sep_errmsg(int status, char *errtext)
+void seperrmsg(int status, char *errtext)
 {
   errtext[0] = '\0';
   switch (status)
@@ -98,35 +98,11 @@ void sep_errmsg(int status, char *errtext)
     case RETURN_OK:
       strcpy(errtext, "OK - no error");
       break;
-    case RETURN_ERROR:
-      strcpy(errtext, "unspecified error");
-      break;
-    case MEMORY_PIXSTACK_ERROR:
-      strcpy(errtext, "memory pixel stack error");
-      break;
-    case PIXSTACK_OVERFLOW_ERROR:
-      strcpy(errtext, "pixel stack overflow error");
-      break;
-    case MEMORY_CLEAN_ERROR:
-      strcpy(errtext, "memory clean error");
-      break;
-    case NO_CLEAN_OBJ_ERROR:
-      strcpy(errtext, "internal error: no object to remove in subcleanobj");
-      break;
-    case LUTZ_REALLOC_ERROR:
-      strcpy(errtext, "internal error: problem with memory realloc in lutz");
-      break;
-    case GATHERUP_MEMORY_ERROR:
-      strcpy(errtext, "not enough memory to update pixel list in gatherup");
+    case SEP_INTERNAL_ERROR:
+      strcpy(errtext, "SEP internal error");
       break;
     case MEMORY_ALLOC_ERROR:
       strcpy(errtext, "memory allocation");
-      break;
-    case DEBLEND_OVERFLOW_ERROR:
-      strcpy(errtext, "deblend overflow");
-      break;
-    case CLEAN_OVERFLOW_ERROR:
-      strcpy(errtext, "clean overflow");
       break;
     default:
        strcpy(errtext, "unknown error status");

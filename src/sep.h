@@ -41,7 +41,7 @@
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #define	SEP_VERSION  "0.1.0"
-#define	SEP_DATE     "2014-04-25"
+#define	SEP_DATE     "2014-05-11"
 
 /*------------------------- global typedefs ---------------------------------*/
 
@@ -49,19 +49,8 @@ typedef float PIXTYPE;   /* type of image arrays */
 
 /*-------------------- error codes & messages -------------------------------*/
 #define	RETURN_OK		0
-#define	RETURN_ERROR		(-1) /* general unspecified error */
-#define MEMORY_PIXSTACK_ERROR   1
-#define PIXSTACK_OVERFLOW_ERROR 2
-#define MEMORY_CLEAN_ERROR      4
-#define NO_CLEAN_OBJ_ERROR      5 /* Internal Error: no CLEAN object to
-                                     remove in subcleanobj()*/
-#define LUTZ_REALLOC_ERROR      6 /* problem with mem. realloc. in lutz() */
-#define GATHERUP_MEMORY_ERROR   7 /* Not enough memory to update pixel list in
-				     gatherup()" */
-#define MEMORY_ALLOC_ERROR      8 /* Could not allocate memory for.. */ 
-#define DEBLEND_OVERFLOW_ERROR  9
-#define CLEAN_OVERFLOW_ERROR    10
-#define SEP_INTERNAL_ERROR      11
+#define SEP_INTERNAL_ERROR      1
+#define MEMORY_ALLOC_ERROR      2
 
 void seperrmsg(int status, char *errtext);
 char seperrdetail[512];

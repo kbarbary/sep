@@ -167,7 +167,7 @@ int lutz(pliststruct *plistin,
 
   if (!(obj=objlist->obj=(objstruct *)malloc(nobjm*sizeof(objstruct))))
     {
-      out = RETURN_ERROR;
+      out = MEMORY_ALLOC_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
       goto exit_lutz;
     }
@@ -177,7 +177,7 @@ int lutz(pliststruct *plistin,
   if (!(objlist->plist
 	= (pliststruct *)malloc((eny-sty)*(enx-stx)*plistsize)))
     {
-      out = RETURN_ERROR;
+      out = MEMORY_ALLOC_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
       goto exit_lutz;
     }
@@ -293,7 +293,7 @@ int lutz(pliststruct *plistin,
 				      realloc(obj, (nobjm+=nobjm/2)*
 					      sizeof(objstruct))))
 				  {
-				    out = RETURN_ERROR;
+				    out = MEMORY_ALLOC_ERROR;
 				    goto exit_lutz;
 				  }
 			      lutzsort(&info[co], objlist);
@@ -342,7 +342,7 @@ int lutz(pliststruct *plistin,
     {
       if (!(objlist->obj=
 	    (objstruct *)realloc(obj, objlist->nobj*sizeof(objstruct))))
-	out = LUTZ_REALLOC_ERROR;
+	out = MEMORY_ALLOC_ERROR;
     }
   else
     {
@@ -353,7 +353,7 @@ int lutz(pliststruct *plistin,
   if (cn && out == RETURN_OK)
     {
       if (!(objlist->plist=(pliststruct *)realloc(plist,cn)))
-	out = LUTZ_REALLOC_ERROR;
+	out = MEMORY_ALLOC_ERROR;
     }
   else
     {

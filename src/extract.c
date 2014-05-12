@@ -147,7 +147,7 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
   plistinit(conv, var);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
     {
-      status = MEMORY_PIXSTACK_ERROR;
+      status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
 
@@ -264,13 +264,13 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		  sprintf(seperrdetail,
 			  "Pixel stack overflow at position %d,%d.",
 			  xl+1, yl+1);
-		  status = PIXSTACK_OVERFLOW_ERROR;
+		  status = SEP_INTERNAL_ERROR;
 		  goto exit;
 		  
 		  /* NOTE: The above error was originally just a warning.
 		     with the change to an error, the following code in this
-		     if block is never executed. TODO: should this just
-		     be a warning (or nothing?)
+		     if block is never executed.
+		     TODO: should this just be a warning (or nothing?)
 		  */
 
 		  /* loop over pixels in row to find largest object */
@@ -290,14 +290,9 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		    if (info[j].pixnb>maxpixnb)
 		      maxpixnb = (victim = &info[j])->pixnb;
 		  
-		  if (!maxpixnb)
+		  if ((!maxpixnb) || (maxpixnb <= 1))
 		    {
-		      status = RETURN_ERROR;
-		      goto exit;
-		    }
-		  if (maxpixnb <= 1)
-		    {
-		      status = PIXSTACK_OVERFLOW_ERROR;
+		      status = SEP_INTERNAL_ERROR;
 		      goto exit;
 		    }
 		  freeinfo.firstpix = PLIST(pixel+victim->firstpix, nextpix);
@@ -533,18 +528,21 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 
   if (!(obj.flag & OBJ_OVERFLOW))
     {
-      if (deblend(objlist, 0, &objlistout, deblend_nthresh, deblend_mincont,
-		  minarea) == RETURN_OK)
-	objlist2 = &objlistout;
+      status = deblend(objlist, 0, &objlistout, deblend_nthresh,
+		       deblend_mincont, minarea);
+      if (status == RETURN_OK)
+	{
+	  objlist2 = &objlistout;
+	}
       else
 	{
+	  /* formerly, this wasn't a fatal error, so a flag was set for
+	     the object and we continued. I'm leaving the flag-setting here
+	     in case we want to change this to a non-fatal error in the
+	     future, but currently the flag setting is irrelevant. */
 	  objlist2 = objlist;
 	  for (i=0; i<objlist2->nobj; i++)
 	    objlist2->obj[i].flag |= OBJ_DOVERFLOW;
-	  sprintf(seperrdetail,
-		  "Deblending overflow for detection at %.0f,%.0f",
-		  obj.mx+1, obj.my+1);
-	  status = DEBLEND_OVERFLOW_ERROR;
 	  goto exit;
 	}
     }
@@ -632,7 +630,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
  earlyexit:
   objl2->nobj--;
   objl2->npix = fp;
-  return RETURN_ERROR;
+  return MEMORY_ALLOC_ERROR;
 }
 
 

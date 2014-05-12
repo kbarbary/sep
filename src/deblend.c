@@ -60,14 +60,12 @@ int gatherup(objliststruct *, objliststruct *);
 static objliststruct *objlist=NULL;
 static short	     *son=NULL, *ok=NULL;
 
-/******************************** deblend **********************************
-PURPOSE Divide a list of isophotal detections in several parts (deblending).
-INPUT   input objlist,
-        output objlist,
-OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
-NOTES   Even if the object is not deblended, the output objlist threshold is
-        recomputed if a variable threshold is used.
- ***/
+/******************************** deblend ************************************/
+/*
+Divide a list of isophotal detections in several parts (deblending).
+NOTE: Even if the object is not deblended, the output objlist threshold is
+      recomputed if a variable threshold is used.
+*/
 int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    int deblend_nthresh, double deblend_mincont, int minarea)
 {
@@ -122,7 +120,8 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       /*--------- Build tree (bottom->up) */
       if (objlist[k-1].nobj>=NSONMAX)
 	{
-	  status = RETURN_ERROR;
+	  status = SEP_INTERNAL_ERROR;
+	  sprintf(seperrdetail, "Deblending overflow (# sons >= NSONMAX)");
 	  goto exit;
 	}
       
@@ -143,14 +142,16 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		m = objlist[k].nobj - 1;
 		if (m>=NSONMAX)
 		  {
-		    status = RETURN_ERROR;
+		    status = SEP_INTERNAL_ERROR;
+		    sprintf(seperrdetail,
+			    "Deblending overflow (# sons >= NSONMAX)");
 		    goto exit;
 		  }
 		if (h>=nbm-1)
 		  if (!(son = (short *)
 			realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
 		    {
-		      status = RETURN_ERROR;
+		      status = MEMORY_ALLOC_ERROR;
 		      goto exit;
 		    }
 		son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
@@ -283,7 +284,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   if (!(bmp = (char *)calloc(1, npix*sizeof(char))))
     {
       bmp = NULL;
-      status = RETURN_ERROR;
+      status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
   
@@ -299,7 +300,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 	bmp[(PLIST(pixt,x)-xs) + (PLIST(pixt,y)-ys)*bmwidth] = '\1';
       
       status = addobjdeep(i, objlistin, objlistout);
-      if (status == RETURN_ERROR)
+      if (status != RETURN_OK)
 	goto exit;
       n[i] = objlistout->nobj - 1;
 
@@ -316,7 +317,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   if (!(pixelout=(pliststruct *)realloc(objlistout->plist,
 					(objlistout->npix + npix)*plistsize)))
     {
-      status = RETURN_ERROR;
+      status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
   
@@ -362,7 +363,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   objlistout->npix = k;
   if (!(objlistout->plist = (pliststruct *)realloc(pixelout,
 						   objlistout->npix*plistsize)))
-    status = GATHERUP_MEMORY_ERROR;
+    status = MEMORY_ALLOC_ERROR;
 
  exit:
   free(bmp);
@@ -396,9 +397,9 @@ int belong(int corenb, objliststruct *coreobjlist,
 }
 
 
-/******************************** createsubmap *******************************
-PURPOSE Create pixel-index submap for deblending.
-OUTPUT  RETURN_OK if success, RETURN_ERROR otherwise (memory overflow).
+/******************************** createsubmap *******************************/
+/*
+Create pixel-index submap for deblending.
 */
 int *createsubmap(objliststruct *objlist, int no,
 		  int *subx, int *suby, int *subw, int *subh)
