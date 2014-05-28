@@ -58,6 +58,19 @@ float *makenoiseim(nx, ny, mean, sigma)
   return im;
 }
 
+float *ones(nx, ny)
+{
+  int i, npix;
+  float *im, *imt;
+
+  im = (float *)malloc((npix = nx*ny)*sizeof(float));
+  imt = im;
+  for (i=0; i<npix; i++, imt++)
+    *imt = 1.0;
+
+  return im;
+}
+
 void addbox(float *im, int w, int h, float xc, float yc, float r, float val)
 /* n = sersic index */
 {
@@ -86,6 +99,8 @@ int main(int argc, char **argv)
 {
   int status, nx, ny;
   float trueback, truesigma;
+  float flux, fluxerr;
+  short flag;
   float *im;
   uint64_t t0, t1;
   backmap *bkmap = NULL;
@@ -130,6 +145,17 @@ int main(int argc, char **argv)
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
 
   printf("%d objects\n", nobj);
+
+  free(im);
+
+  /* aperture photometry */
+  im = ones(nx, ny);
+  
+  flux = fluxerr = 0.0;
+  flag = 0;
+  circaper_subpix(im, NULL, nx, ny, 0.0, 0.0,
+		  10.0, 10.0, 5.0, 5, &flux, &fluxerr, &flag);
+  printf("flux = %.3f, fluxerr = %.3f\n", flux, fluxerr);
 
  exit:
   freeback(bkmap);

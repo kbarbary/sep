@@ -14,6 +14,7 @@ includes:
 
 * background estimation
 * source detection
+* circular aperture photometry
 
 Install
 -------
@@ -131,6 +132,28 @@ An `sepobj` struct holds a collection of parameters characterizing the
 size, shape, and brightness of the object. It also contains an array
 of ints giving the pixels belonging to the object. Note that these arrays
 must eventually be `free`d. 
+
+
+### Aperture photometry
+
+```c
+void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		     PIXTYPE gain, PIXTYPE varthresh,
+		     float cx, float cy, float r,int subpix,
+		     float *flux, float *fluxerr, short *flag);
+```
+
+*Sum values in a circular aperture (subpixel method)*
+
+* `im` : data array
+* `var` : variance array (treated as zero if NULL)
+* `w`, `h` : array dimensions in x, y
+* `gain` : gain, used in adding poisson noise (not added if zero)
+* `varthresh` : variance threshold.
+* `cx`, `cy`, `r` : center and radius of aperture
+* `subpix` : number of subpixels used
+* `flux`, `fluxerr`, `flag` : results
+
 
 Running Tests
 -------------

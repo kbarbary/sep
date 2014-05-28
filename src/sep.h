@@ -141,6 +141,13 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 /* clean_flag (1 = YES)                           [1] */
 /* clean_param                                  [1.0] */
 
+/*-------------------------- aperture photometry ----------------------------*/
+
+void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		     PIXTYPE gain, PIXTYPE varthresh,
+		     float cx, float cy, float r,int subpix,
+		     float *flux, float *fluxerr, short *flag);
+
 /*-------------------- global internal definitions --------------------------*/
 /*
  * These are not actually needed by external code, but included here for ease
