@@ -7,19 +7,25 @@ C library for Source Extraction and Photometry
 "Oh, good. I can relax then."*
 
 [Source Extractor](http://www.astromatic.net/software/sextractor) is
-great, but sometimes you just want to use some of the pieces from it
-without running the entire executable. This library implements a few of
-the algorithms used in SExtractor as stand-alone pieces. So far this
+great, but sometimes you want to do something a little different from
+what Source Extractor provides. This library implements a few of the
+algorithms used in SExtractor as stand-alone pieces and also includes
+other functions related to astronomical photometry. So far this
 includes:
 
-* background estimation
+* global background estimation
 * source detection
 * circular aperture photometry
+
+SEP is designed both to be used in C programs and to be wrapped in
+higher-level languages. To make the latter easier, SEP has no
+dependencies outside the C standard library.
 
 Install
 -------
 
-The library has no dependencies outside the C standard library.
+Run `make` and then explictly copy `libsep.so` and `sep.h` to the desired
+locations (there's no `make install`).
 
 API
 ---
@@ -171,6 +177,8 @@ Tested on a 1.7 GHz Core i5 Ivybridge laptop.
 License
 -------
 
-As Source Extractor's license is GPLv3 and this is a derived work,
-the license for SEP is also GPLv3.
-
+The license for all parts of the code derived from SExtractor is
+LGPLv3. The license for code not derived from SExtractor is MIT. The
+license for the library as a whole is therefore LGPLv3. The license
+for each file is explicitly stated at the top of each file and the
+full text of the licenses can be found in `licenses`.

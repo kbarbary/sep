@@ -7,7 +7,7 @@ LDFLAGS=-shared
 ARFLAGS=rcs
 
 NAME=sep
-SOURCES=analyse.c aper.c back.c deblend.c extract.c lutz.c util.c
+SOURCES=analyse.c back.c circaper.c deblend.c extract.c lutz.c util.c
 
 OBJECTS=$(SOURCES:.c=.o)
 
@@ -18,8 +18,8 @@ lib : $(OBJECTS)
 #     $(CC) $(CPPFLAGS) $(CFLAGS) -c {name}.c -o {name}.o’. 
 
 analyse.o : sep.h extract.h
-aper.o : sep.h
 back.o : sep.h
+circaper.o : sep.h
 deblend.o : sep.h extract.h
 extract.o : sep.h extract.h
 lutz.o : sep.h extract.h
