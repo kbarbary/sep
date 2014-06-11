@@ -99,7 +99,7 @@ int main(int argc, char **argv)
 {
   int status, nx, ny;
   float trueback, truesigma;
-  float flux, fluxerr;
+  double flux, fluxerr;
   short flag;
   float *im;
   uint64_t t0, t1;
