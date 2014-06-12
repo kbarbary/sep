@@ -27,13 +27,10 @@
 
 typedef float PIXTYPE;   /* type of image arrays */
 
-/*-------------------- error codes & messages -------------------------------*/
-#define	RETURN_OK		0
-#define SEP_INTERNAL_ERROR      1
-#define MEMORY_ALLOC_ERROR      2
+/*--------------------------- error messaging -------------------------------*/
 
-void seperrmsg(int status, char *errtext);
-char seperrdetail[512];
+void sep_get_errmsg(int status, char *errtext);
+void sep_get_errdetail(char *errtext);
 
 /*------------------------------ background ---------------------------------*/
 typedef struct
@@ -127,40 +124,3 @@ void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		     PIXTYPE gain, PIXTYPE varthresh,
 		     double cx, double cy, double r, int subpix,
 		     double *flux, double *fluxerr, short *flag);
-
-/*-------------------- global internal definitions --------------------------*/
-/*
- * These are not actually needed by external code, but included here for ease
- * of #include statements: not worth having a separate file.
- */
-
-#define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
-#define	PI  3.1415926535898 /* never met before? */
-#define	DEG (PI/180.0)	    /* 1 deg in radians */
-
-typedef	int	      LONG;
-typedef	unsigned int  ULONG;
-
-#define	QCALLOC(ptr, typ, nel, status)				     	\
-  {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\
-      {									\
-	sprintf(seperrdetail, #ptr " (" #nel "=%lu elements) "		\
-		"at line %d in module " __FILE__ " !",			\
-		(size_t)(nel)*sizeof(typ), __LINE__);			\
-	status = MEMORY_ALLOC_ERROR;					\
-	goto exit;							\
-      };								\
-  }
-
-#define	QMALLOC(ptr, typ, nel, status)					\
-  {if (!(ptr = (typ *)malloc((size_t)(nel)*sizeof(typ))))		\
-      {									\
-	sprintf(seperrdetail, #ptr " (" #nel "=%lu elements) "		\
-		"at line %d in module " __FILE__ " !",			\
-		(size_t)(nel)*sizeof(typ), __LINE__);			\
-	status = MEMORY_ALLOC_ERROR;					\
-	goto exit;							\
-      };								\
-  }
-
-float fqmedian(float *ra, int n);

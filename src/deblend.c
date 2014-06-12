@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 #include "extract.h"
 
 #ifndef	RAND_MAX
@@ -101,7 +102,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       if (objlist[k-1].nobj>=NSONMAX)
 	{
 	  status = SEP_INTERNAL_ERROR;
-	  sprintf(seperrdetail, "Deblending overflow (# sons >= NSONMAX)");
+	  put_errdetail("Deblending overflow (# sons >= NSONMAX)");
 	  goto exit;
 	}
       
@@ -123,8 +124,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		if (m>=NSONMAX)
 		  {
 		    status = SEP_INTERNAL_ERROR;
-		    sprintf(seperrdetail,
-			    "Deblending overflow (# sons >= NSONMAX)");
+		    put_errdetail("Deblending overflow (# sons >= NSONMAX)");
 		    goto exit;
 		  }
 		if (h>=nbm-1)

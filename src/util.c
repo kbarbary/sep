@@ -25,7 +25,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 
+#define GETDETAIL 1
+#define PUTDETAIL 2
+#define DETAILSIZE 512
 
 /*i**** fqcmp **************************************************************
 PROTO	int	fqcmp(const void *p1, const void *p2)
@@ -70,7 +74,7 @@ float fqmedian(float *ra, int n)
   error status value.  The message may be up to 60 characters long, plus
   the terminating null character.
 */
-void seperrmsg(int status, char *errtext)
+void sep_get_errmsg(int status, char *errtext)
 {
   errtext[0] = '\0';
   switch (status)
@@ -88,4 +92,33 @@ void seperrmsg(int status, char *errtext)
        strcpy(errtext, "unknown error status");
        break;
     }
+}
+
+void errdetail(int action, char *errtext)
+/* Read or write message to a static buffer.
+
+   action == GETDETAIL ==> read
+   action == PUTDETAIL ==> write
+*/
+{
+  static char buff[DETAILSIZE];
+
+  if (action == PUTDETAIL)
+    strcpy(buff, errtext);
+  else if (action == GETDETAIL)
+    strcpy(errtext, buff);
+
+  return;
+}
+
+void sep_get_errdetail(char *errtext)
+{
+  errdetail(GETDETAIL, errtext);
+  return;
+}
+
+void put_errdetail(char *errtext)
+{
+  errdetail(PUTDETAIL, errtext);
+  return;
 }

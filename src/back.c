@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 
 #define	BACK_MINGOODFRAC	0.5		/* min frac with good weights*/
 #define	QUANTIF_NSIGMA		5		/* histogram limits */

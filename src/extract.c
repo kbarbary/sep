@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 #include "extract.h"
 
 #define DETECT_MAXAREA 0        /* replaces prefs.ext_maxarea */
@@ -65,7 +66,8 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
   int			*start, *end, *survives;
 
   status = RETURN_OK;
-
+  char errtext[80];  /* 80 should be more than enough */
+  
   pixel = NULL;
   convnorm = NULL;
   scan = wscan = cdscan = cdwscan = dumscan = NULL;
@@ -239,10 +241,10 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	      /* (previously, the largest object became a "victim") */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
-		  sprintf(seperrdetail,
-			  "Pixel stack overflow at position %d,%d.",
-			  xl+1, yl+1);
 		  status = SEP_INTERNAL_ERROR;
+		  sprintf(errtext, "Pixel stack overflow at position %d,%d.",
+			  xl+1, yl+1);
+		  put_errdetail(errtext);
 		  goto exit;
 		  
 		  /* NOTE: The above error was originally just a warning.

@@ -17,13 +17,13 @@ lib : $(OBJECTS)
 # The following use the implicit rule for making a .o file from .c file:
 #     $(CC) $(CPPFLAGS) $(CFLAGS) -c {name}.c -o {name}.o’. 
 
-analyse.o : sep.h extract.h
-back.o : sep.h
-circaper.o : sep.h
-deblend.o : sep.h extract.h
-extract.o : sep.h extract.h
-lutz.o : sep.h extract.h
-util.o : sep.h
+analyse.o : sep.h sepcore.h extract.h
+back.o : sep.h sepcore.h
+circaper.o : sep.h sepcore.h
+deblend.o : sep.h sepcore.h extract.h
+extract.o : sep.h sepcore.h extract.h
+lutz.o : sep.h sepcore.h extract.h
+util.o : sep.h sepcore.h
 
 clean :
 	rm -f $(OBJECTS) lib$(NAME).so

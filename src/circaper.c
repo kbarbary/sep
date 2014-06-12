@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 
 void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		     PIXTYPE gain, PIXTYPE varthresh,

@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sep.h"
+#include "sepcore.h"
 #include "extract.h"
 
 #define	NOBJ 256  /* starting number of obj. */
