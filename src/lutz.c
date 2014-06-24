@@ -175,7 +175,7 @@ int lutz(pliststruct *plistin,
     {
       ps = COMPLETE;
       cs = NONOBJECT;
-      trunflag = (yl==0 || yl==ymax) ? OBJ_TRUNC : 0;
+      trunflag = (yl==0 || yl==ymax) ? SEP_OBJ_TRUNC : 0;
       if (yl==eny)
 	iscan = discan;
 
@@ -194,7 +194,7 @@ int lutz(pliststruct *plistin,
 	  if (luflag)
 	    {
 	      if (xl==0 || xl==xmax)
-		curpixinfo.flag |= OBJ_TRUNC;
+		curpixinfo.flag |= SEP_OBJ_TRUNC;
 	      memcpy(pixel, plistint, (size_t)plistsize);
 	      PLIST(pixel, nextpix) = -1;
 	      curpixinfo.lastpix = curpixinfo.firstpix = cn;

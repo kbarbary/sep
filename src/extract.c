@@ -45,12 +45,12 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
 
 /****************************** extract **************************************/
-int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
-	       PIXTYPE thresh, int minarea,
-	       float *conv, int convw, int convh,
-	       int deblend_nthresh, double deblend_mincont,
-	       int clean_flag, double clean_param,
-	       int *nobj, sepobj **objects)
+int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
+	        PIXTYPE thresh, int minarea,
+	        float *conv, int convw, int convh,
+		int deblend_nthresh, double deblend_mincont,
+		int clean_flag, double clean_param,
+		int *nobj, sepobj **objects)
 {
   static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
   objliststruct       	objlist, *finalobjlist;
@@ -198,7 +198,7 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    }	  
 	}
       
-      trunflag = (yl==0 || yl==h-1)? OBJ_TRUNC:0;
+      trunflag = (yl==0 || yl==h-1)? SEP_OBJ_TRUNC:0;
       
       for (xl=0; xl<=w; xl++)
 	{
@@ -219,7 +219,7 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    {
 	      /* flag the current object if we're near the image bounds */
 	      if (xl==0 || xl==w-1)
-		curpixinfo.flag |= OBJ_TRUNC;
+		curpixinfo.flag |= SEP_OBJ_TRUNC;
 	      
 	      /* point pixt to first free pixel in pixel list */
 	      /* and increment the "first free pixel" */
@@ -279,7 +279,7 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		  PLIST(pixel+victim->lastpix, nextpix) = freeinfo.lastpix;
 		  PLIST(pixel+(victim->lastpix=victim->firstpix), nextpix) = -1;
 		  victim->pixnb = 1;
-		  victim->flag |= OBJ_OVERFLOW;
+		  victim->flag |= SEP_OBJ_OVERFLOW;
 		}
 	      /*------------------------------------------------------------*/
 
@@ -504,9 +504,9 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   /*----- Check if the current strip contains the lower isophote
     (it always should since the "current strip" is the entire image!) */
   if ((int)obj.ymin < 0)
-    obj.flag |= OBJ_ISO_PB;
+    obj.flag |= SEP_OBJ_ISO_PB;
 
-  if (!(obj.flag & OBJ_OVERFLOW))
+  if (!(obj.flag & SEP_OBJ_OVERFLOW))
     {
       status = deblend(objlist, 0, &objlistout, deblend_nthresh,
 		       deblend_mincont, minarea);
@@ -522,7 +522,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	     future, but currently the flag setting is irrelevant. */
 	  objlist2 = objlist;
 	  for (i=0; i<objlist2->nobj; i++)
-	    objlist2->obj[i].flag |= OBJ_DOVERFLOW;
+	    objlist2->obj[i].flag |= SEP_OBJ_DOVERFLOW;
 	  goto exit;
 	}
     }
@@ -848,7 +848,7 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
 
   objout->flag = obj->flag;
   if (obj->singuflag)
-    objout->flag |= OBJ_SINGU;
+    objout->flag |= SEP_OBJ_SINGU;
   
   /* Allocate object's pixel list */
   QMALLOC(objout->pix, int, objout->npix, status);

@@ -29,10 +29,10 @@
 #include "sep.h"
 #include "sepcore.h"
 
-void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		     PIXTYPE gain, PIXTYPE varthresh,
-		     double cx, double cy, double r,int subpix,
-		     double *flux, double *fluxerr, short *flag)
+void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		  PIXTYPE gain, PIXTYPE varthresh,
+		  double cx, double cy, double r,int subpix,
+		  double *flux, double *fluxerr, short *flag)
 {
 
   /*
@@ -92,22 +92,22 @@ void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
   if (xmin < 0)
     {
       xmin = 0;
-      *flag |= OBJ_APERT_PB;
+      *flag |= SEP_OBJ_APERT_PB;
     }
   if (xmax > w)
     {
       xmax = w;
-      *flag |= OBJ_APERT_PB;
+      *flag |= SEP_OBJ_APERT_PB;
     }
   if (ymin < 0)
     {
       ymin = 0;
-      *flag |= OBJ_APERT_PB;
+      *flag |= SEP_OBJ_APERT_PB;
     }
   if (ymax > h)
     {
       ymax = h;
-      *flag |= OBJ_APERT_PB;
+      *flag |= SEP_OBJ_APERT_PB;
     }
 
   for (y=ymin; y<ymax; y++)

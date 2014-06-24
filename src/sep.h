@@ -44,37 +44,37 @@ typedef struct
   float *dback;            /* background map */
   float *sigma;
   float *dsigma;
-} backmap;
+} sepbackmap;
 
 /* w, h is image size in pixels */
 /* bw, bh is size of a single background tile in pixels */
 /* var > varthresh will be ignored. */
-int makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
-	     int bw, int bh, PIXTYPE maskthresh, int fbx, int fby,
-	     float fthresh, backmap **bkm);
-PIXTYPE	backpixlinear(backmap *, int, int);
-int backline(backmap *, int, PIXTYPE *);
-int backrmsline(backmap *, int, PIXTYPE *);
-int backvarline(backmap *, int, PIXTYPE *);
-int backarray(backmap *, PIXTYPE *);
-int backrmsarray(backmap *, PIXTYPE *);
-int backvararray(backmap *, PIXTYPE *);
-int subbackline(backmap *, int, PIXTYPE *);
-int subbackarray(backmap *, PIXTYPE *);
-void freeback(backmap *);
+int sep_makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
+		 int bw, int bh, PIXTYPE maskthresh, int fbx, int fby,
+		 float fthresh, sepbackmap **bkm);
+PIXTYPE	sep_backpixlinear(sepbackmap *, int, int);
+int sep_backline(sepbackmap *, int, PIXTYPE *);
+int sep_backrmsline(sepbackmap *, int, PIXTYPE *);
+int sep_backvarline(sepbackmap *, int, PIXTYPE *);
+int sep_backarray(sepbackmap *, PIXTYPE *);
+int sep_backrmsarray(sepbackmap *, PIXTYPE *);
+int sep_backvararray(sepbackmap *, PIXTYPE *);
+int sep_subbackline(sepbackmap *, int, PIXTYPE *);
+int sep_subbackarray(sepbackmap *, PIXTYPE *);
+void sep_freeback(sepbackmap *);
 
 
 /*-------------------------- source extraction ------------------------------*/
 
-#define	OBJ_CROWDED   0x0001
-#define	OBJ_MERGED    0x0002
-#define	OBJ_SATUR     0x0004
-#define	OBJ_TRUNC     0x0008
-#define OBJ_APERT_PB  0x0010
-#define	OBJ_ISO_PB    0x0020
-#define	OBJ_DOVERFLOW 0x0040
-#define	OBJ_OVERFLOW  0x0080
-#define OBJ_SINGU     0x0100
+#define SEP_OBJ_CROWDED   0x0001
+#define SEP_OBJ_MERGED    0x0002
+#define SEP_OBJ_SATUR     0x0004
+#define SEP_OBJ_TRUNC     0x0008
+#define SEP_OBJ_APERT_PB  0x0010
+#define SEP_OBJ_ISO_PB    0x0020
+#define SEP_OBJ_DOVERFLOW 0x0040
+#define SEP_OBJ_OVERFLOW  0x0080
+#define SEP_OBJ_SINGU     0x0100
 
 typedef	unsigned char	BYTE;  /* a byte */
 typedef	char pliststruct;      /* Dummy type for plist */
@@ -97,12 +97,12 @@ typedef struct
   int      *pix;                 /* pixel array (length is npix)*/
 } sepobj;
 
-int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
-	       PIXTYPE thresh, int minarea,
-	       float *conv, int convw, int convh,
-	       int deblend_nthresh, double deblend_mincont,
-	       int clean_flag, double clean_param,
-	       int *nobj, sepobj **objects);
+int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		PIXTYPE thresh, int minarea,
+		float *conv, int convw, int convh,
+		int deblend_nthresh, double deblend_mincont,
+		int clean_flag, double clean_param,
+		int *nobj, sepobj **objects);
 
 /* sextractor defaults shown in []                    */
 /*----------------------------------------------------*/
@@ -120,7 +120,7 @@ int extractobj(PIXTYPE *im, PIXTYPE *var, int w, int h,
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		     PIXTYPE gain, PIXTYPE varthresh,
-		     double cx, double cy, double r, int subpix,
-		     double *flux, double *fluxerr, short *flag);
+void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
+		  PIXTYPE gain, PIXTYPE varthresh,
+		  double cx, double cy, double r, int subpix,
+		  double *flux, double *fluxerr, short *flag);

@@ -202,7 +202,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   ym = my / rv;    /* mean y */
 
   /* In case of blending, use previous barycenters */
-  if ((robust) && (obj->flag & OBJ_MERGED))
+  if ((robust) && (obj->flag & SEP_OBJ_MERGED))
     {
       double xn, yn;
 	  
@@ -242,7 +242,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   pmx2+=temp;
   pmy2-=temp;
   
-  obj->dnpix = (obj->flag & OBJ_OVERFLOW)? obj->fdnpix:(LONG)dnpix;
+  obj->dnpix = (obj->flag & SEP_OBJ_OVERFLOW)? obj->fdnpix:(LONG)dnpix;
   obj->dflux = tv;
   obj->mx = xm+xmin;	/* add back xmin */
   obj->my = ym+ymin;	/* add back ymin */
