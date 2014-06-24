@@ -21,6 +21,11 @@ SEP is designed both to be used in C programs and to be wrapped in
 higher-level languages. To make the latter easier, SEP has no
 dependencies outside the C standard library.
 
+Platforms
+---------
+
+Currently only linux is supported (tested on Ubuntu).
+
 Install
 -------
 
@@ -30,12 +35,14 @@ locations (there's no `make install`).
 API
 ---
 
+_Check the header file `sep.h` for the authoritative API._
+
 ### Background estimation
 
 ```c
-int makeback(float *im, float *mask, int w, int h,
-             int bw, int bh, float maskthresh, int fbx, int fby,
-             float fthresh, backmap **bkmap);
+int sep_makeback(float *im, float *mask, int w, int h,
+                 int bw, int bh, float maskthresh, int fbx, int fby,
+                 float fthresh, sepbackmap **bkmap);
 ```
 *create a representation of the image background and its variance*
 
@@ -56,7 +63,7 @@ Note that the returned pointer must be freed by calling `freeback()`.
 Returns: `status` error code (0 if OK).
 
 ```c
-void backline(backmap *bkmap, int y, float *line);
+void sep_backline(sepbackmap *bkmap, int y, float *line);
 ```
 
 *Evaluate the background using bicubic spline interpolation at line y*
@@ -66,7 +73,7 @@ void backline(backmap *bkmap, int y, float *line);
 * `line` : array of size `bkmap->imnx` (image width)
 
 ```c
-void backarray(backmap *bkmap, float *arr);
+void sep_backarray(sepbackmap *bkmap, float *arr);
 ```
 
 *Evaluate the background using bicubic spline interpolation for the entire
@@ -76,26 +83,26 @@ image*
 * `arr` : array of size `bkmap->imnx * bkmap->imny` (original image pixels)
 
 ```c
-void backrmsline(backmap *bkmap, int y, float *line);
+void sep_backrmsline(sepbackmap *bkmap, int y, float *line);
 ```
 
 *same as `backline()` but for background RMS*
 
 ```c
-void backrmsarray(backmap *bkmap, float *arr);
+void sep_backrmsarray(sepbackmap *bkmap, float *arr);
 ```
 
 *same as `backarray()` but for background RMS*
 
 ```c
-float backpixlinear(backmap *bkmap, int x, int y);
+float sep_backpixlinear(sepbackmap *bkmap, int x, int y);
 ```
 
 *return background at position x,y using linear interpolation between
 background map vertices*
 
 ```c
-void freeback(backmap *bkmap);
+void sep_freeback(sepbackmap *bkmap);
 ```
 
 *free memory associated with a background map*
@@ -103,12 +110,12 @@ void freeback(backmap *bkmap);
 ### Source detection
 
 ```c
-int extractobj(float *im, float *var, int w, int h,
-               float thresh, int minarea,
-               float *conv, int convw, int convh,
-               int deblend_nthresh, double deblend_mincont,
-               int clean_flag, double clean_param,
-               int *nobj, sepobj **objects);
+int sep_extract(float *im, float *var, int w, int h,
+                float thresh, int minarea,
+                float *conv, int convw, int convh,
+                int deblend_nthresh, double deblend_mincont,
+                int clean_flag, double clean_param,
+                int *nobj, sepobj **objects);
 ```
 
 *Detect objects in an image*
@@ -143,10 +150,10 @@ must eventually be `free`d.
 ### Aperture photometry
 
 ```c
-void circaper_subpix(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		     PIXTYPE gain, PIXTYPE varthresh,
-		     float cx, float cy, float r,int subpix,
-		     float *flux, float *fluxerr, short *flag);
+void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
+                  PIXTYPE gain, PIXTYPE varthresh,
+		  float cx, float cy, float r,int subpix,
+		  float *flux, float *fluxerr, short *flag);
 ```
 
 *Sum values in a circular aperture (subpixel method)*
