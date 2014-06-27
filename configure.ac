@@ -1,16 +1,18 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.68])  # version in travis
 AC_INIT([sep], [0.1.0])
-#AC_CONFIG_SRCDIR([config.h.in])
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_SRCDIR([src/sep.h])
+AC_CONFIG_HEADER([config.h])
+AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 # Checks for programs.
 AC_PROG_CC
 LT_INIT
-AC_PROG_MAKE_SET
+#AC_PROG_MAKE_SET
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lc':
@@ -30,5 +32,6 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gettimeofday memset pow sqrt])
 
 AC_CONFIG_FILES([Makefile
+                 sep.pc
                  src/Makefile])
 AC_OUTPUT
