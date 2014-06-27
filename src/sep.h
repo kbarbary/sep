@@ -20,15 +20,13 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#define	SEP_VERSION  "0.1.0"
-#define	SEP_DATE     "2014-05-11"
 
 /*------------------------- global typedefs ---------------------------------*/
 
 typedef float PIXTYPE;   /* type of image arrays */
 
 /*--------------------------- error messaging -------------------------------*/
-
+char *sep_version_string;
 void sep_get_errmsg(int status, char *errtext);
 void sep_get_errdetail(char *errtext);
 

@@ -24,12 +24,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "config.h"
 #include "sep.h"
 #include "sepcore.h"
 
 #define GETDETAIL 1
 #define PUTDETAIL 2
 #define DETAILSIZE 512
+
+char *sep_version_string = PACKAGE_VERSION;
 
 /*i**** fqcmp **************************************************************
 PROTO	int	fqcmp(const void *p1, const void *p2)

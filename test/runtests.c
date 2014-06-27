@@ -115,6 +115,8 @@ int main(int argc, char **argv)
   trueback = 10.;
   truesigma = 1.;
 
+  printf("sep version: %s\n", sep_version_string);
+
   /* create a blank image */
   im = makenoiseim(nx, ny, trueback, truesigma);
   addbox(im, nx, ny, 1000., 1000., 5., 20.);
