@@ -1,36 +1,67 @@
 SEP
 ===
 
+[![Build Status](https://api.travis-ci.org/kbarbary/sep.svg?branch=master)](https://travis-ci.org/kbarbary/sep)
+
 C library for Source Extraction and Photometry
 
 *"... [it's] an SEP: Somebody Else's Problem."  
 "Oh, good. I can relax then."*
 
 [Source Extractor](http://www.astromatic.net/software/sextractor) is
-great, but sometimes you want to do something a little different from
-what Source Extractor provides. This library implements a few of the
-algorithms used in SExtractor as stand-alone pieces and also includes
-other functions related to astronomical photometry. So far this
-includes:
+great, but sometimes you want to use a few of the pieces from it
+without running the entire executable. This library implements a few
+of the algorithms used in SExtractor as stand-alone pieces. So far
+this includes:
 
 * global background estimation
 * source detection
 * circular aperture photometry
 
+In the future, the library may also include other functions
+related to photometry that are not in Source Extractor.
+
 SEP is designed both to be used in C programs and to be wrapped in
-higher-level languages. To make the latter easier, SEP has no
-dependencies outside the C standard library.
+higher-level languages such as Python or Julia. To make the latter
+easier, SEP only depends on a C standard library and libm.
 
-Platforms
----------
+Build and install distributed versions
+--------------------------------------
 
-Currently only linux is supported (tested on Ubuntu).
+To build and install to your OS's standard location:
 
-Install
+```
+./configure
+make
+make install
+```
+
+To run the tests before installing, do:
+
+```
+make check
+```
+
+Build and install for developers
+--------------------------------
+
+If you are using a developer version from github, you will need to
+first do `./bootstrap.sh` before the above commands. This requires
+`autoconf` and `libtool`.
+
+If you wish to build against the SEP static library without
+installing, you will find it in `src/.libs/libsep.a` after
+running make.
+
+License
 -------
 
-Run `make` and then explictly copy `libsep.so` and `sep.h` to the desired
-locations (there's no `make install`).
+The license for all parts of the code derived from SExtractor is
+LGPLv3. The license for code not derived from SExtractor is MIT. The
+license for the library as a whole is therefore LGPLv3. The license
+for each file is explicitly stated at the top of each file and the
+full text of the licenses can be found in `licenses`.
+
 
 API
 ---
@@ -46,7 +77,8 @@ int sep_makeback(float *im, float *mask, int w, int h,
 ```
 *create a representation of the image background and its variance*
 
-Note that the returned pointer must be freed by calling `freeback()`.
+Note that the returned pointer must be freed by calling
+`sep_freeback()`.
 
 * `im` : image data  
 * `mask` : mask data (ignored if NULL)  
@@ -167,25 +199,9 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
 * `subpix` : number of subpixels used
 * `flux`, `fluxerr`, `flag` : results
 
-
-Running Tests
--------------
-
-In `test` directory, type `make` then run the executable `runtests`. 
-
-
 Speed
 -----
 
-For a 2k x 4k image with ~2000 sources, `makeback` takes ~250ms and
-`extractobjs` takes ~450ms, with SE default settings.
+For a 2k x 4k image with ~2000 sources, `sep_makeback` takes ~250ms and
+`sep_extract` takes ~450ms, with Source Extractor default settings.
 Tested on a 1.7 GHz Core i5 Ivybridge laptop.
-
-License
--------
-
-The license for all parts of the code derived from SExtractor is
-LGPLv3. The license for code not derived from SExtractor is MIT. The
-license for the library as a whole is therefore LGPLv3. The license
-for each file is explicitly stated at the top of each file and the
-full text of the licenses can be found in `licenses`.

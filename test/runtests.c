@@ -103,7 +103,7 @@ int main(int argc, char **argv)
   short flag;
   float *im;
   uint64_t t0, t1;
-  backmap *bkmap = NULL;
+  sepbackmap *bkmap = NULL;
   float conv[] = {1,2,1, 2,4,2, 1,2,1};
   int nobj = 0;
   sepobj *objects = NULL;
@@ -119,26 +119,26 @@ int main(int argc, char **argv)
   im = makenoiseim(nx, ny, trueback, truesigma);
   addbox(im, nx, ny, 1000., 1000., 5., 20.);
 
-  printf("makeback... ");
+  printf("sep_makeback... ");
   t0 = gettime_ns();
-  status = makeback(im, NULL, nx, ny, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
+  status = sep_makeback(im, NULL, nx, ny, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
   if (status)
     goto exit;
   t1 = gettime_ns();
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
 
-  printf("subbackarray... ");
+  printf("sep_subbackarray... ");
   t0 = gettime_ns();
-  status = subbackarray(bkmap, im);
+  status = sep_subbackarray(bkmap, im);
   if (status)
     goto exit;
   t1 = gettime_ns();
   printf("done in %.1f ms.\n", (double)(t1 - t0)/1000000.);
 
-  printf("extractobjs...");
+  printf("sep_extract...");
   t0 = gettime_ns();
-  status = extractobj(im, NULL, nx, ny, 1.5*bkmap->backsig, 5,
-		      conv, 3, 3, 32, 0.005, 1, 1.0, &nobj, &objects);
+  status = sep_extract(im, NULL, nx, ny, 1.5*bkmap->backsig, 5,
+		       conv, 3, 3, 32, 0.005, 1, 1.0, &nobj, &objects);
   if (status)
     goto exit;
   t1 = gettime_ns();
@@ -153,17 +153,19 @@ int main(int argc, char **argv)
   
   flux = fluxerr = 0.0;
   flag = 0;
-  circaper_subpix(im, NULL, nx, ny, 0.0, 0.0,
-		  10.0, 10.0, 5.0, 5, &flux, &fluxerr, &flag);
+  sep_apercirc(im, NULL, nx, ny, 0.0, 0.0,
+	       10.0, 10.0, 5.0, 5, &flux, &fluxerr, &flag);
   printf("flux = %.3f, fluxerr = %.3f\n", flux, fluxerr);
 
  exit:
-  freeback(bkmap);
+  sep_freeback(bkmap);
   free(im);
   if (status)
     {
       printf("FAILED with status: %d\n", status);
-      puts(seperrdetail);
+      char errtext[512];
+      sep_get_errdetail(errtext);
+      puts(errtext);
     }
   else
     {

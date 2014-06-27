@@ -1,19 +1,31 @@
-# Object files
+/aclocal.m4
+/autom4te.cache/
+/config.*
+/configure
+/depcomp
+/sep.pc
+/install-sh
+/libtool
+/ltmain.sh
+/m4/
+/missing
+/stamp-h?
+/test-driver
+.deps/
+.dirstamp
+.libs/
+*.l[ao]
 *.o
-*.ko
-
-# Libraries
-*.lib
-*.a
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-test/runtests
-
-# emacs
 *~
+Makefile
+Makefile.in
+/build-aux
+
+# tests
+test/runtests
+test/runtests.log
+test/runtests.trs
+test-suite.log
+
+# tarballs
+sep-*.tar.gz
