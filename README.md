@@ -23,7 +23,7 @@ related to photometry that are not in Source Extractor.
 
 SEP is designed both to be used in C programs and to be wrapped in
 higher-level languages such as Python or Julia. To make the latter
-easier, SEP only depends on a C standard library and libm.
+easier, SEP has minimal dependencies.
 
 Build and install distributed versions
 --------------------------------------
@@ -41,6 +41,8 @@ To run the tests before installing, do:
 ```
 make check
 ```
+
+Timing results from the tests are in `test/runtests.log`.
 
 Build and install for developers
 --------------------------------
@@ -61,7 +63,6 @@ LGPLv3. The license for code not derived from SExtractor is MIT. The
 license for the library as a whole is therefore LGPLv3. The license
 for each file is explicitly stated at the top of each file and the
 full text of the licenses can be found in `licenses`.
-
 
 API
 ---
@@ -198,10 +199,3 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
 * `cx`, `cy`, `r` : center and radius of aperture
 * `subpix` : number of subpixels used
 * `flux`, `fluxerr`, `flag` : results
-
-Speed
------
-
-For a 2k x 4k image with ~2000 sources, `sep_makeback` takes ~250ms and
-`sep_extract` takes ~450ms, with Source Extractor default settings.
-Tested on a 1.7 GHz Core i5 Ivybridge laptop.
