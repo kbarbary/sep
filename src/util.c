@@ -34,6 +34,35 @@
 
 char *sep_version_string = PACKAGE_VERSION;
 
+/* data type pointer conversion */
+float convertd(void *ptr)
+{
+  return *(double *)ptr;
+}
+
+float convertf(void *ptr)
+{
+  return *(float *)ptr;
+}
+
+int sizeof_dtype(int dtype, int *size)
+{
+  int status = 0;
+  if (dtype == TFLOAT)
+    {
+      *size = sizeof(float);
+      return RETURN_OK;
+    }
+  else if (dtype == TDOUBLE)
+    {
+      *size = sizeof(double);
+      return RETURN_OK;
+    }
+
+  *size = 0;
+  return ILLEGAL_DTYPE;
+}
+
 /*i**** fqcmp **************************************************************
 PROTO	int	fqcmp(const void *p1, const void *p2)
 PURPOSE	Sorting function for floats in qsort().
@@ -50,7 +79,6 @@ static int fqcmp(const void *p1, const void *p2)
   double f2=*((float *)p2);
   return f1>f2? 1 : (f1<f2? -1 : 0);
 }
-
 
 /****** fqmedian *************************************************************
 PROTO	float   fqmedian(float *ra, int n)

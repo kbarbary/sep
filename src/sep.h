@@ -24,6 +24,9 @@ typedef float PIXTYPE;   /* type of image arrays */
 
 /*------------------------- constant definitions ----------------------------*/
 
+#define TFLOAT       42
+#define TDOUBLE      82
+
 #define SEP_OBJ_CROWDED   0x0001
 #define SEP_OBJ_MERGED    0x0002
 #define SEP_OBJ_SATUR     0x0004
@@ -107,7 +110,7 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
+int sep_apercirc(void *im, void *var, int dtype, int w, int h,
 		  PIXTYPE gain, PIXTYPE varthresh,
 		  double cx, double cy, double r, int subpix,
 		  double *flux, double *fluxerr, short *flag);

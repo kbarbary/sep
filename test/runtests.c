@@ -214,7 +214,7 @@ int main(int argc, char **argv)
       printf("sep_apercirc() [r=%4.1f]   ", r);
       t0 = gettime_ns();
       for (i=0; i<naper; i++)
-	sep_apercirc(im, NULL, nx, ny, 0.0, 0.0,
+	sep_apercirc(im, NULL, TFLOAT, nx, ny, 0.0, 0.0,
 		     xcs[i], ycs[i], r, 5, &flux, &fluxerr, &flag);
       t1 = gettime_ns();
       printf("%6.3f us/aperture\n", (double)(t1 - t0) / 1000. / naper);

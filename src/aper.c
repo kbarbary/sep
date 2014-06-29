@@ -29,10 +29,12 @@
 #include "sep.h"
 #include "sepcore.h"
 
-void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		  PIXTYPE gain, PIXTYPE varthresh,
-		  double cx, double cy, double r,int subpix,
-		  double *flux, double *fluxerr, short *flag)
+int sep_apercirc(void *im, void *var, int dtype, int w, int h,
+                 PIXTYPE gain, PIXTYPE varthresh,
+		 double cx, double cy, double r,int subpix,
+		 double *flux, double *fluxerr, short *flag)
+/* Sum flux and variance within a circular aperture.
+*/
 {
 
   /*
@@ -47,9 +49,30 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
   float dx, dy, dx1, dy2, r2, rpix2, locarea, offset, rin, rin2, rout2;
   float scale, scale2;
   double pix, varpix, tv, sigtv;
-  int x, y, xmin, xmax, ymin, ymax, sx, sy;
+  int x, y, xmin, xmax, ymin, ymax, sx, sy, status, size;
   long pos;
-  PIXTYPE *imt, *vart;
+  BYTE *imt, *vart;
+  float (*convert)(void *);
+
+  /* get size of input data in bytes*/
+  /*status = sizeof_dtype(dtype, &size);
+  if (status)
+    return status;
+  */
+
+  /* get the right pointer converter */
+  if (dtype == TFLOAT)
+    {
+      convert = convertf;
+      size = sizeof(float);
+    }
+  else if (dtype == TDOUBLE)
+    {
+      convert = convertd;
+      size = sizeof(double);
+    }
+  else
+    return ILLEGAL_DTYPE;
 
    /*
   if (wfield)
@@ -112,10 +135,10 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
 
   for (y=ymin; y<ymax; y++)
     {
-      imt = im + (pos = (y%h)*w + xmin);
+      imt = im + (pos = size*((y%h)*w + xmin));
       if (var)
 	vart = var + pos;
-      for (x=xmin; x<xmax; x++, imt++, vart++)
+      for (x=xmin; x<xmax; x++, imt+=size, vart+=size)
 	{
 	  dx = x - cx;
 	  dy = y - cy;
@@ -140,7 +163,8 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		locarea = 1.0;
 	      
 	      /* if the values are crazy, set to 0 */
-	      if ((pix=*imt)<=-BIG || (var && (varpix=*vart)>=varthresh))
+	      if ((pix=convert(imt))<=-BIG ||
+		  (var && (varpix=convert(vart))>=varthresh))
 		{
 		  pix = 0.0;
 		  if (var)
@@ -160,5 +184,5 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
     *flux = tv;
     *fluxerr = sqrt(sigtv);
     
-    return;
+    return RETURN_OK;
 }

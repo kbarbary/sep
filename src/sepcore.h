@@ -24,6 +24,7 @@
 #define	RETURN_OK          0
 #define SEP_INTERNAL_ERROR 1
 #define MEMORY_ALLOC_ERROR 2
+#define ILLEGAL_DTYPE      3
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
 #define	PI  3.1415926535898
 #define	DEG (PI/180.0)	    /* 1 deg in radians */
@@ -60,3 +61,7 @@ typedef	unsigned char	BYTE;  /* a byte */
 
 float fqmedian(float *ra, int n);
 void put_errdetail(char *errtext);
+
+float convertd(void *ptr);
+float convertf(void *ptr);
+int sizeof_dtype(int dtype, int *size);
