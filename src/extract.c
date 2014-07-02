@@ -36,6 +36,11 @@
 #define	WTHRESH_CONVFAC	1e-4    /* Factor to apply to weights when */
 			        /* thresholding filtered weight-maps */
 
+/* globals */
+int plistexist_cdvalue, plistexist_dthresh, plistexist_var;
+int plistoff_value, plistoff_cdvalue, plistoff_dthresh, plistoff_var;
+int plistsize;
+
 void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
 int  sortit(infostruct *, objliststruct *, int,
 	    objliststruct *, int, double);
@@ -701,7 +706,7 @@ void plistinit(PIXTYPE *conv, PIXTYPE *var)
   else
     {
       plistexist_cdvalue = 0;
-      plistoff_cdvalue = plistoff_dvalue;
+      plistoff_cdvalue = plistoff_value;
     }
 
   if (var)
@@ -724,13 +729,6 @@ void plistinit(PIXTYPE *conv, PIXTYPE *var)
 
   return;
 
-  /* can we remove these? */
-  plistexist_dvalue = 0;
-  plistoff_dvalue = plistoff_value;
-  plistexist_flag = 0;
-  plistexist_wflag = 0;
-
-  return;
 }
 
 

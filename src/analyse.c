@@ -121,7 +121,7 @@ void  preanalyse(int no, objliststruct *objlist)
     {
       x = PLIST(pixt, x);
       y = PLIST(pixt, y);
-      val=PLISTPIX(pixt, dvalue);
+      val=PLISTPIX(pixt, value);
       if (cpeak < (cval=PLISTPIX(pixt, cdvalue)))
 	cpeak = cval;
       if (peak < val)
@@ -185,7 +185,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
       x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
       cval = PLISTPIX(pixt, cdvalue);
-      tv += (val = PLISTPIX(pixt, dvalue));
+      tv += (val = PLISTPIX(pixt, value));
       if (val>thresh)
 	dnpix++;
       if (val > thresh2)

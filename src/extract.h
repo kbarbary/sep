@@ -58,11 +58,9 @@ typedef struct
 } pbliststruct;
 
 /* globals */
-int plistexist_value, plistexist_dvalue, plistexist_cdvalue,
-  plistexist_flag, plistexist_wflag, plistexist_dthresh, plistexist_var,
-  plistoff_value, plistoff_dvalue, plistoff_cdvalue,
-  plistoff_flag[MAXFLAG], plistoff_wflag, plistoff_dthresh, plistoff_var,
-  plistsize;
+extern int plistexist_cdvalue, plistexist_dthresh, plistexist_var;
+extern int plistoff_value, plistoff_cdvalue, plistoff_dthresh, plistoff_var;
+extern int plistsize;
 
 typedef struct
 {
