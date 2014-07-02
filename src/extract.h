@@ -125,7 +125,7 @@ void analyse(int, objliststruct *, int);
 int  lutzalloc(int, int);
 void lutzfree(void);
 int  lutz(pliststruct *plistin,
-	  int *objrootsubmap, int subx, int suby, int subw, int subh,
+	  int *objrootsubmap, int subx, int suby, int subw,
 	  objstruct *objparent, objliststruct *objlist, int minarea);
 
 void update(infostruct *, infostruct *, pliststruct *);

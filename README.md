@@ -36,6 +36,12 @@ make
 make install
 ```
 
+To emit warnings and treat warnings as errors run make as:
+
+```
+make CFLAGS='-O2 -g -Wall -Werror'
+```
+
 To run the tests before installing, do:
 
 ```

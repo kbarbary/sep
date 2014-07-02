@@ -108,7 +108,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       
       for (i=0; i<objlist[k-1].nobj; i++)
 	{
-	  status = lutz(objlistin->plist, submap, subx, suby, subw, subh,
+	  status = lutz(objlistin->plist, submap, subx, suby, subw,
 			&objlist[k-1].obj[i], &debobjlist, minarea);
 	  if (status != RETURN_OK)
 	    goto exit;

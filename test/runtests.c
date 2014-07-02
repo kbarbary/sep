@@ -113,9 +113,7 @@ void printbox(float *im, int w, int h, int xmin, int xmax, int ymin, int ymax)
    Don't make box size too big!!
 */
 {
-  int i, j, npix;
-
-  npix = w*h;
+  int i, j;
 
   for (j = ymin; j < ymax && j < h; j++)
     {

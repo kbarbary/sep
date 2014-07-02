@@ -105,7 +105,7 @@ C implementation of R.K LUTZ' algorithm for the extraction of 8-connected pi-
 xels in an image
 */
 int lutz(pliststruct *plistin,
-	 int *objrootsubmap, int subx, int suby, int subw, int subh,
+	 int *objrootsubmap, int subx, int suby, int subw,
 	 objstruct *objparent, objliststruct *objlist, int minarea)
 {
   static infostruct	curpixinfo,initinfo;

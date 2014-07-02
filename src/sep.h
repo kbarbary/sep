@@ -26,7 +26,7 @@
 typedef float PIXTYPE;   /* type of image arrays */
 
 /*--------------------------- error messaging -------------------------------*/
-char *sep_version_string;
+extern char *sep_version_string;
 void sep_get_errmsg(int status, char *errtext);
 void sep_get_errdetail(char *errtext);
 
