@@ -36,6 +36,12 @@ make
 make install
 ```
 
+If you are using the development version via the git repository
+you have to generate the ``configure`` file once by running
+```
+./bootstrap.sh
+```
+
 To emit warnings and treat warnings as errors run make as:
 
 ```
