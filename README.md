@@ -25,41 +25,38 @@ SEP is designed both to be used in C programs and to be wrapped in
 higher-level languages such as Python or Julia. To make the latter
 easier, SEP has minimal dependencies.
 
-Build and install distributed versions
---------------------------------------
+Build and install
+-----------------
 
-To build and install to your OS's standard location:
+* To build and install to your OS's standard location:
+  ```
+  ./configure
+  make
+  make install
+  ```
 
-```
-./configure
-make
-make install
-```
+* If you are using the development version via the git repository rather
+  than a "released" version, you need to generate the ``configure``
+  script once by running
+  ```
+  ./bootstrap.sh
+  ```
+  This requires that you have `autoconf` and `libtool` installed.
 
-To emit warnings and treat warnings as errors run make as:
+* To emit warnings and treat warnings as errors run make as:
+  ```
+  make CFLAGS='-O2 -g -Wall -Werror'
+  ```
 
-```
-make CFLAGS='-O2 -g -Wall -Werror'
-```
+* To run the tests before installing, do:
+  ```
+  make check
+  ```
+  Timing results from the tests are in `test/runtests.log`.
 
-To run the tests before installing, do:
-
-```
-make check
-```
-
-Timing results from the tests are in `test/runtests.log`.
-
-Build and install for developers
---------------------------------
-
-If you are using a developer version from github, you will need to
-first do `./bootstrap.sh` before the above commands. This requires
-`autoconf` and `libtool`.
-
-If you wish to build against the SEP static library without
-installing, you will find it in `src/.libs/libsep.a` after
-running make.
+* If you wish to build against the SEP static library without
+  installing, you will find it in `src/.libs/libsep.a` after
+  running make.
 
 License
 -------
