@@ -20,17 +20,22 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-
-/*------------------------- global typedefs ---------------------------------*/
-
 typedef float PIXTYPE;   /* type of image arrays */
 
-/*--------------------------- error messaging -------------------------------*/
-extern char *sep_version_string;
-void sep_get_errmsg(int status, char *errtext);
-void sep_get_errdetail(char *errtext);
+/*------------------------- constant definitions ----------------------------*/
 
-/*------------------------------ background ---------------------------------*/
+#define SEP_OBJ_CROWDED   0x0001
+#define SEP_OBJ_MERGED    0x0002
+#define SEP_OBJ_SATUR     0x0004
+#define SEP_OBJ_TRUNC     0x0008
+#define SEP_OBJ_APERT_PB  0x0010
+#define SEP_OBJ_ISO_PB    0x0020
+#define SEP_OBJ_DOVERFLOW 0x0040
+#define SEP_OBJ_OVERFLOW  0x0080
+#define SEP_OBJ_SINGU     0x0100
+
+/*--------------------- global background estimation ------------------------*/
+
 typedef struct
 {
   int imnx, imny;          /* original image width, height */
@@ -61,60 +66,44 @@ int sep_subbackline(sepbackmap *, int, PIXTYPE *);
 int sep_subbackarray(sepbackmap *, PIXTYPE *);
 void sep_freeback(sepbackmap *);
 
-
 /*-------------------------- source extraction ------------------------------*/
-
-#define SEP_OBJ_CROWDED   0x0001
-#define SEP_OBJ_MERGED    0x0002
-#define SEP_OBJ_SATUR     0x0004
-#define SEP_OBJ_TRUNC     0x0008
-#define SEP_OBJ_APERT_PB  0x0010
-#define SEP_OBJ_ISO_PB    0x0020
-#define SEP_OBJ_DOVERFLOW 0x0040
-#define SEP_OBJ_OVERFLOW  0x0080
-#define SEP_OBJ_SINGU     0x0100
-
-typedef	unsigned char	BYTE;  /* a byte */
-typedef	char pliststruct;      /* Dummy type for plist */
 
 typedef struct
 {
-  float	   thresh;               /* threshold (ADU) */
-  int	   npix;                 /* # pixels extracted (size of pix array) */
-  int      tnpix;                /* # pixels above thresh (unconvolved) */
-  int	   xmin,xmax,ymin,ymax;  /* x,y limits */  
-  double   mx, my;               /* barycenter */
-  double   mx2,my2,mxy;		 /* variances and covariance */
-  float	   a, b, theta, abcor;   /* moments and angle */
-  float	   cxx,cyy,cxy;	         /* ellipse parameters */
-  float	   cflux;                /* total flux of pixels (convolved im) */
-  float	   flux;      		 /* total flux of pixels (unconvolved) */
-  PIXTYPE  cpeak;                /* peak intensity (ADU) (convolved) */
-  PIXTYPE  peak;                 /* peak intensity (ADU) (unconvolved) */
-  short	   flag;                 /* extraction flags */
-  int      *pix;                 /* pixel array (length is npix)*/
+  float	   thresh;               /* threshold (ADU)                          */
+  int	   npix;                 /* # pixels extracted (size of pix array)   */
+  int      tnpix;                /* # pixels above thresh (unconvolved)      */
+  int	   xmin,xmax,ymin,ymax;  /* x,y limits                               */
+  double   mx, my;               /* barycenter                               */
+  double   mx2,my2,mxy;		 /* variances and covariance                 */
+  float	   a, b, theta, abcor;   /* moments and angle                        */
+  float	   cxx,cyy,cxy;	         /* ellipse parameters                       */
+  float	   cflux;                /* total flux of pixels (convolved im)      */
+  float	   flux;      		 /* total flux of pixels (unconvolved)       */
+  PIXTYPE  cpeak;                /* peak intensity (ADU) (convolved)         */
+  PIXTYPE  peak;                 /* peak intensity (ADU) (unconvolved)       */
+  short	   flag;                 /* extraction flags                         */
+  int      *pix;                 /* pixel array (length is npix)             */
 } sepobj;
 
-int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
-		PIXTYPE thresh, int minarea,
-		float *conv, int convw, int convh,
-		int deblend_nthresh, double deblend_mincont,
-		int clean_flag, double clean_param,
-		int *nobj, sepobj **objects);
+int sep_extract(PIXTYPE *im,            /* image array                      */
+		PIXTYPE *var,           /* variance array (can be NULL)     */
+		int w, int h,           /* width and height of arrays       */
+		PIXTYPE thresh,         /* detection threshold  [1.5*sigma] */
+		int minarea,            /* minimum area in pixels       [5] */
+		float *conv,            /* convolution array (can be NULL)  */
+                                        /*            [{1 2 1 2 4 2 1 2 1}] */
+		int convw, int convh,   /* w, h of convolution array  [3,3] */
+		int deblend_nthresh,    /* deblending thresholds       [32] */
+		double deblend_mincont, /* min. deblending contrast [0.005] */
+		int clean_flag,         /* perform cleaning?            [1] */
+		double clean_param,     /* clean parameter            [1.0] */
+		int *nobj,              /* OUTPUT: number of objects        */
+		sepobj **objects);      /* OUTPUT: object array             */
 
-/* sextractor defaults shown in []                    */
-/*----------------------------------------------------*/
-/* image array                                        */
-/* variance array (can be NULL)                       */
-/* size of arrays (w, h)                              */
-/* detection threshold                          [1.5] */
-/* minarea                                        [5] */
-/* conv array (can be NULL)     [{1 2 1 2 4 2 1 2 1}] */
-/* conv size (w, h)                            [3, 3] */
-/* deblend_nthresh                               [32] */
-/* deblend_mincont                            [0.005] */
-/* clean_flag (1 = YES)                           [1] */
-/* clean_param                                  [1.0] */
+
+void sep_freeobjarray(sepobj *objects, int nobj);
+/* free memory associated with an sepobj array, including pixel lists */
 
 /*-------------------------- aperture photometry ----------------------------*/
 
@@ -122,3 +111,9 @@ void sep_apercirc(PIXTYPE *im, PIXTYPE *var, int w, int h,
 		  PIXTYPE gain, PIXTYPE varthresh,
 		  double cx, double cy, double r, int subpix,
 		  double *flux, double *fluxerr, short *flag);
+
+/*----------------------- info & error messaging ----------------------------*/
+
+extern char *sep_version_string;
+void sep_get_errmsg(int status, char *errtext);
+void sep_get_errdetail(char *errtext);

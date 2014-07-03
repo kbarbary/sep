@@ -50,6 +50,8 @@ typedef struct structinfo
   short	flag;	    /* Extraction flag */
 } infostruct;
 
+typedef	char pliststruct;      /* Dummy type for plist */
+
 typedef struct
 {
   int     nextpix;

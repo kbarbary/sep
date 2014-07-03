@@ -859,3 +859,11 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
  exit:
   return status;
 }
+
+void sep_freeobjarray(sepobj *objects, int nobj)
+/* free memory associated with an array of sepobj, including pixel lists */
+{
+  while (nobj > 0)
+    free(objects[--nobj].pix);
+  free(objects);
+}

@@ -30,6 +30,7 @@
 
 typedef	int	      LONG;
 typedef	unsigned int  ULONG;
+typedef	unsigned char	BYTE;  /* a byte */
 
 #define	QCALLOC(ptr, typ, nel, status)				     	\
   {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\
