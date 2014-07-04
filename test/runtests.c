@@ -20,7 +20,7 @@ float *uniformf(float a, float b, int n)
     
   result = (float*)malloc(n*sizeof(float));
   for (i=0; i<n; i++)
-      result[i] = rand() / ((double)RAND_MAX);
+    result[i] = a + (b-a) * rand() / ((double)RAND_MAX);
 
   return result;
 }
