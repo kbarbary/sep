@@ -20,13 +20,14 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-typedef float PIXTYPE;   /* type of image arrays */
+typedef float         PIXTYPE; /* TODO: remove this once all PIXTYPEs cleaned*/
 
-/*------------------------- constant definitions ----------------------------*/
+/* datatype codes */
+#define SEP_TINT         31
+#define SEP_TFLOAT       42
+#define SEP_TDOUBLE      82
 
-#define TFLOAT       42
-#define TDOUBLE      82
-
+/* object flags */
 #define SEP_OBJ_CROWDED   0x0001
 #define SEP_OBJ_MERGED    0x0002
 #define SEP_OBJ_SATUR     0x0004
@@ -41,33 +42,69 @@ typedef float PIXTYPE;   /* type of image arrays */
 
 typedef struct
 {
-  int imnx, imny;          /* original image width, height */
-  int bw, bh;              /* single tile width, height */
-  int nx, ny;              /* number of tiles in x, y */
-  int n;                   /* nx*ny */
-  float backmean, backsig; /* global mean, sigma */
-  float *back;             /* background map */
-  float *dback;            /* background map */
-  float *sigma;
+  int w, h;          /* original image width, height */
+  int bw, bh;        /* single tile width, height */
+  int nx, ny;        /* number of tiles in x, y */
+  int n;             /* nx*ny */
+  float globalmean;  /* global mean */
+  float globalsigma; /* global sigma */
+  float *back;       /* node data for interpolation */
+  float *dback;
+  float *sigma;    
   float *dsigma;
 } sepbackmap;
 
-/* w, h is image size in pixels */
-/* bw, bh is size of a single background tile in pixels */
-/* var > varthresh will be ignored. */
-int sep_makeback(PIXTYPE *im, PIXTYPE *mask, int w, int h,
-		 int bw, int bh, PIXTYPE maskthresh, int fbx, int fby,
-		 float fthresh, sepbackmap **bkm);
-PIXTYPE	sep_backpixlinear(sepbackmap *, int, int);
-int sep_backline(sepbackmap *, int, PIXTYPE *);
-int sep_backrmsline(sepbackmap *, int, PIXTYPE *);
-int sep_backvarline(sepbackmap *, int, PIXTYPE *);
-int sep_backarray(sepbackmap *, PIXTYPE *);
-int sep_backrmsarray(sepbackmap *, PIXTYPE *);
-int sep_backvararray(sepbackmap *, PIXTYPE *);
-int sep_subbackline(sepbackmap *, int, PIXTYPE *);
-int sep_subbackarray(sepbackmap *, PIXTYPE *);
-void sep_freeback(sepbackmap *);
+int sep_makeback(void *im,            /* image data                          */
+		 void *mask,          /* mask (can be NULL)                  */
+		 int dtype,           /* image datatype code                 */
+		 int mdtype,          /* mask datatype code                  */
+		 int w, int h,        /* image and mask size (width, height) */
+		 int bw, int bh,      /* size of a single background tile    */
+		 float mthresh,       /* only (mask<=maskthresh) counted     */
+		 int fw, int fh,      /* filter size in tiles                */
+		 float fthresh,       /* filter threshold                    */
+		 sepbackmap **bkmap); /* OUTPUT                              */
+/* Create representation of spatially varying image background and variance.
+ *
+ * Note that the returned pointer must eventually be freed by calling 
+ * `sep_freeback()`.
+ *
+ * If a mask is supplied, only pixels with mask value <= mthresh are counted.
+ * In addition to the mask, pixels <= -1e30 and NaN are ignored.
+ * 
+ * Source Extractor defaults:
+ * 
+ * - bw, bh = (64, 64)
+ * - fw, fh = (3, 3)
+ * - fthresh = 0.0
+ */
+
+float sep_globalmean(sepbackmap *bkmap);
+float sep_globalsigma(sepbackmap *bkmap);
+/* Get the estimate of the global background "mean" or standard deviation */
+
+float sep_backpix_linear(sepbackmap *bkmap, int x, int y);
+/* Return background at (x, y).
+ * Unlike other routines, this uses simple linear interpolation. */
+
+int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype);
+int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype);
+int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype);
+/* Evaluate the background, RMS, or variance at line y.
+ * Uses bicubic spline interpolation between background map verticies.
+ * The second function subtracts the background from the input array.
+ * Line must be an array with same width as original image. */
+
+int sep_backarray(sepbackmap *bkmap, void *arr, int dtype);
+int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype);
+int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype);
+/* Evaluate the background, RMS, or variance for entire image.
+ * Uses bicubic spline interpolation between background map verticies.
+ * The second function subtracts the background from the input array.
+ * Arr must be an array of the same size as original image. */
+
+void sep_freeback(sepbackmap *bkmap);
+/* Free memory associated with bkmap */
 
 /*-------------------------- source extraction ------------------------------*/
 
@@ -83,40 +120,78 @@ typedef struct
   float	   cxx,cyy,cxy;	         /* ellipse parameters                       */
   float	   cflux;                /* total flux of pixels (convolved im)      */
   float	   flux;      		 /* total flux of pixels (unconvolved)       */
-  PIXTYPE  cpeak;                /* peak intensity (ADU) (convolved)         */
-  PIXTYPE  peak;                 /* peak intensity (ADU) (unconvolved)       */
+  float    cpeak;                /* peak intensity (ADU) (convolved)         */
+  float    peak;                 /* peak intensity (ADU) (unconvolved)       */
   short	   flag;                 /* extraction flags                         */
   int      *pix;                 /* pixel array (length is npix)             */
 } sepobj;
 
-int sep_extract(PIXTYPE *im,            /* image array                      */
-		PIXTYPE *var,           /* variance array (can be NULL)     */
-		int w, int h,           /* width and height of arrays       */
-		PIXTYPE thresh,         /* detection threshold  [1.5*sigma] */
-		int minarea,            /* minimum area in pixels       [5] */
-		float *conv,            /* convolution array (can be NULL)  */
-                                        /*            [{1 2 1 2 4 2 1 2 1}] */
-		int convw, int convh,   /* w, h of convolution array  [3,3] */
-		int deblend_nthresh,    /* deblending thresholds       [32] */
-		double deblend_mincont, /* min. deblending contrast [0.005] */
-		int clean_flag,         /* perform cleaning?            [1] */
-		double clean_param,     /* clean parameter            [1.0] */
-		int *nobj,              /* OUTPUT: number of objects        */
-		sepobj **objects);      /* OUTPUT: object array             */
-
+int sep_extract(void *image,          /* image array                         */
+		void *noise,          /* noise array (can be NULL)    [NULL] */
+		int dtype,            /* data type of image                  */
+		int ndtype,           /* data type of noise                  */
+		short noise_flag,     /* See detail below.                   */
+		int w, int h,         /* width, height of image & noise      */
+		float thresh,         /* detection threshold     [1.5*sigma] */
+		int minarea,          /* minimum area in pixels          [5] */
+		float *conv,          /* convolution array (can be NULL)     */
+                                      /*               [{1 2 1 2 4 2 1 2 1}] */
+		int convw, int convh, /* w, h of convolution array     [3,3] */
+		int deblend_nthresh,  /* deblending thresholds          [32] */
+		double deblend_cont,  /* min. deblending contrast    [0.005] */
+		int clean_flag,       /* perform cleaning?               [1] */
+		double clean_param,   /* clean parameter               [1.0] */
+		sepobj **objects,     /* OUTPUT: object array                */
+		int *nobj);           /* OUTPUT: number of objects           */
+/* Extract sources from an image.
+ *
+ * Source Extractor defaults are shown in [ ] above.
+ *
+ * Notes
+ * -----
+ * `dtype` and `ndtype` indicate the data type (float, int, double) of the 
+ * image and noise arrays, respectively.
+ *
+ * If `noise` is NULL, thresh is interpreted as an absolute threshold.
+ *
+ * If `noise` is not null, thresh is interpreted as a relative threshold
+ * (the absolute threshold will be thresh*noise). `noise_flag` can be used
+ * to alter this behavior.
+ * 
+ */
 
 void sep_freeobjarray(sepobj *objects, int nobj);
 /* free memory associated with an sepobj array, including pixel lists */
 
+
 /*-------------------------- aperture photometry ----------------------------*/
 
-int sep_apercirc(void *im, void *var, int dtype, int w, int h,
-		  PIXTYPE gain, PIXTYPE varthresh,
-		  double cx, double cy, double r, int subpix,
-		  double *flux, double *fluxerr, short *flag);
+int sep_apercirc(void *im,             /* image array */
+		 void *var,            /* variance array (can be NULL) */
+		 int dtype,
+		 int w, int h,
+                 float gain,
+		 float varthresh,
+                 double cx, double cy,
+		 double r,
+		 int subpix,
+                 double *flux,   
+		 double *fluxerr,
+		 short *flag);
+/* Sum array values within a circular aperture.
+ * 
+ */
 
 /*----------------------- info & error messaging ----------------------------*/
 
 extern char *sep_version_string;
+/* library version string (e.g., "0.2.0") */
+
 void sep_get_errmsg(int status, char *errtext);
+/* Return a short descriptive error message that corresponds to the input
+ * error status value.  The message may be up to 60 characters long, plus
+ * the terminating null character. */
+
 void sep_get_errdetail(char *errtext);
+/* Return a longer error message with more specifics about the problem.
+   The message may be up to 512 characters */

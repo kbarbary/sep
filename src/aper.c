@@ -52,27 +52,10 @@ int sep_apercirc(void *im, void *var, int dtype, int w, int h,
   int x, y, xmin, xmax, ymin, ymax, sx, sy, status, size;
   long pos;
   BYTE *imt, *vart;
-  float (*convert)(void *);
+  converter convert;
 
-  /* get size of input data in bytes*/
-  /*status = sizeof_dtype(dtype, &size);
-  if (status)
-    return status;
-  */
-
-  /* get the right pointer converter */
-  if (dtype == TFLOAT)
-    {
-      convert = convertf;
-      size = sizeof(float);
-    }
-  else if (dtype == TDOUBLE)
-    {
-      convert = convertd;
-      size = sizeof(double);
-    }
-  else
-    return ILLEGAL_DTYPE;
+  imt = vart = NULL;
+  get_converter(dtype, &convert, &size);
 
    /*
   if (wfield)

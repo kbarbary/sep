@@ -2,21 +2,16 @@
 *
 * This file is part of SEP
 *
-* Copyright 1993-2011 Emmanuel Bertin -- IAP/CNRS/UPMC
+* All content except array comparison functions fqcmp() and fqmedian() is
+* distributed under an MIT license.
+* 
 * Copyright 2014 SEP developers
 *
-* SEP is free software: you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* SEP is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* along with SEP.  If not, see <http://www.gnu.org/licenses/>.
+* Array comparison functions fqcmp() and fqmedian() are distributed under an
+* LGPL license:
+* 
+* Copyright 1993-2011 Emmanuel Bertin -- IAP/CNRS/UPMC
+* Copyright 2014 SEP developers
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
@@ -34,78 +29,216 @@
 
 char *sep_version_string = PACKAGE_VERSION;
 
-/* data type pointer conversion */
-float convertd(void *ptr)
+/****************************************************************************/
+/* data type conversion mechanics for runtime type conversion */
+
+PIXTYPE convert_dbl(void *ptr)
 {
   return *(double *)ptr;
 }
 
-float convertf(void *ptr)
+PIXTYPE convert_flt(void *ptr)
 {
   return *(float *)ptr;
 }
 
-int sizeof_dtype(int dtype, int *size)
+PIXTYPE convert_int(void *ptr)
 {
-  int status = 0;
-  if (dtype == TFLOAT)
+  return *(int *)ptr;
+}
+
+/* return the correct converter depending on the datatype code */
+int get_converter(int dtype, converter *f, int *size)
+{
+  int status = RETURN_OK;
+
+  if (dtype == SEP_TFLOAT)
     {
+      *f = convert_flt;
       *size = sizeof(float);
-      return RETURN_OK;
     }
-  else if (dtype == TDOUBLE)
+  else if (dtype == SEP_TINT)
     {
-      *size = sizeof(double);
-      return RETURN_OK;
+      *f = convert_int;
+      *size = sizeof(int);
     }
-
-  *size = 0;
-  return ILLEGAL_DTYPE;
-}
-
-/*i**** fqcmp **************************************************************
-PROTO	int	fqcmp(const void *p1, const void *p2)
-PURPOSE	Sorting function for floats in qsort().
-INPUT	Pointer to first element,
-	pointer to second element.
-OUTPUT	1 if *p1>*p2, 0 if *p1=*p2, and -1 otherwise.
-NOTES	-.
-AUTHOR	E. Bertin (IAP)
-VERSION	05/10/2010
- ***/
-static int fqcmp(const void *p1, const void *p2)
-{
-  double f1=*((float *)p1);
-  double f2=*((float *)p2);
-  return f1>f2? 1 : (f1<f2? -1 : 0);
-}
-
-/****** fqmedian *************************************************************
-PROTO	float   fqmedian(float *ra, int n)
-PURPOSE	Compute the median of an array of floats, using qsort().
-INPUT	Pointer to the array,
-	Number of array elements.
-OUTPUT	Median of the array.
-NOTES	Warning: the order of input data is modified!.
-*/
-float fqmedian(float *ra, int n)
-{
-  int dqcmp(const void *p1, const void *p2);
-  
-  qsort(ra, n, sizeof(float), fqcmp);
-  if (n<2)
-    return *ra;
+  else if (dtype == SEP_TDOUBLE)
+    {
+      *f = convert_dbl;
+      *size = sizeof(double);
+    }
   else
-    return n&1? ra[n/2] : (ra[n/2-1]+ra[n/2])/2.0;
+    {
+      *f = NULL;
+      *size = 0;
+      status = ILLEGAL_DTYPE;
+    }
+  return status;
 }
 
-/*---------------------------------------------------------------------------*/
-/*
-  Return a short descriptive error message that corresponds to the input
-  error status value.  The message may be up to 60 characters long, plus
-  the terminating null character.
-*/
+/* array conversions */
+void convert_array_flt(void *ptr, int n, PIXTYPE *target)
+{
+  float *source = (float *)ptr;
+  int i;
+  for (i=0; i<n; i++, source++)
+    target[i] = *source;
+}
+
+void convert_array_dbl(void *ptr, int n, PIXTYPE *target)
+{
+  double *source = (double *)ptr;
+  int i;
+  for (i=0; i<n; i++, source++)
+    target[i] = *source;
+}
+
+void convert_array_int(void *ptr, int n, PIXTYPE *target)
+{
+  int *source = (int *)ptr;
+  int i;
+  for (i=0; i<n; i++, source++)
+    target[i] = *source;
+}
+
+int get_array_converter(int dtype, array_converter *f, int *size)
+{
+  int status = RETURN_OK;
+
+  if (dtype == SEP_TFLOAT)
+    {
+      *f = convert_array_flt;
+      *size = sizeof(float);
+    }
+  else if (dtype == SEP_TINT)
+    {
+      *f = convert_array_int;
+      *size = sizeof(int);
+    }
+  else if (dtype == SEP_TDOUBLE)
+    {
+      *f = convert_array_dbl;
+      *size = sizeof(double);
+    }
+  else
+    {
+      *f = NULL;
+      *size = 0;
+      status = ILLEGAL_DTYPE;
+    }
+  return status;
+}
+
+
+/****************************************************************************/
+/* Copy a float array to various sorts of arrays */
+
+void write_array_dbl(float *ptr, int n, void *target)
+{
+  double *t = (double *)target;
+  int i;
+  for (i=0; i<n; i++, ptr++)
+    t[i] = (double)(*ptr);
+}
+
+void write_array_int(float *ptr, int n, void *target)
+{
+  int *t = (int *)target;
+  int i;
+  for (i=0; i<n; i++, ptr++)
+    t[i] = (int)(*ptr+0.5);
+}
+
+/* return the correct writer depending on the datatype code */
+int get_array_writer(int dtype, array_writer *f, int *size)
+{
+  int status = RETURN_OK;
+
+  if (dtype == SEP_TINT)
+    {
+      *f = write_array_int;
+      *size = sizeof(int);
+    }
+  else if (dtype == SEP_TDOUBLE)
+    {
+      *f = write_array_dbl;
+      *size = sizeof(double);
+    }
+  else
+    {
+      *f = NULL;
+      *size = 0;
+      status = ILLEGAL_DTYPE;
+    }
+  return status;
+}
+
+/* subtract a float array from arrays of various types */
+
+void subtract_array_dbl(float *ptr, int n, void *target)
+{
+  double *t = (double *)target;
+  int i;
+  for (i=0; i<n; i++, ptr++)
+    t[i] -= (double)(*ptr);
+}
+
+void subtract_array_flt(float *ptr, int n, void *target)
+{
+  float *t = (float *)target;
+  int i;
+  for (i=0; i<n; i++, ptr++)
+    t[i] -= *ptr;
+}
+
+void subtract_array_int(float *ptr, int n, void *target)
+{
+  int *t = (int *)target;
+  int i;
+  for (i=0; i<n; i++, ptr++)
+    t[i] -= (int)(*ptr+0.5);
+}
+
+/* return the correct subtractor depending on the datatype code */
+int get_array_subtractor(int dtype, array_writer *f, int *size)
+{
+  int status = RETURN_OK;
+  char errtext[80];
+
+  if (dtype == SEP_TFLOAT)
+    {
+      *f = subtract_array_flt;
+      *size = sizeof(float);
+    }
+  else if (dtype == SEP_TINT)
+    {
+      *f = subtract_array_int;
+      *size = sizeof(int);
+    }
+  else if (dtype == SEP_TDOUBLE)
+    {
+      *f = subtract_array_dbl;
+      *size = sizeof(double);
+    }
+  else
+    {
+      *f = NULL;
+      *size = 0;
+      status = ILLEGAL_DTYPE;
+      sprintf(errtext, "unsupported data type in get_array_subtractor(): %d",
+	      dtype);
+      put_errdetail(errtext);
+    }
+  return status;
+}
+
+/*****************************************************************************/
+/* Error messaging */
+
 void sep_get_errmsg(int status, char *errtext)
+/* Return a short descriptive error message that corresponds to the input
+ * error status value.  The message may be up to 60 characters long, plus
+ * the terminating null character. */
 {
   errtext[0] = '\0';
   switch (status)
@@ -152,4 +285,30 @@ void put_errdetail(char *errtext)
 {
   errdetail(PUTDETAIL, errtext);
   return;
+}
+
+/*****************************************************************************/
+/* Array median */
+
+static int fqcmp(const void *p1, const void *p2)
+/* Sorting function for floats, used in fqmedian() below.
+ * Return value is 1 if *p1>*p2, 0 if *p1==*p2, -1 otherwise */
+{
+  double f1=*((float *)p1);
+  double f2=*((float *)p2);
+  return f1>f2? 1 : (f1<f2? -1 : 0);
+}
+
+float fqmedian(float *ra, int n)
+/* Compute median of an array of floats.
+ *
+ * WARNING: input data are reordered! */
+{
+  int dqcmp(const void *p1, const void *p2);
+  
+  qsort(ra, n, sizeof(float), fqcmp);
+  if (n<2)
+    return *ra;
+  else
+    return n&1? ra[n/2] : (ra[n/2-1]+ra[n/2])/2.0;
 }

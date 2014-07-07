@@ -164,7 +164,8 @@ int main(int argc, char **argv)
 
   printf("sep_makeback()            ");
   t0 = gettime_ns();
-  status = sep_makeback(im, NULL, nx, ny, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
+  status = sep_makeback(im, NULL, SEP_TFLOAT, 0, nx, ny, 64, 64,
+			0.0, 3, 3, 0.0, &bkmap);
   t1 = gettime_ns();
   if (status)
     goto exit;
@@ -172,7 +173,7 @@ int main(int argc, char **argv)
 
   printf("sep_subbackarray()        ");
   t0 = gettime_ns();
-  status = sep_subbackarray(bkmap, im);
+  status = sep_subbackarray(bkmap, im, SEP_TFLOAT);
   t1 = gettime_ns();
   if (status)
     goto exit;
@@ -183,8 +184,9 @@ int main(int argc, char **argv)
 
   printf("sep_extract()             ");
   t0 = gettime_ns();
-  status = sep_extract(im, NULL, nx, ny, 1.5*bkmap->backsig, 5,
-		       conv, 3, 3, 32, 0.005, 1, 1.0, &nobj, &objects);
+  status = sep_extract(im, NULL, SEP_TFLOAT, 0, 0, nx, ny,
+		       1.5*bkmap->globalsigma, 5, conv, 3, 3, 32, 0.005, 1, 1.0,
+		       &objects, &nobj);
   t1 = gettime_ns();
   if (status)
     goto exit;
@@ -214,7 +216,7 @@ int main(int argc, char **argv)
       printf("sep_apercirc() [r=%4.1f]   ", r);
       t0 = gettime_ns();
       for (i=0; i<naper; i++)
-	sep_apercirc(im, NULL, TFLOAT, nx, ny, 0.0, 0.0,
+	sep_apercirc(im, NULL, SEP_TFLOAT, nx, ny, 0.0, 0.0,
 		     xcs[i], ycs[i], r, 5, &flux, &fluxerr, &flag);
       t1 = gettime_ns();
       printf("%6.3f us/aperture\n", (double)(t1 - t0) / 1000. / naper);

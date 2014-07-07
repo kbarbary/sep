@@ -41,38 +41,50 @@ int plistexist_cdvalue, plistexist_dthresh, plistexist_var;
 int plistoff_value, plistoff_cdvalue, plistoff_dthresh, plistoff_var;
 int plistsize;
 
-void convolve(PIXTYPE *, int, int, int, float *, int, int, PIXTYPE *);
+typedef void (*convolver)(void *image, int w, int h, int y,
+			  float *conv, int convw, int convh, PIXTYPE *buf);
+int get_convolver(int dtype, convolver *f);
+
 int  sortit(infostruct *, objliststruct *, int,
 	    objliststruct *, int, double);
-void plistinit(PIXTYPE *, PIXTYPE *);
+void plistinit(void *, void *);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
 
 /****************************** extract **************************************/
-int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
-	        PIXTYPE thresh, int minarea,
-	        float *conv, int convw, int convh,
-		int deblend_nthresh, double deblend_mincont,
+int sep_extract(void *image, void *noise,
+		int dtype, int ndtype, short noise_flag, int w, int h,
+	        float thresh, int minarea, float *conv, int convw, int convh,
+		int deblend_nthresh, double deblend_cont,
 		int clean_flag, double clean_param,
-		int *nobj, sepobj **objects)
+		sepobj **objects, int *nobj)
 {
-  static infostruct	curpixinfo, *info, *store, initinfo, freeinfo, *victim;
-  objliststruct       	objlist, *finalobjlist;
-  pliststruct		*pixel, *pixt; 
-  char			*marker, newmarker;
-  int			co, i, j, flag, luflag, pstop, xl, xl2, yl, cn,
-			nposize, stacksize, maxpixnb, convn, status;
-  short	       	        trunflag;
-  PIXTYPE		relthresh, cdnewsymbol;
-  PIXTYPE               *scan,*cdscan,*cdwscan,*wscan,*dumscan;
-  float                 sum, *convnorm;
-  pixstatus		cs, ps, *psstack;
-  int			*start, *end, *survives;
+  static infostruct curpixinfo, initinfo, freeinfo;
+  objliststruct     objlist;
+  char              newmarker;
+  int               co, i, j, flag, luflag, pstop, xl, xl2, yl, cn;
+  int               nposize, stacksize, maxpixnb, convn, status;
+  int               elsize_im, elsize_noise;
+  short             trunflag;
+  PIXTYPE           relthresh, cdnewsymbol;
+  float             sum;
+  pixstatus         cs, ps;
+
+  static infostruct *info, *store, *victim;
+  objliststruct     *finalobjlist;
+  pliststruct	    *pixel, *pixt;
+  char              *marker;
+  PIXTYPE           *scan, *cdscan, *cdwscan, *wscan, *dumscan;
+  float             *convnorm;
+  int               *start, *end, *survives;
+  pixstatus         *psstack;
+  BYTE              *imageline, *noiseline;
+  convolver         convolve_im, convolve_noise;
+  array_converter   convert_im, convert_noise;
+  char              errtext[80];
 
   status = RETURN_OK;
-  char errtext[80];  /* 80 should be more than enough */
-  
   pixel = NULL;
   convnorm = NULL;
   scan = wscan = cdscan = cdwscan = dumscan = NULL;
@@ -85,9 +97,15 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
   finalobjlist = NULL; /* final return value */
   convn = 0;
   sum = 0.0;
+  convolve_im = NULL;
+  convolve_noise = NULL;
+  convert_im = NULL;
+  convert_noise = NULL;
+  imageline = (BYTE *)image;
+  noiseline = (BYTE *)noise;
 
-  /* var is the image variance to use for thresholding, if available */
-  relthresh = var? thresh : 0.0;/* To avoid gcc warnings*/
+  /* If we have a noise array, set relative threshold */
+  relthresh = noise? thresh : 0.0; /* To avoid gcc warnings*/
 
   objlist.dthresh = thresh;
   objlist.thresh = thresh;
@@ -105,6 +123,19 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
     goto exit;
   if ((status = allocdeblend(deblend_nthresh)) != RETURN_OK)
     goto exit;
+
+  /* allocate scan buffer(s) and get array converter function(s) */
+  QMALLOC(scan, PIXTYPE, stacksize, status);
+  status = get_array_converter(dtype, &convert_im, &elsize_im);
+  if (status != RETURN_OK)
+    goto exit;
+  if (noise)
+    {
+      QMALLOC(wscan, PIXTYPE, stacksize, status);
+      status = get_array_converter(ndtype, &convert_noise, &elsize_noise);
+      if (status != RETURN_OK)
+	goto exit;
+    }
 
   /* More initializations */
   initinfo.pixnb = 0;
@@ -129,7 +160,7 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 
 
   /* Allocate memory for the pixel list */
-  plistinit(conv, var);
+  plistinit(conv, noise);
   if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -148,7 +179,7 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
     {
       /* allocate memory for convolved buffers */
       QMALLOC(cdscan, PIXTYPE, stacksize, status);
-      if (var)
+      if (noise)
 	QCALLOC(cdwscan, PIXTYPE, stacksize, status);
 
       /* normalize the filter */
@@ -158,6 +189,18 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	sum += fabs(conv[i]);
       for (i=0; i<convn; i++)
 	convnorm[i] = conv[i] / sum;
+
+      /* get the right convolve function for the image & noise data types */
+      status = get_convolver(dtype, &convolve_im);
+      if (status != RETURN_OK)
+	goto exit;
+      if (noise)
+	{
+	  status = get_convolver(ndtype, &convolve_noise);
+	  if (status != RETURN_OK)
+	    goto exit;
+	}
+
     }
 
   /*----- MAIN LOOP ------ */
@@ -174,7 +217,7 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    {
 	      free(cdscan);
 	      cdscan = NULL;
-	      if (var)
+	      if (noise)
 		{
 		  free(cdwscan);
 		  cdwscan = NULL;
@@ -185,16 +228,18 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 
       else
 	{
-	  scan = im + yl*w;
-	  if (var)
-	    wscan = var + yl*w;
+	  /* read the current (yl) line of input arrays into PIXTYPE buffers*/
+	  convert_im(imageline, w, scan);
+	  if (noise)
+	    convert_noise(noiseline, w, wscan);
 
 	  /* filter the lines */
 	  if (conv)
 	    {
-	      convolve(im, w, h, yl, convnorm, convw, convh, cdscan);
-	      if (var)
-		convolve(var, w, h, yl, convnorm, convw, convh, cdwscan);
+	      convolve_im(image, w, h, yl, convnorm, convw, convh, cdscan);
+	      if (noise)
+		convolve_noise(noise, w, h, yl, convnorm, convw, convh,
+			       cdwscan);
 	    }
 	  else
 	    {
@@ -216,8 +261,8 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	  marker[xl] = 0;
 
 	  curpixinfo.flag = trunflag;
-	  if (var)
-	    thresh = relthresh * sqrt((xl==w || yl==h)? 0.0:cdwscan[xl]);
+	  if (noise)
+	    thresh = relthresh * ((xl==w || yl==h)? 0.0: cdwscan[xl]);
 	  luflag = cdnewsymbol > thresh? 1: 0;  /* is pixel above thresh? */
 
 	  if (luflag)
@@ -364,7 +409,7 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 			    {
 			      status = sortit(&info[co], &objlist, minarea,
 					      finalobjlist,
-					      deblend_nthresh,deblend_mincont);
+					      deblend_nthresh,deblend_cont);
 			      if (status != RETURN_OK)
 				goto exit;
 			    }
@@ -409,6 +454,12 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
 	    }
 
 	} /*------------ End of the loop over the x's -----------------------*/
+
+      /* increment array pointers */ 
+      imageline += w*elsize_im;
+      if (noise)
+	noiseline += w*elsize_noise;
+
     } /*---------------- End of the loop over the y's -----------------------*/
 
   /* convert `finalobjlist` to an array of `sepobj` structs */
@@ -459,6 +510,8 @@ int sep_extract(PIXTYPE *im, PIXTYPE *var, int w, int h,
   free(psstack);
   free(start);
   free(end);
+  free(scan);
+  free(wscan);
   if (conv)
     free(convnorm);
 
@@ -621,76 +674,110 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
 
 
 /******************************** convolve ***********************************/
-/* (originally in filter.c in sextractor)
-Convolve a scan line with an array.
-*/
-void	convolve(PIXTYPE *im,                    /* full image (was field) */
-		 int w, int h,                   /* image size */
-		 int y,                          /* line in image */
-		 float *conv,                    /* convolution mask */
-		 int convw, int convh,           /* mask size */
-		 PIXTYPE *mscan)                 /* convolved line */
+/* Convolve functions.
+ * 
+ * Convolve an image with a convolution kernel (at a single line).
+ *
+ * There is a separate function for each type of image.
+ * In sep_extract(), we select the correct function for the given array type
+ * at runtime.
+ *
+ * (originally in filter.c in sextractor)
+ *
+ * image : full input array
+ * w, h : width and height of image
+ * y : line to convolve in image
+ * conv : convolution kernel
+ * convw, convh : width and height of conv
+ * buf : output convolved line (`w` elements long)
+ */
+void convolve_flt(void *image, int w, int h, int y,
+		  float *conv, int convw, int convh, PIXTYPE *buf)
 {
-  int		convw2,m0,me,m,mx,dmx, y0, dy;
-  float	        *mask;
-  PIXTYPE	*mscane, *s,*s0, *d,*de, mval;
+  int	  convw2, cx, dcx, y0, dy;
+  float	  *convend;
+  PIXTYPE *bufend, *buft, *buftend, cval;
 
+  float *im, *line, *imt;
+  im = (float *)image;
+
+  line = NULL;        /* To avoid gcc -Wall warnings */
   convw2 = convw/2;
-  mscane = mscan+w; /* limit of scanline */
-  y0 = y - (convh/2); /* starting y for convolution */
+  bufend = buf+w;     /* pointer to end of output buffer */
+  y0 = y - (convh/2); /* starting y line for convolution */
 
-  /* check if start extends beyond image */
+  /* reduce height of convolution kernel if it extends beyond image */
+  dy = h - y0;        /* distance from starting line to top of image */
+  if (convh > dy)
+    convh = dy;
+  convend = conv + (convw*convh);
+
+  /* Set start position in convolution kernel (and start line in image) */
   if (y0 < 0)
     {
-      m0 = convw*(-y0);
+      conv += convw*(-y0);
       y0 = 0;
     }
-  else
-    m0 = 0;
 
-  if ((dy = h - y0) < convh)
-    me = convw*dy;
-  else
-    me = convw*convh;
+  /* initialize output buffer to zero */
+  memset(buf, 0, w*sizeof(PIXTYPE));
 
-  memset(mscan, 0, w*sizeof(PIXTYPE));
-  s0 = NULL;				/* To avoid gcc -Wall warnings */
-  mask = conv+m0;
-  for (m = m0, mx = 0; m<me; m++, mx++) /* loop over pixels in conv mask */
-                                        /* mx is x position in mask */
+  /* loop over pixels in the mask */
+  for (cx=0; conv<convend; conv++, cx++)
     {
-      if (mx==convw) 
-	mx = 0;
-      if (!mx)
-	s0 = im + w*((y0++)%h);  /* every time mx goes to 0, increment */
-				 /* start line in the image */
+      cval = *conv;
 
-      if ((dmx = mx-convw2)>=0)  /* dmx is x-offset in mask */
+      /* get the x position in the mask */
+      if (cx==convw)
+	cx = 0;
+
+      /* when cx goes to zero, increment the start line in the image */
+      if (!cx)
+	line = im + w*((y0++)%h);
+
+      /* get start and end positions in the source and target line */
+      if ((dcx = cx-convw2)>=0)
 	{
-	  s = s0 + dmx;
-	  d = mscan;
-	  de = mscane - dmx;
+	  imt = line + dcx;
+	  buft = buf;
+	  buftend = bufend - dcx;
 	}
       else
 	{
-	  s = s0;
-	  d = mscan - dmx;
-	  de = mscane;
+	  imt = line;
+	  buft = buf - dcx;
+	  buftend = bufend;
 	}
 
-      mval = *(mask++);
-      while (d<de)
-	*(d++) += mval**(s++);
+      while (buft < buftend)
+	*(buft++) += cval * *(imt++);
     }
 
   return;
+}
+
+/* return the correct converter depending on the datatype code */
+int get_convolver(int dtype, convolver *f)
+{
+  int status = RETURN_OK;
+
+  if (dtype == SEP_TFLOAT)
+    {
+      *f = convolve_flt;
+    }
+  else
+    {
+      *f = NULL;
+      status = ILLEGAL_DTYPE;
+    }
+  return status;
 }
 
 /****************************** plistinit ************************************
  * (originally init_plist() in sextractor)
 PURPOSE	initialize a pixel-list and its components.
  ***/
-void plistinit(PIXTYPE *conv, PIXTYPE *var)
+void plistinit(void *conv, void *var)
 {
   pbliststruct	*pbdum = NULL;
 

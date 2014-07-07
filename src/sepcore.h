@@ -20,18 +20,28 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-/* non-public header */
 #define	RETURN_OK          0
 #define SEP_INTERNAL_ERROR 1
 #define MEMORY_ALLOC_ERROR 2
 #define ILLEGAL_DTYPE      3
+
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
 #define	PI  3.1415926535898
 #define	DEG (PI/180.0)	    /* 1 deg in radians */
 
 typedef	int	      LONG;
 typedef	unsigned int  ULONG;
-typedef	unsigned char	BYTE;  /* a byte */
+typedef	unsigned char BYTE;    /* a byte */
+
+/* keep these synchronized */
+typedef float         PIXTYPE;    /* type used inside of functions */
+#define PIXDTYPE      SEP_TFLOAT  /* dtype code corresponding to PIXTYPE */
+
+
+/* signaure of converters */
+typedef PIXTYPE (*converter)(void *ptr);
+typedef void (*array_converter)(void *ptr, int n, PIXTYPE *target);
+typedef void (*array_writer)(float *ptr, int n, void *target);
 
 #define	QCALLOC(ptr, typ, nel, status)				     	\
   {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\
@@ -62,6 +72,6 @@ typedef	unsigned char	BYTE;  /* a byte */
 float fqmedian(float *ra, int n);
 void put_errdetail(char *errtext);
 
-float convertd(void *ptr);
-float convertf(void *ptr);
-int sizeof_dtype(int dtype, int *size);
+int get_converter(int dtype, converter *f, int *size);
+int get_array_converter(int dtype, array_converter *f, int *size);
+int get_array_writer(int dtype, array_writer *f, int *size);
