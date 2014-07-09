@@ -1,0 +1,3 @@
+SConscript('src/sconscript')
+SConscript('test/sconscript')
+Default('src')

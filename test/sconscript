@@ -1,0 +1,3 @@
+env = Environment(CCFLAGS=['-O3','-Wall'])
+env.Program('runtests.c', LIBS=['c', 'm', 'sep'], CPPPATH='#src',
+             LIBPATH='#src')

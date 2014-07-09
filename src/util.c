@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "config.h"
 #include "sep.h"
 #include "sepcore.h"
 
@@ -27,7 +26,7 @@
 #define PUTDETAIL 2
 #define DETAILSIZE 512
 
-char *sep_version_string = PACKAGE_VERSION;
+char *sep_version_string = "0.2.0.dev";
 
 /****************************************************************************/
 /* data type conversion mechanics for runtime type conversion */

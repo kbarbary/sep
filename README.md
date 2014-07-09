@@ -25,38 +25,34 @@ SEP is designed both to be used in C programs and to be wrapped in
 higher-level languages such as Python or Julia. To make the latter
 easier, SEP has minimal dependencies.
 
-Build and install
------------------
+Build
+-----
 
-* To build and install to your OS's standard location:
-  ```
-  ./configure
-  make
-  make install
-  ```
+To build, you must have [scons](http://scons.org/) available on your
+system. In the top level directory,
 
-* If you are using the development version via the git repository rather
-  than a "released" version, you need to generate the ``configure``
-  script once by running
-  ```
-  ./bootstrap.sh
-  ```
-  This requires that you have `autoconf` and `libtool` installed.
+```
+scons          # build the library
+scons --clean  # clean the built library
+```
 
-* To emit warnings and treat warnings as errors run make as:
-  ```
-  make CFLAGS='-O2 -g -Wall -Werror'
-  ```
+Test
+----
 
-* To run the tests before installing, do:
-  ```
-  make check
-  ```
-  Timing results from the tests are in `test/runtests.log`.
+In the top level directory:
 
-* If you wish to build against the SEP static library without
-  installing, you will find it in `src/.libs/libsep.a` after
-  running make.
+```
+scons test          # build the test executable
+scons test --clean  # clean the built test executable
+```
+
+To run the test executable, first ensure that the built shared library
+(in `src`) can be found. For example, on linux, put the path to the
+library in the `LD_LIBRARY_PATH` environment variable. Then do
+
+```
+test/runtests
+```
 
 API
 ---

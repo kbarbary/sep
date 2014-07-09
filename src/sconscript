@@ -1,0 +1,7 @@
+soversion = '0.0.0'
+sources = Glob('*.c')
+
+env = Environment(CCFLAGS=['-O3','-Wall'])
+lib = env.SharedLibrary('sep', sources, LIBS=['m', 'c'],
+                        CPPPATH='.', SHLIBVERSION=soversion)
+lib2 = env.StaticLibrary('sep', sources, LIBS=['m', 'c'], CPPPATH='.')

@@ -1,31 +1,18 @@
-/aclocal.m4
-/autom4te.cache/
-/config.*
-/configure
-/depcomp
-/sep.pc
-/install-sh
-/libtool
-/ltmain.sh
-/m4/
-/missing
-/stamp-h?
-/test-driver
-.deps/
-.dirstamp
-.libs/
-*.l[ao]
+# built files
 *.o
-*~
-Makefile
-Makefile.in
-/build-aux
+*.os
+*.so
+*.so.*
+*.a
 
 # tests
 test/runtests
-test/runtests.log
-test/runtests.trs
-test-suite.log
+
+# scons
+.sconsign.dblite
+
+# emacs
+*~
 
 # tarballs
 sep-*.tar.gz
