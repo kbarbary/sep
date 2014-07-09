@@ -20,8 +20,6 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-typedef float         PIXTYPE; /* TODO: remove this once all PIXTYPEs cleaned*/
-
 /* datatype codes */
 #define SEP_TINT         31
 #define SEP_TFLOAT       42
