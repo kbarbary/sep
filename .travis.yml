@@ -4,7 +4,9 @@ compiler:
   - clang
   - gcc
 
-# before build script, run autoreconf
-before_script: ./bootstrap.sh
+before_script: export LD_LIBRARY_PATH=${PWD}/src
 
-script: ./configure --disable-shared && make && make check
+script:
+  - scons
+  - scons test
+  - ./test/runtests
