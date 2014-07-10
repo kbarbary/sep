@@ -1,9 +1,10 @@
 language: c
 
-compiler:
-  - clang
-  - gcc
+# scons doesn't use the CC environment variable, so there's
+# no point in specifying clang here: scons will use gcc regardless
+compiler: gcc
 
+# So that `runtests` can load the built library
 before_script: export LD_LIBRARY_PATH=${PWD}/src
 
 script:

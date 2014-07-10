@@ -100,7 +100,7 @@ order to put the functionality in stand-alone C functions.
 - Array types: Source Extractor can operate on FITS images containing various
   types of data (float, double, int, etc). Internally, it does this by
   converting all data to `float` immediately when reading from disk.
-  SEP does something similar, but on disk: SEP functions typically convert
+  SEP does something similar, but in memory: SEP functions typically convert
   input arrays to float on the fly within each function, then perform
   all operations as floating point.
 
