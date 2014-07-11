@@ -760,7 +760,7 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
 /* Interpolate background at line y (bicubic spline interpolation between
  * background map vertices) and save to line */
 {
-  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status, elsize;
+  int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
   float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
 

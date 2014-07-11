@@ -75,3 +75,4 @@ void put_errdetail(char *errtext);
 int get_converter(int dtype, converter *f, int *size);
 int get_array_converter(int dtype, array_converter *f, int *size);
 int get_array_writer(int dtype, array_writer *f, int *size);
+int get_array_subtractor(int dtype, array_writer *f, int *size);
