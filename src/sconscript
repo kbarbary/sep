@@ -1,4 +1,14 @@
+# shared library version info:
+# Three number version: "current", "revision", "age"
+#
+# Existing version:              C.R.A
+# ----------------------------------------
+# Backwards-incompatible change: C+1.0.0
+# Feature added:                 C+1.0.A+1
+# Bugfix:                        C.R+1.A
+
 soversion = '0.0.0'
+
 sources = Glob('*.c')
 
 env = Environment(CCFLAGS=['-O3','-Wall'])

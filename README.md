@@ -39,6 +39,12 @@ scons --clean  # clean the built library
 Test
 ----
 
+The test program requires that the `cfitsio` library and
+development header be installed. On Ubuntu:
+```
+sudo apt-get install libcfitsio3-dev
+```
+
 In the top level directory:
 
 ```
@@ -51,7 +57,7 @@ To run the test executable, first ensure that the built shared library
 library in the `LD_LIBRARY_PATH` environment variable. Then do
 
 ```
-test/runtests
+./runtests
 ```
 
 API

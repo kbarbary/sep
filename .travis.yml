@@ -4,10 +4,16 @@ language: c
 # no point in specifying clang here: scons will use gcc regardless
 compiler: gcc
 
+
+# libcfitsio necessary for test script.
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libcfitsio3-dev
+
 # So that `runtests` can load the built library
 before_script: export LD_LIBRARY_PATH=${PWD}/src
 
 script:
   - scons
   - scons test
-  - ./test/runtests
+  - ./runtests

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+test/test_image data/image.fits data/sep.cat data/sepback.fits
+test/compare.py data/image.cat data/sep.cat

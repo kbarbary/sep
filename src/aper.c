@@ -55,7 +55,9 @@ int sep_apercirc(void *im, void *var, int dtype, int w, int h,
   converter convert;
 
   imt = vart = NULL;
-  get_converter(dtype, &convert, &size);
+  status = get_converter(dtype, &convert, &size);
+  if (status)
+    return status;
 
    /*
   if (wfield)
@@ -167,5 +169,5 @@ int sep_apercirc(void *im, void *var, int dtype, int w, int h,
     *flux = tv;
     *fluxerr = sqrt(sigtv);
     
-    return RETURN_OK;
+    return status;
 }
