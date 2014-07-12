@@ -87,11 +87,12 @@ order to put the functionality in stand-alone C functions.
 
 **What sort of changes?**
 
-- Source Extractor reads in only a small portion of each image at a time.
-  This allows it to operate on images that are much larger than the system's
-  physical memory. It also means that a FITS reader is deeply integrated.
-  SEP operates on images in memory, so all the FITS I/O machinery
-  in Source Extractor is not used here.
+- Source Extractor reads in only a small portion of each image at a
+  time.  This allows it to keep its memory footprint extremely low and
+  to operate on images that are much larger than the system's physical
+  memory. It also means that a FITS reader is deeply integrated into
+  the code.  SEP operates on images in memory, so all the FITS I/O
+  machinery in Source Extractor is not used here.
 
 - Error handling: When it encounters a problem, Source Extractor
   immediately exits with an error message. This is fine for an
@@ -116,3 +117,11 @@ It should be in the same ballpark, as a lot of the core code is the
 same.  Source Extractor has the advantage of doing all the operations
 (detection and analysis) simultaneously on each image section, which
 may confer CPU cache advantages, but this hasn't been tested.
+
+**What happens when Source Extractor is updated in the future?**
+
+SEP can be considered a fork of the Source Extractor codebase: it's
+development will not track that of Source Extractor in any automated
+way. However, the algorithms implemented so far in SEP are stable in
+Source Extractor: the SEP code was forked from v2.18.11, yet tested
+against the results of v2.8.6.

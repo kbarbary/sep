@@ -21,8 +21,8 @@
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 #define	RETURN_OK          0
-#define SEP_INTERNAL_ERROR 1
-#define MEMORY_ALLOC_ERROR 2
+#define MEMORY_ALLOC_ERROR 1
+#define SEP_INTERNAL_ERROR 2
 #define ILLEGAL_DTYPE      3
 
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */

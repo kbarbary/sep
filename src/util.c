@@ -245,11 +245,14 @@ void sep_get_errmsg(int status, char *errtext)
     case RETURN_OK:
       strcpy(errtext, "OK - no error");
       break;
+    case MEMORY_ALLOC_ERROR:
+      strcpy(errtext, "memory allocation");
+      break;
     case SEP_INTERNAL_ERROR:
       strcpy(errtext, "SEP internal error");
       break;
-    case MEMORY_ALLOC_ERROR:
-      strcpy(errtext, "memory allocation");
+    case ILLEGAL_DTYPE:
+      strcpy(errtext, "dtype not recognized or unsupported");
       break;
     default:
        strcpy(errtext, "unknown error status");
