@@ -100,6 +100,14 @@ void convert_array_int(void *ptr, int n, PIXTYPE *target)
     target[i] = *source;
 }
 
+void convert_array_byt(void *ptr, int n, PIXTYPE *target)
+{
+  BYTE *source = (BYTE *)ptr;
+  int i;
+  for (i=0; i<n; i++, source++)
+    target[i] = *source;
+}
+
 int get_array_converter(int dtype, array_converter *f, int *size)
 {
   int status = RETURN_OK;
@@ -108,6 +116,11 @@ int get_array_converter(int dtype, array_converter *f, int *size)
     {
       *f = convert_array_flt;
       *size = sizeof(float);
+    }
+  else if (dtype == SEP_TBYTE)
+    {
+      *f = convert_array_byt;
+      *size = sizeof(int);
     }
   else if (dtype == SEP_TINT)
     {

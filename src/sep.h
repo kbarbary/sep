@@ -21,7 +21,8 @@
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
 /* datatype codes */
-#define SEP_TINT         31
+#define SEP_TBYTE        11  /* 8-bit unsigned byte */
+#define SEP_TINT         31  /* native int type */
 #define SEP_TFLOAT       42
 #define SEP_TDOUBLE      82
 
