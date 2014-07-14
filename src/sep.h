@@ -115,7 +115,7 @@ typedef struct
   int	   xmin,xmax,ymin,ymax;  /* x,y limits                               */
   double   x, y;                 /* barycenter (first moments)               */
   double   x2,y2,xy;		 /* second moments                           */
-  float	   a, b, theta, abcor;   /* ellipse parameters                       */
+  float	   a, b, theta;          /* ellipse parameters                       */
   float	   cxx,cyy,cxy;	         /* ellipse parameters (alternative)         */
   float	   cflux;                /* total flux of pixels (convolved im)      */
   float	   flux;      		 /* total flux of pixels (unconvolved)       */
