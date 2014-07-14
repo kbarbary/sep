@@ -45,8 +45,8 @@ typedef struct
   int bw, bh;        /* single tile width, height */
   int nx, ny;        /* number of tiles in x, y */
   int n;             /* nx*ny */
-  float globalmean;  /* global mean */
-  float globalsigma; /* global sigma */
+  float globalback;  /* global mean */
+  float globalrms;   /* global sigma */
   float *back;       /* node data for interpolation */
   float *dback;
   float *sigma;    
@@ -78,8 +78,8 @@ int sep_makeback(void *im,            /* image data                          */
  * - fthresh = 0.0
  */
 
-float sep_globalmean(sepbackmap *bkmap);
-float sep_globalsigma(sepbackmap *bkmap);
+float sep_globalback(sepbackmap *bkmap);
+float sep_globalrms(sepbackmap *bkmap);
 /* Get the estimate of the global background "mean" or standard deviation */
 
 float sep_backpix_linear(sepbackmap *bkmap, int x, int y);
@@ -113,14 +113,16 @@ typedef struct
   int	   npix;                 /* # pixels extracted (size of pix array)   */
   int      tnpix;                /* # pixels above thresh (unconvolved)      */
   int	   xmin,xmax,ymin,ymax;  /* x,y limits                               */
-  double   mx, my;               /* barycenter                               */
-  double   mx2,my2,mxy;		 /* variances and covariance                 */
-  float	   a, b, theta, abcor;   /* moments and angle                        */
-  float	   cxx,cyy,cxy;	         /* ellipse parameters                       */
+  double   x, y;                 /* barycenter (first moments)               */
+  double   x2,y2,xy;		 /* second moments                           */
+  float	   a, b, theta, abcor;   /* ellipse parameters                       */
+  float	   cxx,cyy,cxy;	         /* ellipse parameters (alternative)         */
   float	   cflux;                /* total flux of pixels (convolved im)      */
   float	   flux;      		 /* total flux of pixels (unconvolved)       */
   float    cpeak;                /* peak intensity (ADU) (convolved)         */
   float    peak;                 /* peak intensity (ADU) (unconvolved)       */
+  int      xcpeak, ycpeak;       /* x, y coords of peak (convolved) pixel    */
+  int      xpeak, ypeak;         /* x, y coords of peak (unconvolved) pixel  */
   short	   flag;                 /* extraction flags                         */
   int      *pix;                 /* pixel array (length is npix)             */
 } sepobj;

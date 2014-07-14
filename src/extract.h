@@ -79,7 +79,8 @@ typedef struct
   int	   nzwpix;		       	/* nb of zero-weights inside */
   
   /* position */
-  int	   peakx,peaky;                      /* pos of brightest pix */
+  int	   xpeak, ypeak;                     /* pos of brightest pix */
+  int	   xcpeak,ycpeak;                    /* pos of brightest pix */
   double   mx, my;        	             /* barycenter */
   int	   xmin,xmax,ymin,ymax,ycmin,ycmax;  /* x,y limits */
 

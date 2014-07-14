@@ -604,20 +604,20 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
   free(smask);
   bmask = smask = NULL;
   memcpy(back, back2, np*sizeof(float));
-  bkmap->globalmean = fqmedian(back2, np);
+  bkmap->globalback = fqmedian(back2, np);
   free(back2);
   back2 = NULL;
   memcpy(sigma, sigma2, np*sizeof(float));
-  bkmap->globalsigma = fqmedian(sigma2, np);
+  bkmap->globalrms = fqmedian(sigma2, np);
 
-  if (bkmap->globalsigma <= 0.0)
+  if (bkmap->globalrms <= 0.0)
     {
     sigmat = sigma2+np;
     for (i=np; i-- && *(--sigmat)>0.0;);
     if (i>=0 && i<(np-1))
-      bkmap->globalsigma = fqmedian(sigmat+1, np-1-i);
+      bkmap->globalrms = fqmedian(sigmat+1, np-1-i);
     else
-      bkmap->globalsigma = 1.0;
+      bkmap->globalrms = 1.0;
     }
 
   free(sigma2);
@@ -687,14 +687,14 @@ int makebackspline(sepbackmap *bkmap, float *map, float *dmap)
 
 /*****************************************************************************/
 
-float sep_globalmean(sepbackmap *bkmap)
+float sep_globalback(sepbackmap *bkmap)
 {
-  return bkmap->globalmean;
+  return bkmap->globalback;
 }
 
-float sep_globalsigma(sepbackmap *bkmap)
+float sep_globalrms(sepbackmap *bkmap)
 {
-  return bkmap->globalsigma;
+  return bkmap->globalrms;
 }
 
 

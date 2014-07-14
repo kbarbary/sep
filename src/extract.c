@@ -1055,15 +1055,16 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
   objout->xmax = obj->xmax;
   objout->ymin = obj->ymin;
   objout->ymax = obj->ymax;
-  objout->mx = obj->mx;
-  objout->my = obj->my;
-  objout->mx2 = obj->mx2;
-  objout->my2 = obj->my2;
-  objout->mxy = obj->mxy;
+  objout->x = obj->mx;
+  objout->y = obj->my;
+  objout->x2 = obj->mx2;
+  objout->y2 = obj->my2;
+  objout->xy = obj->mxy;
+
   objout->a = obj->a;
   objout->b = obj->b;
   objout->theta = obj->theta;
-  objout->abcor = obj->abcor;
+
   objout->cxx = obj->cxx;
   objout->cyy = obj->cyy;
   objout->cxy = obj->cxy;
@@ -1072,6 +1073,11 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
   objout->flux = obj->dflux;
   objout->cpeak = obj->fdpeak;
   objout->peak = obj->dpeak;
+
+  objout->xpeak = obj->xpeak;
+  objout->ypeak = obj->ypeak;
+  objout->xcpeak = obj->xcpeak;
+  objout->ycpeak = obj->ycpeak;
 
   objout->flag = obj->flag;
   if (obj->singuflag)

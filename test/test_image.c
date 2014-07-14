@@ -285,7 +285,7 @@ int main(int argc, char **argv)
   /* extract sources */
   t0 = gettime_ns();
   status = sep_extract(im, NULL, SEP_TFLOAT, 0, 0, nx, ny,
-		       1.5*bkmap->globalsigma, 5, conv, 3, 3, 32,
+		       1.5*bkmap->globalrms, 5, conv, 3, 3, 32,
 		       0.005, 1, 1.0, &objects, &nobj);
   t1 = gettime_ns();
   if (status) goto exit;
@@ -297,8 +297,8 @@ int main(int argc, char **argv)
   flagt = flag = (short *)malloc(nobj * sizeof(short));
   t0 = gettime_ns();
   for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++)
-    sep_apercirc(im, NULL, SEP_TFLOAT, nx, ny, 0.0, 0.0, objects[i].mx,
-		 objects[i].my, 5.0, 5, fluxt, fluxerrt, flagt);
+    sep_apercirc(im, NULL, SEP_TFLOAT, nx, ny, 0.0, 0.0, objects[i].x,
+		 objects[i].y, 5.0, 5, fluxt, fluxerrt, flagt);
   t1 = gettime_ns();
   printf("sep_apercirc() [r= 5.0]  %6.3f us/aperture\n",
 	 (double)(t1 - t0) / 1000. / nobj);
@@ -315,7 +315,7 @@ int main(int argc, char **argv)
   for (i=0; i<nobj; i++)
     {
       fprintf(catout, "%3d %#11.7g %#11.7g %#11.7g %#11.7g\n",
-	      i, objects[i].mx, objects[i].my, flux[i], fluxerr[i]);
+	      i, objects[i].x, objects[i].y, flux[i], fluxerr[i]);
     }
   fclose(catout);
 

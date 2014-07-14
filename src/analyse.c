@@ -108,6 +108,7 @@ void  preanalyse(int no, objliststruct *objlist)
   PIXTYPE	peak, cpeak, val, cval;
   double	rv;
   int		x, y, xmin,xmax, ymin,ymax, fdnpix;
+  int           xpeak, ypeak, xcpeak, ycpeak;
   
   /*-----  initialize stacks and bounds */
   fdnpix = 0;
@@ -115,17 +116,27 @@ void  preanalyse(int no, objliststruct *objlist)
   peak = cpeak = -BIG;
   ymin = xmin = 2*MAXPICSIZE;    /* to be really sure!! */
   ymax = xmax = 0;
+  xpeak = ypeak = xcpeak = ycpeak = 0; /* avoid -Wall warnings */
 
   /*-----  integrate results */
   for (pixt=pixel+obj->firstpix; pixt>=pixel; pixt=pixel+PLIST(pixt,nextpix))
     {
       x = PLIST(pixt, x);
       y = PLIST(pixt, y);
-      val=PLISTPIX(pixt, value);
-      if (cpeak < (cval=PLISTPIX(pixt, cdvalue)))
-	cpeak = cval;
+      val = PLISTPIX(pixt, value);
+      cval = PLISTPIX(pixt, cdvalue);
       if (peak < val)
-	peak = val;
+	{
+	  peak = val;
+	  xpeak = x;
+	  ypeak = y;
+	}
+      if (cpeak < cval)
+	{
+	  cpeak = cval;
+	  xcpeak = x;
+	  ycpeak = y;
+	}
       rv += cval;
       if (xmin > x)
 	xmin = x;
@@ -142,6 +153,10 @@ void  preanalyse(int no, objliststruct *objlist)
   obj->fdflux = (float)rv;
   obj->fdpeak = cpeak;
   obj->dpeak = peak;
+  obj->xpeak = xpeak;
+  obj->ypeak = ypeak;
+  obj->xcpeak = xcpeak;
+  obj->ycpeak = ycpeak;
   obj->xmin = xmin;
   obj->xmax = xmax;
   obj->ymin = ymin;
