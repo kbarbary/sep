@@ -3,6 +3,8 @@
 *.os
 *.so
 *.so.*
+*.dylib
+*.dylib.*
 *.a
 test/test_image
 
