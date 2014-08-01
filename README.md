@@ -60,6 +60,23 @@ library in the `LD_LIBRARY_PATH` environment variable. Then do
 ./runtests
 ```
 
+Install or link
+---------------
+
+The static library and header can be installed with
+
+```
+scons install --prefix=/path/to/prefix
+```
+
+This will install the library in `/path/to/prefix/lib` and header file in
+`/path/to/prefix/include`.
+
+The shared library cannot yet be automatically installed (work in progress).
+
+If you wish to link against the static library without installing, it will
+be found in the `src` subdirectory after building.
+
 API
 ---
 
@@ -123,5 +140,6 @@ may confer CPU cache advantages, but this hasn't been tested.
 SEP can be considered a fork of the Source Extractor codebase: it's
 development will not track that of Source Extractor in any automated
 way. However, the algorithms implemented so far in SEP are stable in
-Source Extractor: the SEP code was forked from v2.18.11, yet tested
-against the results of v2.8.6.
+Source Extractor: the SEP code was forked from v2.18.11, yet it is tested
+against the results of v2.8.6. This indicates that the algorithms have
+not changed in SExtractor over the last few years.
