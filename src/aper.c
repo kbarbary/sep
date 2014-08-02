@@ -168,17 +168,26 @@ int sep_apercirc(void *data, void *error, void *mask,
 
 	      /* if mask is given and mask value is above thresh, enter
 	         masking procedure */
-	      if (mask && (mconvert(maskt) > maskthresh))
-		{ 
-		  *flag |= SEP_APER_HASMASKED;
+	      if (mask)
+		{
+		  if (mconvert(maskt) > maskthresh)
+		    { 
+		      *flag |= SEP_APER_HASMASKED;
+		    }
+		  else
+		    {
+		      tv += pix*overlap;
+		      sigtv += varpix*overlap;
+		      goodarea += overlap;
+		    }
+		  area += overlap;
 		}
 	      else
 		{
 		  tv += pix*overlap;
 		  sigtv += varpix*overlap;
-		  goodarea += overlap;
 		}
-	      area += overlap;
+
 	    } /* closes "if pixel within rout" */
 	  
 	  /* increment pointers by one element */
