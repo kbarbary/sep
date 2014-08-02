@@ -27,15 +27,20 @@
 #define SEP_TDOUBLE      82
 
 /* object flags */
-#define SEP_OBJ_CROWDED   0x0001
-#define SEP_OBJ_MERGED    0x0002
-#define SEP_OBJ_SATUR     0x0004
-#define SEP_OBJ_TRUNC     0x0008
-#define SEP_OBJ_APERT_PB  0x0010
-#define SEP_OBJ_ISO_PB    0x0020
-#define SEP_OBJ_DOVERFLOW 0x0040
-#define SEP_OBJ_OVERFLOW  0x0080
-#define SEP_OBJ_SINGU     0x0100
+#define SEP_OBJ_CROWDED    0x0001
+#define SEP_OBJ_MERGED     0x0002
+#define SEP_OBJ_SATUR      0x0004
+#define SEP_OBJ_TRUNC      0x0008
+#define SEP_APER_TRUNC     0x0010
+#define SEP_OBJ_ISO_PB     0x0020
+#define SEP_OBJ_DOVERFLOW  0x0040
+#define SEP_OBJ_OVERFLOW   0x0080
+#define SEP_OBJ_SINGU      0x0100
+#define SEP_APER_HASMASKED 0x0200
+
+/* input flags for aperture photometry */
+#define SEP_ERROR_IS_VAR   0x0001
+#define SEP_ERROR_IS_ARRAY 0x0002
 
 /*--------------------- global background estimation ------------------------*/
 
@@ -167,20 +172,35 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-int sep_apercirc(void *im,             /* image array */
-		 void *var,            /* variance array (can be NULL) */
-		 int dtype,
-		 int w, int h,
-                 float gain,
-		 float varthresh,
-                 double cx, double cy,
-		 double r,
-		 int subpix,
-                 double *flux,   
-		 double *fluxerr,
-		 short *flag);
+/* alternative names? 
+   sep_circsum(), sep_circannsum(), sep_ellipsum() */
+
+int sep_apercirc(void *data,        /* data array */
+		 void *error,       /* error value or array or NULL */
+		 void *mask,        /* mask array (can be NULL) */
+		 int dtype,         /* data dtype code */
+		 int edtype,        /* error dtype code */
+		 int mdtype,        /* mask dtype code */
+		 int w, int h,      /* width, height of input arrays */
+		 double maskthresh, /* pixel masked if mask > maskthresh */
+		 double gain,       /* (poisson counts / data unit) */
+		 short inflags,     /* input flags (see below) */
+		 double x,          /* center of aperture in x */
+		 double y,          /* center of aperture in y */
+		 double r,          /* radius of aperture */
+		 int subpix,        /* subpixel sampling */
+		 double *sum,       /* OUTPUT: sum */
+		 double *sumerr,    /* OUTPUT: error on sum */
+		 short *flag);      /* OUTPUT: flags */
 /* Sum array values within a circular aperture.
  * 
+ * error : Can be a scalar (default), an array, or NULL
+ *         If an array, set the flag SEP_ERROR_IS_ARRAY in `inflags`.
+ *         Can represent 1-sigma std. deviation (default) or variance.
+ *         If variance, set the flag SEP_ERROR_IS_VARIANCE in `inflags`.
+ *
+ * gain : If 0.0, poisson noise on sum is ignored when calculating error.
+ *        Otherwise, (sum / gain) is added to the variance on sum.
  */
 
 /*----------------------- info & error messaging ----------------------------*/

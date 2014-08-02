@@ -29,145 +29,179 @@
 #include "sep.h"
 #include "sepcore.h"
 
-int sep_apercirc(void *im, void *var, int dtype, int w, int h,
-                 PIXTYPE gain, PIXTYPE varthresh,
-		 double cx, double cy, double r,int subpix,
-		 double *flux, double *fluxerr, short *flag)
-/* Sum flux and variance within a circular aperture.
-*/
+int sep_apercirc(void *data, void *error, void *mask,
+		 int dtype, int edtype, int mdtype, int w, int h,
+		 double maskthresh, double gain, short inflag,
+		 double x, double y, double r, int subpix,
+		 double *sum, double *sumerr, short *flag)
 {
-
-  /*
-   float		r2, raper,raper2, rintlim,rintlim2,rextlim2,
-			mx,my,dx,dx1,dy,dy2,
-			offsetx,offsety,scalex,scaley,scale2, ngamma, locarea;
-   double		tv, sigtv, area, pix, var, backnoise2, gain;
-   int			x,y, x2,y2, xmin,xmax,ymin,ymax, sx,sy, w,h,
-			fymin,fymax, pflag,corrflag, gainflag;
-			long			pos;
-  */
-  float dx, dy, dx1, dy2, r2, rpix2, locarea, offset, rin, rin2, rout2;
-  float scale, scale2;
-  double pix, varpix, tv, sigtv;
-  int x, y, xmin, xmax, ymin, ymax, sx, sy, status, size;
+  float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
+  float scale, scale2, pix, varpix, area, goodarea, tmp;
+  double tv, sigtv;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  BYTE *imt, *vart;
-  converter convert;
+  short errisarray, errisstd;
+  BYTE *datat, *errort, *maskt;
+  converter convert, econvert, mconvert;
 
-  imt = vart = NULL;
+  /* get data converter(s) for input array(s) */
+  size = esize = msize = 0;
   status = get_converter(dtype, &convert, &size);
   if (status)
     return status;
+  if (error)
+    {
+      status = get_converter(edtype, &econvert, &esize);
+      if (status)
+	return status;
+    }
+  if (mask)
+    {
+      status = get_converter(mdtype, &mconvert, &msize);
+      if (status)
+	return status;
+    }
 
-   /*
-  if (wfield)
-    wthresh = wfield->weight_thresh;
-  wstrip = wstript = NULL;
-  mx = obj->mx;
-  my = obj->my;
-  w = field->width;
-  h = field->stripheight;
-  fymin = field->ymin;
-  fymax = field->ymax;
-  ngamma = field->ngamma;
-  pflag = (prefs.detect_type==PHOTO)? 1:0;
-  corrflag = (prefs.mask_type==MASK_CORRECT);
-  gainflag = wfield && prefs.weightgain_flag;
-  var = backnoise2 = field->backsig*field->backsig;
-  gain = field->gain;
-   */
-
-  tv = sigtv = locarea = 0.0;
-  vart = NULL;
+  /* initializations */
+  tv = sigtv = 0.0;
+  overlap = area = goodarea = 0.0;
+  datat = maskt = NULL;
+  errort = error;
   *flag = 0;
   r2 = r*r;
-
-  /* Internal & external radii of the oversampled annulus: r +/- sqrt(2)/2 */
-  rin = r - 0.75;
-  rin2 = (rin>0.0)? rin*rin: 0.0;
-  rout2 = (r + 0.75)*(r + 0.75);
-
   varpix = 0.0;
   scale = 1.0/subpix;
   scale2 = scale*scale;
   offset = 0.5*(scale-1.0);
+  rin = r - 0.7072; /* Internal radius of oversampled annulus: r - sqrt(2)/2 */
+  rin2 = (rin>0.0)? rin*rin: 0.0;
+  rout = r + 0.7072; /* external radius of oversampled annulus */
+  rout2 = rout*rout;
 
-  xmin = (int)(cx - r + 0.499999);
-  xmax = (int)(cx + r + 1.499999);
-  ymin = (int)(cy - r + 0.499999);
-  ymax = (int)(cy + r + 1.499999);
+  /* get options */
+  errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    errisarray = 0; /* in case user set flag but error is NULL */
+  errisstd = !(inflag & SEP_ERROR_IS_VAR);
 
+  /* If error exists and is scalar, set the pixel variance now */
+  if (error && !errisarray)
+    {
+      varpix = econvert(errort);
+      if (errisstd)
+	varpix *= varpix;
+    }
+
+  /* set extent of box to loop over */
+  xmin = (int)(x - r + 0.499999);
+  xmax = (int)(x + r + 1.499999);
+  ymin = (int)(y - r + 0.499999);
+  ymax = (int)(y + r + 1.499999);
   if (xmin < 0)
     {
       xmin = 0;
-      *flag |= SEP_OBJ_APERT_PB;
+      *flag |= SEP_APER_TRUNC;
     }
   if (xmax > w)
     {
       xmax = w;
-      *flag |= SEP_OBJ_APERT_PB;
+      *flag |= SEP_APER_TRUNC;
     }
   if (ymin < 0)
     {
       ymin = 0;
-      *flag |= SEP_OBJ_APERT_PB;
+      *flag |= SEP_APER_TRUNC;
     }
   if (ymax > h)
     {
       ymax = h;
-      *flag |= SEP_OBJ_APERT_PB;
+      *flag |= SEP_APER_TRUNC;
     }
 
-  for (y=ymin; y<ymax; y++)
+  /* loop over rows in the box */
+  for (iy=ymin; iy<ymax; iy++)
     {
-      imt = im + (pos = size*((y%h)*w + xmin));
-      if (var)
-	vart = var + pos;
-      for (x=xmin; x<xmax; x++, imt+=size, vart+=size)
+      /* set pointers to the start of this row */
+      pos = (iy%h) * w + xmin;
+      datat = data + pos*size;
+      if (errisarray)
+	errort = error + pos*esize;
+      if (mask)
+	maskt = mask + pos*msize;
+
+      /* loop over pixels in this row */
+      for (ix=xmin; ix<xmax; ix++)
 	{
-	  dx = x - cx;
-	  dy = y - cy;
+	  dx = ix - x;
+	  dy = iy - y;
 	  if ((rpix2=dx*dx+dy*dy) < rout2)
 	    {
 	      if (rpix2 > rin2)
 		{
-		  /* might be partially in aperture; get overlap area */
+		  /* might be partially in aperture; get 'overlap' */
 		  dx += offset;
 		  dy += offset;
-		  locarea = 0.0;
+		  overlap = 0.0;
 		  for (sy=subpix; sy--; dy+=scale)
 		    {
 		      dx1 = dx;
 		      dy2 = dy*dy;
 		      for (sx=subpix; sx--; dx1+=scale)
 			if (dx1*dx1 + dy2 < r2)
-			  locarea += scale2;
+			  overlap += scale2;
 		    }
 		}
 	      else
-		locarea = 1.0;
+		/* definitely fully in aperture */
+		overlap = 1.0;
 	      
-	      /* if the values are crazy, set to 0 */
-	      if ((pix=convert(imt))<=-BIG ||
-		  (var && (varpix=convert(vart))>=varthresh))
+	      /* get pixel value */
+	      pix = convert(datat);
+
+	      /* only update varpix if error is an array */
+	      if (errisarray)
 		{
-		  pix = 0.0;
-		  if (var)
-		    varpix = 0.0;
+		  varpix = econvert(errort);
+		  if (errisstd)
+		    varpix *= varpix;
 		}
-	      
-	      tv += pix*locarea;
-	      sigtv += varpix*locarea;
+
+	      /* if mask is given and mask value is above thresh, enter
+	         masking procedure */
+	      if (mask && (mconvert(maskt) > maskthresh))
+		{ 
+		  *flag |= SEP_APER_HASMASKED;
+		}
+	      else
+		{
+		  tv += pix*overlap;
+		  sigtv += varpix*overlap;
+		  goodarea += overlap;
+		}
+	      area += overlap;
 	    } /* closes "if pixel within rout" */
+	  
+	  /* increment pointers by one element */
+	  datat += size;
+	  if (errisarray)
+	    errort += esize;
+	  maskt += msize;
 	}
     }
 
-    /* add poisson noise, only if gain > 0 */
-    if (gain > 0.0 && tv>0.0)
-      sigtv += tv/gain;
+  /* correct for masked values */
+  if (mask)
+    {
+      tv *= (tmp = area/goodarea);
+      sigtv *= tmp;
+    }
 
-    *flux = tv;
-    *fluxerr = sqrt(sigtv);
-    
-    return status;
+  /* add poisson noise, only if gain > 0 */
+  if (gain > 0.0 && tv>0.0)
+    sigtv += tv/gain;
+
+  *sum = tv;
+  *sumerr = sqrt(sigtv);
+  
+  return status;
 }

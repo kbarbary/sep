@@ -160,7 +160,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		    obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
 		  {
 		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED
-		      | ((SEP_OBJ_ISO_PB|SEP_OBJ_APERT_PB|SEP_OBJ_OVERFLOW)
+		      | ((SEP_OBJ_ISO_PB|SEP_OBJ_OVERFLOW)
 			 &debobjlist2.obj[0].flag);
 		    status = addobjdeep(j, &objlist[k+1], &debobjlist2);
 		    if (status != RETURN_OK)

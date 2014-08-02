@@ -297,8 +297,10 @@ int main(int argc, char **argv)
   flagt = flag = (short *)malloc(nobj * sizeof(short));
   t0 = gettime_ns();
   for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++)
-    sep_apercirc(im, NULL, SEP_TFLOAT, nx, ny, 0.0, 0.0, objects[i].x,
-		 objects[i].y, 5.0, 5, fluxt, fluxerrt, flagt);
+    sep_apercirc(im, &(bkmap->globalrms), NULL,
+		 SEP_TFLOAT, SEP_TFLOAT, 0, nx, ny, 0.0, 1.0, 0,
+		 objects[i].x, objects[i].y, 5.0, 5,
+		 fluxt, fluxerrt, flagt);
   t1 = gettime_ns();
   printf("sep_apercirc() [r= 5.0]  %6.3f us/aperture\n",
 	 (double)(t1 - t0) / 1000. / nobj);
