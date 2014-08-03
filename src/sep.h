@@ -191,9 +191,12 @@ int sep_apercirc(void *data,        /* data array */
 		 int subpix,        /* subpixel sampling */
 		 double *sum,       /* OUTPUT: sum */
 		 double *sumerr,    /* OUTPUT: error on sum */
+		 double *area,      /* OUTPUT: area included in sum */
 		 short *flag);      /* OUTPUT: flags */
 /* Sum array values within a circular aperture.
  * 
+ * Notes
+ * -----
  * error : Can be a scalar (default), an array, or NULL
  *         If an array, set the flag SEP_ERROR_IS_ARRAY in `inflags`.
  *         Can represent 1-sigma std. deviation (default) or variance.
@@ -201,6 +204,10 @@ int sep_apercirc(void *data,        /* data array */
  *
  * gain : If 0.0, poisson noise on sum is ignored when calculating error.
  *        Otherwise, (sum / gain) is added to the variance on sum.
+ *
+ * area : Total pixel area included in sum. Includes masked pixels that were
+ *        corrected. The area can differ from the exact area of a circle due
+ *        to inexact subpixel sampling and intersection with array boundaries.
  */
 
 /*----------------------- info & error messaging ----------------------------*/

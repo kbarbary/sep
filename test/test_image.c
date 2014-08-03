@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 {
   char *fname1, *fname2, *fname3;
   int i, status, nx, ny;
-  double *flux, *fluxerr, *fluxt, *fluxerrt;
+  double *flux, *fluxerr, *fluxt, *fluxerrt, *area, *areat;
   short *flag, *flagt;
   float *im, *imback;
   uint64_t t0, t1;
@@ -294,13 +294,14 @@ int main(int argc, char **argv)
   /* aperture photometry */
   fluxt = flux = (double *)malloc(nobj * sizeof(double));
   fluxerrt = fluxerr = (double *)malloc(nobj * sizeof(double));
+  areat = area = (double *)malloc(nobj * sizeof(double));
   flagt = flag = (short *)malloc(nobj * sizeof(short));
   t0 = gettime_ns();
-  for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++)
+  for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
     sep_apercirc(im, &(bkmap->globalrms), NULL,
 		 SEP_TFLOAT, SEP_TFLOAT, 0, nx, ny, 0.0, 1.0, 0,
 		 objects[i].x, objects[i].y, 5.0, 5,
-		 fluxt, fluxerrt, flagt);
+		 fluxt, fluxerrt, areat, flagt);
   t1 = gettime_ns();
   printf("sep_apercirc() [r= 5.0]  %6.3f us/aperture\n",
 	 (double)(t1 - t0) / 1000. / nobj);

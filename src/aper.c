@@ -33,11 +33,11 @@ int sep_apercirc(void *data, void *error, void *mask,
 		 int dtype, int edtype, int mdtype, int w, int h,
 		 double maskthresh, double gain, short inflag,
 		 double x, double y, double r, int subpix,
-		 double *sum, double *sumerr, short *flag)
+		 double *sum, double *sumerr, double *area, short *flag)
 {
   float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
-  float scale, scale2, pix, varpix, area, goodarea, tmp;
-  double tv, sigtv;
+  float scale, scale2, pix, varpix, tmp;
+  double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
   short errisarray, errisstd;
@@ -64,7 +64,7 @@ int sep_apercirc(void *data, void *error, void *mask,
 
   /* initializations */
   tv = sigtv = 0.0;
-  overlap = area = goodarea = 0.0;
+  overlap = totarea = okarea = 0.0;
   datat = maskt = NULL;
   errort = error;
   *flag = 0;
@@ -178,15 +178,16 @@ int sep_apercirc(void *data, void *error, void *mask,
 		    {
 		      tv += pix*overlap;
 		      sigtv += varpix*overlap;
-		      goodarea += overlap;
+		      okarea += overlap;
 		    }
-		  area += overlap;
 		}
 	      else
 		{
 		  tv += pix*overlap;
 		  sigtv += varpix*overlap;
 		}
+
+	      totarea += overlap;
 
 	    } /* closes "if pixel within rout" */
 	  
@@ -201,7 +202,7 @@ int sep_apercirc(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      tv *= (tmp = area/goodarea);
+      tv *= (tmp = totarea/okarea);
       sigtv *= tmp;
     }
 
@@ -211,6 +212,7 @@ int sep_apercirc(void *data, void *error, void *mask,
 
   *sum = tv;
   *sumerr = sqrt(sigtv);
-  
+  *area = totarea;
+
   return status;
 }
