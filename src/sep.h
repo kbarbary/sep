@@ -210,6 +210,12 @@ int sep_apercirc(void *data,        /* data array */
  *        to inexact subpixel sampling and intersection with array boundaries.
  */
 
+int sep_apercircann(void *data, void *error, void *mask,
+		    int dtype, int edtype, int mdtype, int w, int h,
+		    double maskthresh, double gain, short inflags,
+		    double x, double y, double rin, double rout, int subpix,
+		    double *sum, double *sumerr, double *area, short *flag);
+
 /*----------------------- info & error messaging ----------------------------*/
 
 extern char *sep_version_string;
