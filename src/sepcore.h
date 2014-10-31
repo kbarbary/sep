@@ -38,7 +38,7 @@ typedef float         PIXTYPE;    /* type used inside of functions */
 #define PIXDTYPE      SEP_TFLOAT  /* dtype code corresponding to PIXTYPE */
 
 
-/* signaure of converters */
+/* signature of converters */
 typedef PIXTYPE (*converter)(void *ptr);
 typedef void (*array_converter)(void *ptr, int n, PIXTYPE *target);
 typedef void (*array_writer)(float *ptr, int n, void *target);

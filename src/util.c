@@ -120,7 +120,7 @@ int get_array_converter(int dtype, array_converter *f, int *size)
   else if (dtype == SEP_TBYTE)
     {
       *f = convert_array_byt;
-      *size = sizeof(int);
+      *size = sizeof(BYTE);
     }
   else if (dtype == SEP_TINT)
     {

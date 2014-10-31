@@ -40,7 +40,7 @@ int sep_apercirc(void *data, void *error, void *mask,
   double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  short errisarray, errisstd;
+  short errisarray, errisstd, maskignore;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
 
@@ -83,6 +83,7 @@ int sep_apercirc(void *data, void *error, void *mask,
   if (!error)
     errisarray = 0; /* in case user set flag but error is NULL */
   errisstd = !(inflag & SEP_ERROR_IS_VAR);
+  maskignore = inflag & SEP_MASK_IGNORE;
 
   /* If error exists and is scalar, set the pixel variance now */
   if (error && !errisarray)
@@ -93,9 +94,9 @@ int sep_apercirc(void *data, void *error, void *mask,
     }
 
   /* set extent of box to loop over */
-  xmin = (int)(x - r + 0.499999);
+  xmin = (int)(x - r + 0.5);
   xmax = (int)(x + r + 1.499999);
-  ymin = (int)(y - r + 0.499999);
+  ymin = (int)(y - r + 0.5);
   ymax = (int)(y + r + 1.499999);
   if (xmin < 0)
     {
@@ -202,8 +203,13 @@ int sep_apercirc(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      tv *= (tmp = totarea/okarea);
-      sigtv *= tmp;
+      if (maskignore)
+	totarea = okarea;
+      else
+	{
+	  tv *= (tmp = totarea/okarea);
+	  sigtv *= tmp;
+	}
     }
 
   /* add poisson noise, only if gain > 0 */
@@ -234,7 +240,7 @@ int sep_apercircann(void *data, void *error, void *mask,
   double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  short errisarray, errisstd;
+  short errisarray, errisstd, maskignore;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
 
@@ -289,6 +295,7 @@ int sep_apercircann(void *data, void *error, void *mask,
   if (!error)
     errisarray = 0; /* in case user set flag but error is NULL */
   errisstd = !(inflag & SEP_ERROR_IS_VAR);
+  maskignore = inflag & SEP_MASK_IGNORE;
 
   /* If error exists and is scalar, set the pixel variance now */
   if (error && !errisarray)
@@ -299,9 +306,9 @@ int sep_apercircann(void *data, void *error, void *mask,
     }
 
   /* set extent of box to loop over */
-  xmin = (int)(x - rout + 0.499999);
+  xmin = (int)(x - rout + 0.5);
   xmax = (int)(x + rout + 1.499999);
-  ymin = (int)(y - rout + 0.499999);
+  ymin = (int)(y - rout + 0.5);
   ymax = (int)(y + rout + 1.499999);
   if (xmin < 0)
     {
@@ -414,8 +421,13 @@ int sep_apercircann(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      tv *= (tmp = totarea/okarea);
-      sigtv *= tmp;
+      if (maskignore)
+	totarea = okarea;
+      else
+	{
+	  tv *= (tmp = totarea/okarea);
+	  sigtv *= tmp;
+	}
     }
 
   /* add poisson noise, only if gain > 0 */

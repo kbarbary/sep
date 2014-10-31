@@ -41,6 +41,7 @@
 /* input flags for aperture photometry */
 #define SEP_ERROR_IS_VAR   0x0001
 #define SEP_ERROR_IS_ARRAY 0x0002
+#define SEP_MASK_IGNORE    0x0004
 
 /*--------------------- global background estimation ------------------------*/
 
@@ -169,7 +170,6 @@ int sep_extract(void *image,          /* image array                         */
 void sep_freeobjarray(sepobj *objects, int nobj);
 /* free memory associated with an sepobj array, including pixel lists */
 
-
 /*-------------------------- aperture photometry ----------------------------*/
 
 /* alternative names? 
@@ -215,6 +215,18 @@ int sep_apercircann(void *data, void *error, void *mask,
 		    double maskthresh, double gain, short inflags,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
+
+/*---------------------------- shape masking --------------------------------*/
+
+void sep_setellipse_ucc(unsigned char *arr, int w, int h,
+                        float x, float y, float cxx, float cyy, float cxy,
+		        float r, unsigned char val);
+/* Set array elements within an ellipitcal aperture to a given value.
+ *
+ * "ucc" = Unsigned Char type, Coefficient ellipse representation.
+ * 
+ * Ellipse: cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = r^2  
+ */
 
 /*----------------------- info & error messaging ----------------------------*/
 
