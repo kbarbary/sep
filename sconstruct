@@ -1,3 +1,3 @@
 SConscript('src/sconscript')
-SConscript('test/sconscript')
+SConscript('ctest/sconscript')
 Default('src')

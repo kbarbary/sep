@@ -1,0 +1,89 @@
+#!/usr/bin/env py.test
+from __future__ import print_function, division
+# unicode_literals doesn't play well with numpy dtype field names
+
+import os
+import pytest
+import numpy as np
+from numpy.testing import assert_allclose
+import sep
+
+# Try to import any FITS reader
+try:
+    from fitsio import read as getdata
+    NO_FITS = False
+except:
+    try:
+        from astropy.io.fits import getdata
+        NO_FITS = False
+    except:
+        NO_FITS = True
+
+IMAGE_FNAME = os.path.join("data", "image.fits")
+BACKIMAGE_FNAME = os.path.join("data", "back.fits")
+IMAGECAT_FNAME = os.path.join("data", "image.cat")
+IMAGECAT_DTYPE = [('number', np.int64),
+                  ('x', np.float64),
+                  ('y', np.float64),
+                  ('flux', np.float64),
+                  ('fluxerr', np.float64),
+                  ('flags', np.int64)]
+IMAGE_DTYPES = [np.float64, np.float32, np.int32]  # supported image dtypes
+
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+def test_vs_sextractor():
+    data = getdata(IMAGE_FNAME)
+
+    bkg = sep.Background(data, bw=64, bh=64, fw=3, fh=3)
+
+    # Test that SExtractor background is same as SEP:
+    bkgarr = bkg.back(dtype=np.float32)
+    refbackarr = getdata(BACKIMAGE_FNAME)
+    assert_allclose(bkgarr, refbackarr, rtol=1.e-5)
+
+    # Extract objects
+    bkg.subfrom(data)
+    objects = sep.extract(data, 1.5*bkg.globalrms)
+    objects = np.sort(objects, order=['y'])
+
+    # Read SExtractor result
+    refobjects = np.loadtxt(IMAGECAT_FNAME, dtype=IMAGECAT_DTYPE)
+    refobjects = np.sort(refobjects, order=['y'])
+
+    # Found correct number of sources at the right locations?
+    assert_allclose(objects['x'], refobjects['x'] - 1., atol=1.e-3)
+    assert_allclose(objects['y'], refobjects['y'] - 1., atol=1.e-3)
+
+    # Test flux
+    flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 5.,
+                                       err=bkg.globalrms)
+    assert_allclose(flux, refobjects['flux'], rtol=2.e-4)
+    assert_allclose(fluxerr, refobjects['fluxerr'], rtol=1.0e-5)
+
+    assert sep.istruncated(flag).sum() == 4
+    assert sep.hasmasked(flag).sum() == 0
+
+def test_apercirc_dtypes():
+    naper = 100
+    x = np.random.uniform(200., 800., naper)
+    y = np.random.uniform(200., 800., naper)
+    r = 3.
+    fluxes = []
+    for dt in IMAGE_DTYPES:
+        data = np.ones((1000, 1000), dtype=dt)
+        flux, fluxerr, flag = sep.apercirc(data, x, y, r)
+        fluxes.append(flux)
+
+    for i in range(1, len(fluxes)):
+        assert_allclose(fluxes[0], fluxes[i])
+
+def test_mask_ellipse():
+    arr = np.zeros((20, 20), dtype=np.bool)
+
+    # should mask 5 pixels:
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=1.001)
+    assert arr.sum() == 5
+
+    # should mask 13 pixels:
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=2.001)
+    assert arr.sum() == 13

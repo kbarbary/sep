@@ -1,19 +1,36 @@
 language: c
 
-# scons doesn't use the CC environment variable, so there's
-# no point in specifying clang here: scons will use gcc regardless
-compiler: gcc
+matrix:
+    include:
+        - env: LANG=c
+        - env: LANG=python PYTHON_VERSION=2.6 NUMPY_VERSION=1.8
+        - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.6
+        - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.7
+        - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.8
+        - env: LANG=python PYTHON_VERSION=3.3 NUMPY_VERSION=1.8
+        - env: LANG=python PYTHON_VERSION=3.4 NUMPY_VERSION=1.7
+        - env: LANG=python PYTHON_VERSION=3.4 NUMPY_VERSION=1.8
 
-
-# libcfitsio necessary for test script.
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y libcfitsio3-dev
+    - if [[ $LANG == python ]]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; fi
+    - if [[ $LANG == python ]]; then chmod +x miniconda.sh; fi
+    - if [[ $LANG == python ]]; then ./miniconda.sh -b; fi
+    - if [[ $LANG == python ]]; then export PATH=/home/travis/miniconda/bin:$PATH; fi
+    - if [[ $LANG == python ]]; then conda update --yes conda; fi
+    - if [[ $LANG == python ]]; then conda create --yes -n test python=$PYTHON_VERSION; fi
+    - if [[ $LANG == python ]]; then source activate test; fi
+    - if [[ $LANG == python ]]; then conda install --yes numpy=$NUMPY_VERSION pytest cython astropy; fi
+    - if [[ $LANG == c ]]; then sudo apt-get update -qq; fi
+    - if [[ $LANG == c ]]; then sudo apt-get install -y libcfitsio3-dev; fi
 
-# So that `runtests` can load the built library
-before_script: export LD_LIBRARY_PATH=${PWD}/src
+install:
+    - if [[ $LANG == python ]]; then python setup.py install; fi
+    - if [[ $LANG == c ]]; then scons; fi
+    - if [[ $LANG == c ]]; then scons ctest; fi
+
+before_script:
+    - if [[ $LANG == c ]]; then export LD_LIBRARY_PATH=${PWD}/src; fi
 
 script:
-  - scons
-  - scons test
-  - ./runtests
+    - if [[ $LANG == python ]]; then ./test.py; fi
+    - if [[ $LANG == c ]]; then ./ctest/runtests; fi

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+dir="../data"
+./test_image ${dir}/image.fits ${dir}/sep.cat ${dir}/sepback.fits
+./compare.py ${dir}/image.cat ${dir}/sep.cat
