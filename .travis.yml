@@ -33,4 +33,4 @@ before_script:
 
 script:
     - if [[ $LANG == python ]]; then ./test.py; fi
-    - if [[ $LANG == c ]]; then ./ctest/runtests; fi
+    - if [[ $LANG == c ]]; then cd ctest && ./runtests; fi

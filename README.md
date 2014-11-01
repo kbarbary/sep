@@ -4,7 +4,7 @@ SEP
 Python and C library for Source Extraction and Photometry
 
 [![Build Status](http://img.shields.io/travis/kbarbary/sep.svg?style=flat-square)](https://travis-ci.org/kbarbary/sep)
-[![Binstar Badge](https://binstar.org/kbarbary/sep/badges/version.svg)](https://binstar.org/kbarbary/sep)
+[![PyPI](https://img.shields.io/pypi/v/sep.svg?style=flat-square)](https://pypi.python.org/pypi/sep)
 
 *"... [it's] an SEP: Somebody Else's Problem."  
 "Oh, good. I can relax then."*
@@ -71,9 +71,9 @@ and development header be installed. On Ubuntu `sudo apt-get install
 libcfitsio3-dev` should do it. In the top level directory:
 
 ```
-scons test          # build the test executable
-./runtests          # run tests
-scons test --clean  # clean the built test executable
+scons ctest             # build the test executable
+cd ctest && ./runtests  # run tests
+scons ctest --clean     # clean the built test executable
 ```
 
 Note: before *running* the tests, ensure that the built shared library
