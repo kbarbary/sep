@@ -1,3 +1,3 @@
-* Emmanuel Bertin (bertin@iap.fr) : SExtractor code
-* Kyle Barbary (kylebarbary@gmail.com) : Conversion of SExtractor code to
-                                         library
+* Emmanuel Bertin (bertin@iap.fr) : original SExtractor code
+* Kyle Barbary (@kbarbary) : Conversion of SExtractor code to library
+* Kyle Boone (@kboone) : Bugfix
