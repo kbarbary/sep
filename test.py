@@ -90,7 +90,7 @@ def test_mask_ellipse():
 
 
 def test_masked_background():
-    data = np.full((6,6), 0.1)
+    data = 0.1 * np.ones((6,6))
     data[1,1] = 1.
     data[4,1] = 1.
     data[1,4] = 1.
@@ -116,4 +116,4 @@ def test_masked_background():
     mask[4, 4] = True
     sky = sep.Background(data, mask=mask, bw=3, bh=3, fw=1, fh=1)
     assert_approx_equal(sky.globalback, 0.1)
-    assert_allclose(sky.back(), np.full((6, 6), 0.1))
+    assert_allclose(sky.back(), 0.1 * np.ones((6, 6)))
