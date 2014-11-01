@@ -28,9 +28,13 @@ sep-*.tar.gz
 
 docs/_build
 docs/api
+build/
 
 MANIFEST
 
 # generated C file
-build/
 sep.c
+
+# pytest cache
+.cache
+__pycache__

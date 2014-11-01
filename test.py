@@ -5,7 +5,7 @@ from __future__ import print_function, division
 import os
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_approx_equal
 import sep
 
 # Try to import any FITS reader
@@ -87,3 +87,33 @@ def test_mask_ellipse():
     # should mask 13 pixels:
     sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=2.001)
     assert arr.sum() == 13
+
+
+def test_masked_background():
+    data = np.full((6,6), 0.1)
+    data[1,1] = 1.
+    data[4,1] = 1.
+    data[1,4] = 1.
+    data[4,4] = 1.
+
+    mask = np.zeros((6,6), dtype=np.bool)
+
+    # Background array without mask
+    sky = sep.Background(data, bw=3, bh=3, fw=1, fh=1)
+    bkg1 = sky.back()
+
+    # Background array with all False mask
+    sky = sep.Background(data, mask=mask, bw=3, bh=3, fw=1, fh=1)
+    bkg2 = sky.back()
+
+    # All False mask should be the same
+    assert_allclose(bkg1, bkg2)
+
+    # Masking high pixels should give a flat background
+    mask[1, 1] = True
+    mask[4, 1] = True
+    mask[1, 4] = True
+    mask[4, 4] = True
+    sky = sep.Background(data, mask=mask, bw=3, bh=3, fw=1, fh=1)
+    assert_approx_equal(sky.globalback, 0.1)
+    assert_allclose(sky.back(), np.full((6, 6), 0.1))
