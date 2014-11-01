@@ -23,6 +23,8 @@ language-specific build and usage instructions.
 Python
 ------
 
+**Documentation:** http://sep.readthedocs.org/
+
 **Requirements:**
 
 - Tested on Python 2.6, 2.7, 3.3, 3.4
