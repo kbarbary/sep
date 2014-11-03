@@ -121,15 +121,22 @@ cdef extern from "sep.h":
 
 cdef int _get_sep_dtype(dtype) except -1:
     """Convert a numpy dtype to the corresponding SEP dtype integer code."""
-    if dtype == np.float32:
+    if not dtype.isnative:
+        raise ValueError(
+            "Input array with dtype {0} has non-native byte order. "
+            "Only native byte order arrays are supported. "
+            "Arrays can be converted to native byte order in-place "
+            "with 'a = a.byteswap(True).newbyteorder()'".format(dtype))
+    t = dtype.type
+    if t is np.single:
         return SEP_TFLOAT
-    elif dtype == np.bool_ or dtype == np.uint8:
+    elif t is np.bool_ or t is np.ubyte:
         return SEP_TBYTE
-    elif dtype == np.float64:
+    elif t == np.double:
         return SEP_TDOUBLE
-    elif dtype == np.intc:
+    elif t == np.intc:
         return SEP_TINT
-    raise ValueError('dtype not supported: {0}'.format(dtype))
+    raise ValueError('input array dtype not supported: {0}'.format(dtype))
 
 
 cdef int _check_array_get_dims(np.ndarray arr, int *w, int *h) except -1:
