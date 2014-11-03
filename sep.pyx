@@ -13,7 +13,7 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.1.0"
+__version__ = "0.2.dev"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library

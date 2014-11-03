@@ -31,12 +31,12 @@ classifiers = [
     "Intended Audience :: Science/Research"]
 
 setup(name="sep", 
-      version="0.1.0",
+      version="0.2.dev",
       description=description,
       long_description=description,
       license = "LGPLv3+",
       classifiers=classifiers,
-      url="https://github.com/kbarbary/sep-python",
+      url="https://github.com/kbarbary/sep",
       author="Kyle Barbary",
       author_email="kylebarbary@gmail.com",
       ext_modules=extensions)
