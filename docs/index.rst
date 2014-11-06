@@ -153,8 +153,6 @@ API
    sep.apercirc
 
 
-
-
 Indices and tables
 ------------------
 

@@ -394,7 +394,8 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
         Minimum number of pixels required for an object. Default is 5.
     conv : np.ndarray or None
         Convolution kernel used for on-the-fly image convolution (used to
-        enhance detection). Default is a 3x3 array. Set to ``None`` to skip
+        enhance detection). Default is a 3x3 array:
+        [[1,2,1], [2,4,2], [1,2,1]]. Set to ``None`` to skip
         convolution.
     deblend_nthresh : int, optional
         Number of thresholds used for object deblending. Default is 32.
@@ -417,9 +418,6 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
     cdef sepobj *objects
     cdef np.ndarray[Object] result
     cdef float[:, :] convflt
-    #cdef float *default_conv = [1., 2., 1., 2., 4., 2., 1., 2., 1.]
-    #cdef int default_convw = 3
-    #cdef int default_convh = 3
     cdef float *convptr
 
     _check_array_get_dims(data, &w, &h)
@@ -427,10 +425,6 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
     buf = data.view(dtype=np.uint8)
 
     # Parse convolution input
-    #if conv == 'default':
-    #    convptr = default_conv
-    #    convw = default_convw
-    #    convh = default_convh
     if conv is None:
         convptr = NULL
         convw = 0
@@ -736,13 +730,14 @@ def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
     return (flag & SEP_APER_HASMASKED) != 0
 
-def mask_ellipse(np.ndarray arr not None, x, y, scale=1.0, **kwargs):
-    """mask_ellipse(arr, x, y, scale=1.0, **kwargs)
+def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
+                 scale=1.0):
+    """mask_ellipse(arr, x, y, cxx=None, cyy=None, cxy=None, scale=1.0)
 
     Mask ellipse(s) in an array.
 
-    Set array elements to True (1) if they fall within the given ellipse,
-    defined by ``cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x')*(y'-y) = scale^2``
+    Set array elements to True or 1 if they fall within the given ellipse,
+    defined by ``cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = scale^2``.
 
     Parameters
     ----------
@@ -750,20 +745,17 @@ def mask_ellipse(np.ndarray arr not None, x, y, scale=1.0, **kwargs):
         Input array to be masked. Array is altered.
     x, y : array_like
         Center of ellipse(s).
+    cxx, cyy, cxy : array_like
+        Parameters defining the extent of the ellipe(s).
     scale : array_like, optional
         Scale factor of ellipse(s). Default is 1.
-
-    Additional Parameters
-    ---------------------
-    cxx, cyy, cxy : array_like
-        Parameters defining the extent of the ellipse(s).
     """
 
     cdef int w, h
     cdef np.uint8_t[:,:] buf
 
     # only boolean arrays supported
-    if not (arr.dtype == np.bool_ or arr.dtype == np.uint8):
+    if not (arr.dtype.type is np.bool_ or arr.dtype.type is np.ubyte):
         raise ValueError("Array data type not supported: {0:s}"
                          .format(arr.dtype))
     _check_array_get_dims(arr, &w, &h)
@@ -774,10 +766,10 @@ def mask_ellipse(np.ndarray arr not None, x, y, scale=1.0, **kwargs):
     y = np.require(y, dtype=np.float)
     scale = np.require(scale, dtype=np.float)
 
-    if ('cxx' in kwargs and 'cyy' in kwargs and 'cxy' in kwargs):
-        cxx = np.require(kwargs['cxx'], dtype=np.float)
-        cyy = np.require(kwargs['cyy'], dtype=np.float)
-        cxy = np.require(kwargs['cxy'], dtype=np.float)
+    if (cxx is not None and cyy is not None and cxy is not None):
+        cxx = np.require(cxx, dtype=np.float)
+        cyy = np.require(cyy, dtype=np.float)
+        cxy = np.require(cxy, dtype=np.float)
 
         it = np.broadcast(x, y, cxx, cyy, cxy, scale)
         while np.PyArray_MultiIter_NOTDONE(it):
