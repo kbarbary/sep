@@ -26,6 +26,8 @@ sep-*.tar.gz
 # -------------------------------------------
 # Python
 
+*.pyc
+
 docs/_build
 docs/api
 build/
