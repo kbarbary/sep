@@ -378,7 +378,7 @@ default_conv = np.array([[1.0, 2.0, 1.0],
 def extract(np.ndarray data not None, float thresh, int minarea=5,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
-            double clean_param=1.0):
+            double clean_param=1.0, noise=None):
     """extract(data, thresh, minarea=5, conv=default_conv, deblend_nthresh=32,
                deblend_cont=0.005, clean=True, clean_param=1.0)
 
@@ -389,7 +389,9 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
     data : np.ndarray
         Data array (2-d).
     thresh : float
-        Threshold pixel value for detection.
+        Threshold pixel value for detection. If a noise array is passed in, this
+        is the number of sigma above the noise. Otherwise it is the raw data
+        value.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
     conv : np.ndarray or None
@@ -405,6 +407,9 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
         Perform cleaning? Default is True.
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
+    noise : np.ndarray, optional
+        Noise array for specifying a pixel by pixel noise threshold. A global
+        threshold is used if this is not set.
 
     Returns
     -------
@@ -415,14 +420,25 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
 
     cdef int w, h, convw, convh, status, sep_dtype, nobj, i
     cdef np.uint8_t[:, :] buf
+    cdef np.uint8_t[:, :] noise_buf
     cdef sepobj *objects
     cdef np.ndarray[Object] result
     cdef float[:, :] convflt
     cdef float *convptr
+    cdef np.uint8_t *noise_ptr
+    cdef int noise_dtype
 
     _check_array_get_dims(data, &w, &h)
     sep_dtype = _get_sep_dtype(data.dtype)
     buf = data.view(dtype=np.uint8)
+
+    if noise is None:
+        noise_ptr = NULL
+        noise_dtype = 0
+    else:
+        noise_buf = noise.view(dtype=np.uint8)
+        noise_ptr = &noise_buf[0,0]
+        noise_dtype = _get_sep_dtype(noise.dtype)
 
     # Parse convolution input
     if conv is None:
@@ -435,7 +451,7 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
         convw = convflt.shape[1]
         convh = convflt.shape[0]
 
-    status = sep_extract(&buf[0,0], NULL, sep_dtype, 0, 0, w, h,
+    status = sep_extract(&buf[0,0], noise_ptr, sep_dtype, noise_dtype, 0, w, h,
                          thresh, minarea, convptr, convw, convh,
                          deblend_nthresh, deblend_cont, clean, clean_param,
                          &objects, &nobj)
