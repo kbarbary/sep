@@ -378,7 +378,7 @@ default_conv = np.array([[1.0, 2.0, 1.0],
 def extract(np.ndarray data not None, float thresh, int minarea=5,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
-            double clean_param=1.0, noise=None):
+            double clean_param=1.0, np.ndarray noise=None):
     """extract(data, thresh, minarea=5, conv=default_conv, deblend_nthresh=32,
                deblend_cont=0.005, clean=True, clean_param=1.0)
 
@@ -389,12 +389,13 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
     data : np.ndarray
         Data array (2-d).
     thresh : float
-        Threshold pixel value for detection. If a noise array is passed in, this
-        is the number of sigma above the noise. Otherwise it is the raw data
-        value.
+        Threshold pixel value for detection. If a noise array is not given,
+        this is interpreted as an absolute threshold. If a noise array is
+        given, this is interpreted as a relative threshold (the absolute
+        threshold will be ``thresh * noise``).
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
-    conv : np.ndarray or None
+    conv : np.ndarray or None, optional
         Convolution kernel used for on-the-fly image convolution (used to
         enhance detection). Default is a 3x3 array:
         [[1,2,1], [2,4,2], [1,2,1]]. Set to ``None`` to skip
@@ -408,14 +409,32 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
     noise : np.ndarray, optional
-        Noise array for specifying a pixel by pixel noise threshold. A global
-        threshold is used if this is not set.
+        Noise array for specifying a pixel-by-pixel detection threshold.
+        Note that if convolution is active, both that data array and noise
+        array are convolved for the purposes of detection.
 
     Returns
     -------
     objects : np.ndarray
-        Extracted object parameters (structured array).
-        See `objects.dtype.names` for available fields.
+        Extracted object parameters (structured array). Available fields are:
+
+        * ``thresh`` (float) Threshold at object location.
+        * ``npix`` (int) Number of pixels belonging to the object.
+        * ``tnpix`` (int) Number of pixels above threshold (unconvolved data).
+        * ``xmin``, ``xmax`` (int) Minimum, maximum x coordinates of pixels.
+        * ``ymin``, ``ymax`` (int) Minimum, maximum y coordinates of pixels.
+        * ``x``, ``y`` (float) object barycenter (first moments).
+        * ``x2``, ``y2``, ``xy`` (float) Second moments.
+        * ``a``, ``b``, ``theta`` (float) Ellipse parameters.
+        * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
+        * ``cflux`` (float) Sum of member pixels in convolved data.
+        * ``flux`` (float) Sum of member pixels in unconvolved data.
+        * ``cpeak`` (float) Peak value in convolved data.
+        * ``peak`` (float) Peak value in unconvolved data.
+        * ``xcpeak``, ``ycpeak`` (int) Coordinate of convolved peak pixel.
+        * ``xpeak``, ``ypeak`` (int) Coordinate of convolved peak pixel.
+        * ``flag`` (int) Extraction flags.
+
     """
 
     cdef int w, h, convw, convh, status, sep_dtype, nobj, i
