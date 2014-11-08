@@ -63,6 +63,28 @@ def test_vs_sextractor():
     assert sep.istruncated(flag).sum() == 4
     assert sep.hasmasked(flag).sum() == 0
 
+def test_extract_noise_array():
+
+    # Get some background-subtracted test data:
+    data = getdata(IMAGE_FNAME)
+    bkg = sep.Background(data, bw=64, bh=64, fw=3, fh=3)
+    bkg.subfrom(data)
+
+    # Ensure that extraction with constant noise array gives the expected
+    # result.
+    objects = sep.extract(data, 1.5*bkg.globalrms)
+    noise = np.ones_like(data)
+    objects2 = sep.extract(data, 1.5*bkg.globalrms, noise=noise)
+    ndiff = 0
+    for i in range(len(objects)):
+        if objects[i] != objects2[i]:
+            print(objects[i]['x'], objects[i]['y'])
+            #print(i)
+            #print(objects[i])
+            #print(objects2[i])
+    exit()
+
+
 def test_apercirc_dtypes():
     naper = 100
     x = np.random.uniform(200., 800., naper)
