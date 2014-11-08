@@ -52,7 +52,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 {
   objstruct		*obj;
   static objliststruct	debobjlist, debobjlist2;
-  double		dthresh, dthresh0, value0;
+  double		thresh, thresh0, value0;
   int			h,i,j,k,m,subx,suby,subh,subw,
                         xn,
 			nbm = NBRANCH,
@@ -82,9 +82,9 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       goto exit;
     }
   
-  dthresh0 = objlistin->obj[l].dthresh;
+  thresh0 = objlistin->obj[l].thresh;
   
-  objlistout->dthresh = debobjlist2.dthresh = dthresh0;
+  objlistout->thresh = debobjlist2.thresh = thresh0;
   if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
     goto exit;
   if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
@@ -94,9 +94,9 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   for (k=1; k<xn; k++)
     {
       /*------ Calculate threshold */
-      dthresh = objlistin->obj[l].fdpeak;
-      debobjlist.dthresh = dthresh > 0.0? 
-	dthresh0*pow(dthresh/dthresh0,(double)k/xn) : dthresh0;
+      thresh = objlistin->obj[l].fdpeak;
+      debobjlist.thresh = thresh > 0.0? 
+	thresh0*pow(thresh/thresh0,(double)k/xn) : thresh0;
       
       /*--------- Build tree (bottom->up) */
       if (objlist[k-1].nobj>=NSONMAX)
@@ -116,7 +116,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	  for (j=h=0; j<debobjlist.nobj; j++)
 	    if (belong(j, &debobjlist, i, &objlist[k-1]))
 	      {
-		debobjlist.obj[j].dthresh = debobjlist.dthresh;
+		debobjlist.obj[j].thresh = debobjlist.thresh;
 		if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
 		    != RETURN_OK)
 		  goto exit;
@@ -149,7 +149,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	{
 	  for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
 	    {
-	      if (obj[j].fdflux - obj[j].dthresh*obj[j].fdnpix > value0)
+	      if (obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		m++;
 	      ok[k+xn*i] &= ok[k+1+xn*j];
 	    }
@@ -157,7 +157,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    {
 	      for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
 		if (ok[k+1+xn*j] &&
-		    obj[j].fdflux-obj[j].dthresh*obj[j].fdnpix > value0)
+		    obj[j].fdflux-obj[j].thresh * obj[j].fdnpix > value0)
 		  {
 		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED
 		      | ((SEP_OBJ_ISO_PB|SEP_OBJ_OVERFLOW)
@@ -248,7 +248,6 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   n = NULL;
   status = RETURN_OK;
 
-  objlistout->dthresh = objlistin->dthresh;
   objlistout->thresh = objlistin->thresh;
 
   QMALLOC(amp, float, nobj, status);
@@ -270,8 +269,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   
   for (objt = objin+(i=1); i<nobj; i++, objt++)
     {
-      /*-- Now we have passed the deblending section, reset thresholds */
-      objt->dthresh = objlistin->dthresh;
+      /*-- Now we have passed the deblending section, reset threshold */
       objt->thresh = objlistin->thresh;
 
       /* ------------	flag pixels which are already allocated */
@@ -285,7 +283,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
       n[i] = objlistout->nobj - 1;
 
       dist = objt->fdnpix/(2*PI*objt->abcor*objt->a*objt->b);
-      amp[i] = dist<70.0? objt->dthresh*expf(dist) : 4.0*objt->fdpeak;
+      amp[i] = dist<70.0? objt->thresh * expf(dist) : 4.0*objt->fdpeak;
 
       /* ------------ limitate expansion ! */
       if (amp[i]>4.0*objt->fdpeak)

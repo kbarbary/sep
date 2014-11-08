@@ -37,8 +37,8 @@
 			        /* thresholding filtered weight-maps */
 
 /* globals */
-int plistexist_cdvalue, plistexist_dthresh, plistexist_var;
-int plistoff_value, plistoff_cdvalue, plistoff_dthresh, plistoff_var;
+int plistexist_cdvalue, plistexist_thresh, plistexist_var;
+int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
 int plistsize;
 
 typedef void (*convolver)(void *image, int w, int h, int y,
@@ -107,7 +107,6 @@ int sep_extract(void *image, void *noise,
   /* If we have a noise array, set relative threshold */
   relthresh = noise? thresh : 0.0; /* To avoid gcc warnings*/
 
-  objlist.dthresh = thresh;
   objlist.thresh = thresh;
 
   /*Allocate memory for buffers */
@@ -538,7 +537,6 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   objliststruct	        objlistout, *objlist2;
   static objstruct	obj;
   int 			i, status;
-  PIXTYPE thresh;
 
   status=RETURN_OK;  
   objlistout.obj = NULL;
@@ -554,7 +552,6 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   obj.firstpix = info->firstpix;
   obj.lastpix = info->lastpix;
   obj.flag = info->flag;
-  obj.dthresh = thresh = objlist->dthresh;
   obj.thresh = objlist->thresh;
 
   preanalyse(0, objlist);
@@ -943,18 +940,16 @@ void plistinit(void *conv, void *var)
       plistexist_var = 1;
       plistoff_var = plistsize;
       plistsize += sizeof(PIXTYPE);
-    }
-  else
-    plistexist_var = 0;
 
-  if (var)
-    {
-      plistexist_dthresh = 1;
-      plistoff_dthresh = plistsize;
+      plistexist_thresh = 1;
+      plistoff_thresh = plistsize;
       plistsize += sizeof(PIXTYPE);
     }
   else
-    plistexist_dthresh = 0;
+    {
+      plistexist_var = 0;
+      plistexist_thresh = 0;
+    }
 
   return;
 
@@ -989,7 +984,7 @@ void clean(objliststruct *objlist, double clean_param, int *survives)
       /* parameters for test object */
       unitareain = PI*obj1->a*obj1->b;
       ampin = obj1->fdflux/(2*unitareain*obj1->abcor);
-      alphain = (pow(ampin/obj1->dthresh, 1.0/beta)-1)*unitareain/obj1->fdnpix;
+      alphain = (pow(ampin/obj1->thresh, 1.0/beta)-1)*unitareain/obj1->fdnpix;
 
       /* loop over remaining objects in list*/
       obj2 = obj1 + 1;
@@ -1020,7 +1015,7 @@ void clean(objliststruct *objlist, double clean_param, int *survives)
 	    {
 	      unitarea = PI*obj2->a*obj2->b;
 	      amp = obj2->fdflux/(2*unitarea*obj2->abcor);
-	      alpha = (pow(amp/obj2->dthresh, 1.0/beta) - 1) *
+	      alpha = (pow(amp/obj2->thresh, 1.0/beta) - 1) *
 		unitarea/obj2->fdnpix;
 	      val = 1 + alpha*(obj2->cxx*dx*dx + obj2->cyy*dy*dy +
 			       obj2->cxy*dx*dy);
@@ -1047,7 +1042,7 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
 
   pixel = objlist->plist;
 
-  objout->thresh = obj->dthresh;  /* these change names */
+  objout->thresh = obj->thresh;
   objout->npix = obj->fdnpix;
   objout->tnpix = obj->dnpix;
 

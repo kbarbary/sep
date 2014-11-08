@@ -129,7 +129,7 @@ int lutz(pliststruct *plistin,
   sty = objparent->ymin;
   enx = objparent->xmax;
   eny = objparent->ymax;
-  thresh = objlist->dthresh;
+  thresh = objlist->thresh;
   initinfo.pixnb = 0;
   initinfo.flag = 0;
   initinfo.firstpix = initinfo.lastpix = -1;

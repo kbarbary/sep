@@ -20,7 +20,7 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-#define	UNKNOWN	        -1  /* flag for LUTZ */
+#define	UNKNOWN	        -1    /* flag for LUTZ */
 #define	CLEAN_ZONE      10.0  /* zone (in sigma) to consider for processing */
 #define CLEAN_STACKSIZE 3000  /* replaces prefs.clean_stacksize  */
                               /* (MEMORY_OBJSTACK in sextractor inputs) */
@@ -60,15 +60,14 @@ typedef struct
 } pbliststruct;
 
 /* globals */
-extern int plistexist_cdvalue, plistexist_dthresh, plistexist_var;
-extern int plistoff_value, plistoff_cdvalue, plistoff_dthresh, plistoff_var;
+extern int plistexist_cdvalue, plistexist_thresh, plistexist_var;
+extern int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
 extern int plistsize;
 
 typedef struct
 {
   /* thresholds */
-  float	   thresh;		             /* measur. threshold (ADU) */
-  float	   dthresh;		       	     /* detect. threshold (ADU) */
+  float	   thresh;		             /* detect threshold (ADU) */
   float	   mthresh;		             /* max. threshold (ADU) */
 
   /* # pixels */
@@ -113,13 +112,12 @@ typedef struct
   objstruct     *obj;	  /* pointer to the object array */
   int           npix;	  /* number of pixels in pixel-list */
   pliststruct   *plist;	  /* pointer to the pixel-list */
-  PIXTYPE       dthresh;  /* detection threshold */
-  PIXTYPE       thresh;	  /* analysis threshold */
+  PIXTYPE       thresh;   /* detection threshold */
 } objliststruct;
 
 
 int analysemthresh(int objnb, objliststruct *objlist, int minarea,
-		   PIXTYPE dthresh);
+		   PIXTYPE thresh);
 void preanalyse(int, objliststruct *);
 void analyse(int, objliststruct *, int);
 

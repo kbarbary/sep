@@ -35,7 +35,7 @@
  */
 
 int analysemthresh(int objnb, objliststruct *objlist, int minarea,
-		   PIXTYPE dthresh)
+		   PIXTYPE thresh)
 {
   objstruct *obj = objlist->obj+objnb;
   pliststruct *pixel = objlist->plist;
@@ -61,8 +61,8 @@ int analysemthresh(int objnb, objliststruct *objlist, int minarea,
   for (pixt=pixel+obj->firstpix; pixt>=pixel; pixt=pixel+PLIST(pixt,nextpix))
     {
       /* amount pixel is above threshold */
-      tpix = PLISTPIX(pixt, cdvalue) - (PLISTEXIST(dthresh)?
-					PLISTPIX(pixt, dthresh):dthresh);
+      tpix = PLISTPIX(pixt, cdvalue) - (PLISTEXIST(thresh)?
+					PLISTPIX(pixt, thresh):thresh);
       if (h>0)
         *(heapt++) = (float)tpix;
       else if (h)
@@ -186,7 +186,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   dnpix = 0;
   mx = my = tv = 0.0;
   mx2 = my2 = mxy = 0.0;
-  thresh = obj->dthresh;
+  thresh = obj->thresh;
   peak = obj->dpeak;
   rv = obj->fdflux;
   thresh2 = (thresh + peak)/2.0;
@@ -274,7 +274,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   
   darea = (double)area2 - dnpix;
   t1t2 = thresh/thresh2;
-  if (t1t2>0.0 && !plistexist_dthresh)  /* was: prefs.dweight_flag */
+  if (t1t2>0.0 && !plistexist_thresh)  /* was: prefs.dweight_flag */
     {
       obj->abcor = (darea<0.0?darea:-1.0)/(2*PI*log(t1t2<1.0?t1t2:0.99)
 					   *obj->a*obj->b);
