@@ -41,16 +41,11 @@ int plistexist_cdvalue, plistexist_thresh, plistexist_var;
 int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
 int plistsize;
 
-typedef void (*convolver)(void *image, int w, int h, int y,
-			  float *conv, int convw, int convh, PIXTYPE *buf);
-int get_convolver(int dtype, convolver *f);
-
 int  sortit(infostruct *, objliststruct *, int,
 	    objliststruct *, int, double);
 void plistinit(void *, void *);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
-
 
 /****************************** extract **************************************/
 int sep_extract(void *image, void *noise,
@@ -60,7 +55,7 @@ int sep_extract(void *image, void *noise,
 		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
-  static infostruct curpixinfo, initinfo, freeinfo;
+  infostruct curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
   int               co, i, j, flag, luflag, pstop, xl, xl2, yl, cn;
@@ -71,7 +66,7 @@ int sep_extract(void *image, void *noise,
   float             sum;
   pixstatus         cs, ps;
 
-  static infostruct *info, *store, *victim;
+  infostruct *info, *store, *victim;
   objliststruct     *finalobjlist;
   pliststruct	    *pixel, *pixt;
   char              *marker;
@@ -104,8 +99,13 @@ int sep_extract(void *image, void *noise,
   imageline = (BYTE *)image;
   noiseline = (BYTE *)noise;
 
-  /* If we have a noise array, set relative threshold */
-  relthresh = noise? thresh : 0.0; /* To avoid gcc warnings*/
+  /* seed the random number generator consistently on each call to get
+     consistent results. rand() is used in deblending. */
+  srand(1);
+
+  /* If we have a noise array, thresh is actually relthresh; we'll use
+   * relthresh below to set the threshold for each pixel. */
+  relthresh = thresh;
 
   objlist.thresh = thresh;
 
@@ -237,8 +237,11 @@ int sep_extract(void *image, void *noise,
 	    {
 	      convolve_im(image, w, h, yl, convnorm, convw, convh, cdscan);
 	      if (noise)
-		convolve_noise(noise, w, h, yl, convnorm, convw, convh,
-			       cdwscan);
+		
+		/*debug: don't convolve noise*/
+		memcpy(cdwscan, wscan, (size_t)w*sizeof(PIXTYPE));
+		/*convolve_noise(noise, w, h, yl, convnorm, convw, convh,
+		  cdwscan); */
 	    }
 	  else
 	    {
@@ -284,7 +287,9 @@ int sep_extract(void *image, void *noise,
 	      if (PLISTEXIST(cdvalue))
 		PLISTPIX(pixt, cdvalue) = cdnewsymbol;
 	      if (PLISTEXIST(var))
-		PLISTPIX(pixt, var) = wscan[xl];
+		PLISTPIX(pixt, var) = wscan[xl];  /* not currently used */
+	      if (PLISTEXIST(thresh))
+		PLISTPIX(pixt, thresh) = thresh;
 
 	      /* Check if we are running out of free pixels in objlist.plist */
 	      /* (previously, the largest object became a "victim") */
@@ -406,6 +411,9 @@ int sep_extract(void *image, void *noise,
 			{
 			  if ((int)info[co].pixnb >= minarea)
 			    {
+			      /* update threshold before object is processed */
+			      objlist.thresh = thresh;
+
 			      status = sortit(&info[co], &objlist, minarea,
 					      finalobjlist,
 					      deblend_nthresh,deblend_cont);
@@ -669,248 +677,6 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
 }
 
 
-
-/******************************** convolve ***********************************/
-/* Convolve functions.
- * 
- * Convolve an image with a convolution kernel (at a single line).
- *
- * There is a separate function for each type of image.
- * In sep_extract(), we select the correct function for the given array type
- * at runtime.
- *
- * (originally in filter.c in sextractor)
- *
- * image : full input array
- * w, h : width and height of image
- * y : line to convolve in image
- * conv : convolution kernel
- * convw, convh : width and height of conv
- * buf : output convolved line (`w` elements long)
- */
-void convolve_flt(void *image, int w, int h, int y,
-		  float *conv, int convw, int convh, PIXTYPE *buf)
-{
-  int	  convw2, cx, dcx, y0, dy;
-  float	  *convend;
-  PIXTYPE *bufend, *buft, *buftend, cval;
-
-  float *im, *line, *imt;
-  im = (float *)image;
-
-  line = NULL;        /* To avoid gcc -Wall warnings */
-  convw2 = convw/2;
-  bufend = buf+w;     /* pointer to end of output buffer */
-  y0 = y - (convh/2); /* starting y line for convolution */
-
-  /* reduce height of convolution kernel if it extends beyond image */
-  dy = h - y0;        /* distance from starting line to top of image */
-  if (convh > dy)
-    convh = dy;
-  convend = conv + (convw*convh);
-
-  /* Set start position in convolution kernel (and start line in image) */
-  if (y0 < 0)
-    {
-      conv += convw*(-y0);
-      y0 = 0;
-    }
-
-  /* initialize output buffer to zero */
-  memset(buf, 0, w*sizeof(PIXTYPE));
-
-  /* loop over pixels in the mask */
-  for (cx=0; conv<convend; conv++, cx++)
-    {
-      cval = *conv;
-
-      /* get the x position in the mask */
-      if (cx==convw)
-	cx = 0;
-
-      /* when cx goes to zero, increment the start line in the image */
-      if (!cx)
-	line = im + w*((y0++)%h);
-
-      /* get start and end positions in the source and target line */
-      if ((dcx = cx-convw2)>=0)
-	{
-	  imt = line + dcx;
-	  buft = buf;
-	  buftend = bufend - dcx;
-	}
-      else
-	{
-	  imt = line;
-	  buft = buf - dcx;
-	  buftend = bufend;
-	}
-
-      while (buft < buftend)
-	*(buft++) += cval * *(imt++);
-    }
-
-  return;
-}
-
-void convolve_dbl(void *image, int w, int h, int y,
-		  float *conv, int convw, int convh, PIXTYPE *buf)
-{
-  int	  convw2, cx, dcx, y0, dy;
-  float	  *convend;
-  PIXTYPE *bufend, *buft, *buftend, cval;
-
-  double *im, *line, *imt;
-  im = (double *)image;
-
-  line = NULL;        /* To avoid gcc -Wall warnings */
-  convw2 = convw/2;
-  bufend = buf+w;     /* pointer to end of output buffer */
-  y0 = y - (convh/2); /* starting y line for convolution */
-
-  /* reduce height of convolution kernel if it extends beyond image */
-  dy = h - y0;        /* distance from starting line to top of image */
-  if (convh > dy)
-    convh = dy;
-  convend = conv + (convw*convh);
-
-  /* Set start position in convolution kernel (and start line in image) */
-  if (y0 < 0)
-    {
-      conv += convw*(-y0);
-      y0 = 0;
-    }
-
-  /* initialize output buffer to zero */
-  memset(buf, 0, w*sizeof(PIXTYPE));
-
-  /* loop over pixels in the mask */
-  for (cx=0; conv<convend; conv++, cx++)
-    {
-      cval = *conv;
-
-      /* get the x position in the mask */
-      if (cx==convw)
-	cx = 0;
-
-      /* when cx goes to zero, increment the start line in the image */
-      if (!cx)
-	line = im + w*((y0++)%h);
-
-      /* get start and end positions in the source and target line */
-      if ((dcx = cx-convw2)>=0)
-	{
-	  imt = line + dcx;
-	  buft = buf;
-	  buftend = bufend - dcx;
-	}
-      else
-	{
-	  imt = line;
-	  buft = buf - dcx;
-	  buftend = bufend;
-	}
-
-      while (buft < buftend)
-	*(buft++) += cval * *(imt++);
-    }
-
-  return;
-}
-
-void convolve_int(void *image, int w, int h, int y,
-		  float *conv, int convw, int convh, PIXTYPE *buf)
-{
-  int	  convw2, cx, dcx, y0, dy;
-  float	  *convend;
-  PIXTYPE *bufend, *buft, *buftend, cval;
-
-  int *im, *line, *imt;
-  im = (int *)image;
-
-  line = NULL;        /* To avoid gcc -Wall warnings */
-  convw2 = convw/2;
-  bufend = buf+w;     /* pointer to end of output buffer */
-  y0 = y - (convh/2); /* starting y line for convolution */
-
-  /* reduce height of convolution kernel if it extends beyond image */
-  dy = h - y0;        /* distance from starting line to top of image */
-  if (convh > dy)
-    convh = dy;
-  convend = conv + (convw*convh);
-
-  /* Set start position in convolution kernel (and start line in image) */
-  if (y0 < 0)
-    {
-      conv += convw*(-y0);
-      y0 = 0;
-    }
-
-  /* initialize output buffer to zero */
-  memset(buf, 0, w*sizeof(PIXTYPE));
-
-  /* loop over pixels in the mask */
-  for (cx=0; conv<convend; conv++, cx++)
-    {
-      cval = *conv;
-
-      /* get the x position in the mask */
-      if (cx==convw)
-	cx = 0;
-
-      /* when cx goes to zero, increment the start line in the image */
-      if (!cx)
-	line = im + w*((y0++)%h);
-
-      /* get start and end positions in the source and target line */
-      if ((dcx = cx-convw2)>=0)
-	{
-	  imt = line + dcx;
-	  buft = buf;
-	  buftend = bufend - dcx;
-	}
-      else
-	{
-	  imt = line;
-	  buft = buf - dcx;
-	  buftend = bufend;
-	}
-
-      while (buft < buftend)
-	*(buft++) += cval * *(imt++);
-    }
-
-  return;
-}
-
-/* return the correct converter depending on the datatype code */
-int get_convolver(int dtype, convolver *f)
-{
-  int status = RETURN_OK;
-  char errtext[80];
-
-  if (dtype == SEP_TFLOAT)
-    {
-      *f = convolve_flt;
-    }
-  else if (dtype == SEP_TDOUBLE)
-    {
-      *f = convolve_dbl;
-    }
-  else if (dtype == SEP_TINT)
-    {
-      *f = convolve_int;
-    }
-  else
-    {
-      *f = NULL;
-      status = ILLEGAL_DTYPE;
-      sprintf(errtext, "unsupported data type in get_convolver(): %d",
-	      dtype);
-      put_errdetail(errtext);
-    }
-  return status;
-}
 
 /****************************** plistinit ************************************
  * (originally init_plist() in sextractor)

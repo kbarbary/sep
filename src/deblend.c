@@ -63,13 +63,14 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   status = RETURN_OK;
   xn = deblend_nthresh;
 
-  /* ---- initialize lists of objects */
+  /* reset global static objlist for deblending */
+  memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
+
+  /* initialize local object lists */
   debobjlist.obj = debobjlist2.obj =  NULL;
   debobjlist.plist = debobjlist2.plist = NULL;
   debobjlist.nobj = debobjlist2.nobj = 0;
   debobjlist.npix = debobjlist2.npix = 0;
-  objlistout->thresh = debobjlist2.thresh = objlistin->thresh;
-  memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
 
   /* Create the submap for the object. 
    * The submap is used in lutz(). We create it here because we may call
@@ -81,14 +82,17 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
-  
+
+  /* set thresholds of object lists based on object threshold */
   thresh0 = objlistin->obj[l].thresh;
-  
   objlistout->thresh = debobjlist2.thresh = thresh0;
+
+  /* add input object to global deblending objlist and one local objlist */
   if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
     goto exit;
   if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
     goto exit;
+
   value0 = objlist[0].obj[0].fdflux*deblend_mincont;
   ok[0] = (short)1;
   for (k=1; k<xn; k++)
@@ -157,7 +161,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    {
 	      for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
 		if (ok[k+1+xn*j] &&
-		    obj[j].fdflux-obj[j].thresh * obj[j].fdnpix > value0)
+		    obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		  {
 		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED
 		      | ((SEP_OBJ_ISO_PB|SEP_OBJ_OVERFLOW)
@@ -379,15 +383,15 @@ int belong(int corenb, objliststruct *coreobjlist,
 /*
 Create pixel-index submap for deblending.
 */
-int *createsubmap(objliststruct *objlist, int no,
+int *createsubmap(objliststruct *objlistin, int no,
 		  int *subx, int *suby, int *subw, int *subh)
 {
   objstruct	*obj;
   pliststruct	*pixel, *pixt;
   int		i, n, xmin,ymin, w, *pix, *pt, *submap;
 
-  obj = objlist->obj+no;
-  pixel = objlist->plist;
+  obj = objlistin->obj+no;
+  pixel = objlistin->plist;
   
   *subx = xmin = obj->xmin;
   *suby = ymin = obj->ymin;

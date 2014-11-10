@@ -274,7 +274,10 @@ void  analyse(int no, objliststruct *objlist, int robust)
   
   darea = (double)area2 - dnpix;
   t1t2 = thresh/thresh2;
-  if (t1t2>0.0 && !plistexist_thresh)  /* was: prefs.dweight_flag */
+
+  /* debugging */
+  /*if (t1t2>0.0 && !PLISTEXIST(thresh)) */  /* was: prefs.dweight_flag */
+  if (t1t2 > 0.0)
     {
       obj->abcor = (darea<0.0?darea:-1.0)/(2*PI*log(t1t2<1.0?t1t2:0.99)
 					   *obj->a*obj->b);
@@ -289,4 +292,3 @@ void  analyse(int no, objliststruct *objlist, int robust)
   return;
 
 }
-

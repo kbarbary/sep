@@ -5,7 +5,7 @@ from __future__ import print_function, division
 import os
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose, assert_approx_equal
+from numpy.testing import assert_allclose, assert_equal, assert_approx_equal
 import sep
 
 # Try to import any FITS reader
@@ -29,6 +29,19 @@ IMAGECAT_DTYPE = [('number', np.int64),
                   ('fluxerr', np.float64),
                   ('flags', np.int64)]
 IMAGE_DTYPES = [np.float64, np.float32, np.int32]  # supported image dtypes
+
+def assert_allclose_structured(x, y):
+    """Assert that two structured arrays are close.
+
+    Compares floats relatively and everything else exactly."""
+
+    assert x.dtype == y.dtype
+    for name in x.dtype.names:
+        if np.issubdtype(x.dtype[name], float):
+            assert_allclose(x[name], y[name])
+        else:
+            assert_equal(x[name], y[name])
+
 
 @pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
 def test_vs_sextractor():
@@ -71,18 +84,20 @@ def test_extract_noise_array():
     bkg.subfrom(data)
 
     # Ensure that extraction with constant noise array gives the expected
-    # result.
-    objects = sep.extract(data, 1.5*bkg.globalrms)
-    noise = np.ones_like(data)
-    objects2 = sep.extract(data, 1.5*bkg.globalrms, noise=noise)
-    ndiff = 0
-    for i in range(len(objects)):
-        if objects[i] != objects2[i]:
-            print(objects[i]['x'], objects[i]['y'])
-            #print(i)
-            #print(objects[i])
-            #print(objects2[i])
-    exit()
+    # result. We have to use conv=None here because the results are *not*
+    # the same when convolution is on! This is because the noise map is
+    # convolved. Near edges, the convolution doesn't adjust for pixels
+    # off edge boundaries. As a result, the convolved noise map is not
+    # all ones.
+    objects = sep.extract(data, 1.5*bkg.globalrms, conv=None)
+    objects2 = sep.extract(data, 1.5*bkg.globalrms, noise=np.ones_like(data),
+                           conv=None)
+    assert_equal(objects, objects2)  # we can test exact match here.
+
+    # Less trivial test where thresh is realistic. Still a flat noise map.
+    noise = bkg.globalrms * np.ones_like(data)
+    objects2 = sep.extract(data, 1.5, noise=noise, conv=None)
+    assert_equal(objects, objects2)
 
 
 def test_apercirc_dtypes():
@@ -98,6 +113,7 @@ def test_apercirc_dtypes():
 
     for i in range(1, len(fluxes)):
         assert_allclose(fluxes[0], fluxes[i])
+
 
 def test_mask_ellipse():
     arr = np.zeros((20, 20), dtype=np.bool)

@@ -133,7 +133,12 @@ int  allocdeblend(int);
 void freedeblend(void);
 int  deblend(objliststruct *, int, objliststruct *, int, double, int);
 
-int addobjshallow(objstruct *, objliststruct *);
+/*int addobjshallow(objstruct *, objliststruct *);
 int rmobjshallow(int, objliststruct *);
 void mergeobjshallow(objstruct *, objstruct *);
+*/
 int addobjdeep(int, objliststruct *, objliststruct *);
+
+typedef void (*convolver)(void *image, int w, int h, int y,
+			  float *conv, int convw, int convh, PIXTYPE *buf);
+int get_convolver(int dtype, convolver *f);
