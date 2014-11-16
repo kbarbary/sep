@@ -37,6 +37,8 @@
 #define SEP_OBJ_OVERFLOW   0x0080
 #define SEP_OBJ_SINGU      0x0100
 #define SEP_APER_HASMASKED 0x0200
+#define SEP_APER_ALLMASKED 0x0400
+#define SEP_APER_NONPOSITIVE 0x0800
 
 /* input flags for aperture photometry */
 #define SEP_ERROR_IS_VAR   0x0001
@@ -216,7 +218,24 @@ int sep_apercircann(void *data, void *error, void *mask,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-/*---------------------------- shape masking --------------------------------*/
+int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
+		double maskthresh, double x, double y, double cxx, double cyy,
+		double cxy, double r, double *kronrad, short *flag);
+/* Calculate Kron radius within an ellipse given by 
+ *
+ *     cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) < r^2
+ *
+ * The Kron radius is sum(r_i * v_i) / sum(v_i) where v_i is the value of pixel
+ * i and r_i is the "radius" of pixel i, as given by the left hand side of
+ * the above equation.
+ *
+ * Flags that might be set:
+ * SEP_APER_HASMASKED - at least one of the pixels in the ellipse is masked.
+ * SEP_APER_ALLMASKED - All pixels in the ellipse are masked. kronrad = 0.
+ * SEP_APER_NONPOSITIVE - There was a nonpositive numerator or deminator.
+ *                        kronrad = 0.
+ */
+
 
 void sep_setellipse_ucc(unsigned char *arr, int w, int h,
                         float x, float y, float cxx, float cyy, float cxy,

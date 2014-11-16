@@ -100,6 +100,17 @@ def test_extract_noise_array():
     assert_equal(objects, objects2)
 
 
+def test_byte_order_exception():
+    """Test that error about byte order is raised with non-native
+    byte order input array."""
+
+    data = np.ones((100, 100), dtype=np.float64)
+    data = data.byteswap(True).newbyteorder()
+    with pytest.raises(ValueError) as excinfo:
+        bkg = sep.Background(data)
+    assert 'byte order' in str(excinfo.value)
+
+
 def test_apercirc_dtypes():
     naper = 100
     x = np.random.uniform(200., 800., naper)

@@ -123,7 +123,7 @@ cdef int _get_sep_dtype(dtype) except -1:
     """Convert a numpy dtype to the corresponding SEP dtype integer code."""
     if not dtype.isnative:
         raise ValueError(
-            "Input array with dtype {0} has non-native byte order. "
+            "Input array with dtype '{0}' has non-native byte order. "
             "Only native byte order arrays are supported. "
             "Arrays can be converted to native byte order in-place "
             "with 'a = a.byteswap(True).newbyteorder()'".format(dtype))
