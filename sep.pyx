@@ -547,7 +547,7 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
 def apercirc(np.ndarray data not None, x, y, r,
              var=None, err=None, gain=None, np.ndarray mask=None,
              double maskthresh=0.0, bkgann=None, int subpix=5):
-    """apercirc(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
+    """apercirc(data, x, y, r, err=None, var=None, mask=maskthresh=0.0,
                 bkgann=None, gain=None, subpix=5)
 
     Sum data in circular apertures.
@@ -663,7 +663,7 @@ def apercirc(np.ndarray data not None, x, y, r,
     # are using a broadcasting iterator below, where we need to know the type
     # in advance. There are other ways to do this, e.g., using NpyIter_Multi
     # in the numpy C-API. However, the best way to use this from cython
-    # is not clear.
+    # is not clear to me at this time.
     #
     # docs.scipy.org/doc/numpy/reference/c-api.iterator.html#NpyIter_MultiNew
     # 
@@ -764,6 +764,107 @@ def istruncated(np.ndarray flag not None):
 def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
     return (flag & SEP_APER_HASMASKED) != 0
+
+def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
+            np.ndarray mask=None, double maskthresh=0.0):
+    """Calculate Kron radius within an ellipse.
+
+    The Kron radius is given by 
+
+    .. math::
+
+       \sum_i r_i I(r_i) / \sum_i r_i I(r_i)
+
+    where the sum is over all pixels in the aperture and the radius is given
+    by
+
+    .. math::
+
+       r_i^2 = CXX(x_i - x)^2 + CYY(y_i - y)^2 + CXY(x_i - x)(y_i - y)
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        Data array.
+
+    x, y : array_like
+        Ellipse center(s).
+
+    cxx, cyy, cxy : array_like
+        Ellipse moments.
+
+    r : array_like
+        "Radius" of ellipse over which to integrate. If the ellipse moments
+        are second moments of an object, this is the number of "isophotal
+        radii" in Source Extractor parlance. A Fixed value of 6 is used
+        in Source Extractor.
+
+    mask : `numpy.ndarray`, optional
+        An optional mask.
+
+    maskthresh : float, optional
+        Pixels with mask > maskthresh will be ignored.
+
+    Returns
+    -------
+    kronrad : array_like
+        The Kron radius.
+
+    flag : array_like
+        Integer value indicating conditions about the aperture or how
+        many masked pixels it contains.
+    """
+
+    cdef int w, h, mw, mh
+    cdef np.uint8_t[:,:] buf, mbuf
+    cdef void *ptr, *mptr
+
+    mptr = NULL
+    mdtype = 0
+
+    # only boolean arrays supported
+    if not (data.dtype.type is np.bool_ or data.dtype.type is np.ubyte):
+        raise ValueError("Array data type not supported: {0:s}"
+                         .format(arr.dtype))
+    _check_array_get_dims(arr, &w, &h)
+    buf = arr.view(dtype=np.uint8)
+    ptr = <void*>&buf[0, 0]
+
+    # See note in apercirc on requiring specific array type
+    x = np.require(x, dtype='=f8')
+    y = np.require(y, dtype='=f8')
+    cxx = np.require(cxx, dtype='=f8')
+    cyy = np.require(cyy, dtype='=f8')
+    cxy = np.require(cxy, dtype='=f8')
+    r = np.require(r, dtype='=f8')
+
+    if mask is not None:
+        _check_array_get_dims(mask, &mw, &mh)
+        if mw != w or mh != h:
+            raise ValueError("size of mask array must match data")
+        mdtype = _get_sep_dtype(mask.dtype)
+        mbuf = mask.view(dtype=np.uint8)
+        mptr = <void*>&mbuf[0, 0]
+
+    # allocate output arrays
+    shape = np.broadcast(x, y, cxx, cyy, cxy, r).shape
+    kr = np.empty(shape, np.float)
+    flag = np.empty(shape, np.short)
+
+    it = np.broadcast(x, y, cxx, cyy, cxy, r, kr, flag)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        sep_kronrad(ptr, mptr, dtype, mdtype, w, h, maskthreh,
+                    (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                    (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                    (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                    (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                    (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                    (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                    <double*>np.PyArray_MultiIter_DATA(it, 6),
+                    <short*>np.PyArray_MultiIter_DATA(it, 7))
+        np.PyArray_MultiIter_NEXT(it)
+
+    return kr, flag 
 
 def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
                  scale=1.0):
