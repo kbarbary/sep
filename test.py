@@ -76,6 +76,13 @@ def test_vs_sextractor():
     assert sep.istruncated(flag).sum() == 4
     assert sep.hasmasked(flag).sum() == 0
 
+    # Test kron radius
+    kr, flags = sep.kronrad(data, objects['x'], objects['y'], objects['cxx'],
+                            objects['cyy'], objects['cxy'], 6.0)
+    print(kr)
+    print(flags)
+
+
 def test_extract_noise_array():
 
     # Get some background-subtracted test data:

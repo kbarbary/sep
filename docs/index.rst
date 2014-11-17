@@ -138,19 +138,15 @@ API
 
    sep.extract
 
-**Object masking**
-
-.. autosummary::
-   :toctree: api
-
-   sep.mask_ellipse
-
-**Aperture Photometry**
+**Aperture photometry & masking**
 
 .. autosummary::
    :toctree: api
    
    sep.apercirc
+   sep.aperell
+   sep.mask_ellipse
+   sep.kronrad
 
 
 Indices and tables

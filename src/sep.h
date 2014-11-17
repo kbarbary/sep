@@ -175,7 +175,12 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 /*-------------------------- aperture photometry ----------------------------*/
 
 /* alternative names? 
-   sep_circsum(), sep_circannsum(), sep_ellipsum() */
+   circsum(), circannsum(), sep_ellipsum()
+   sumcirc(), sumcircann(), sumellip(), sumellipann()
+   circlesum(), circleannsum(), ellipsesum(), ellipseannsum()
+   sumcircle(), sumcircleann(), sumellipse(), sumellipseann()
+*/
+
 
 int sep_apercirc(void *data,        /* data array */
 		 void *error,       /* error value or array or NULL */
@@ -218,6 +223,13 @@ int sep_apercircann(void *data, void *error, void *mask,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
+int sep_aperell(void *data, void *error, void *mask,
+		int dtype, int edtype, int mdtype, int w, int h,
+		double maskthresh, double gain, short inflag,
+		double x, double y, double cxx, double cyy, double cxy,
+		double r, int subpix,
+		double *sum, double *sumerr, double *area, short *flag);
+
 int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 		double maskthresh, double x, double y, double cxx, double cyy,
 		double cxy, double r, double *kronrad, short *flag);
@@ -236,10 +248,10 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
  *                        kronrad = 0.
  */
 
+void sep_setell_uc(unsigned char *arr, int w, int h,
+		   double x, double y, double cxx, double cyy, double cxy,
+		   double r, unsigned char val);
 
-void sep_setellipse_ucc(unsigned char *arr, int w, int h,
-                        float x, float y, float cxx, float cyy, float cxy,
-		        float r, unsigned char val);
 /* Set array elements within an ellipitcal aperture to a given value.
  *
  * "ucc" = Unsigned Char type, Coefficient ellipse representation.

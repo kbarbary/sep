@@ -3,6 +3,10 @@ Python module versions
 v0.2.0 (unreleased)
 ===================
 
+* Add `sep.aperell()` function.
+
+* Add `sep.kronrad()` function.
+
 * Enable variable thresholding in `sep.extract`. [#11]
 
 * Fix bug in background masking. This bug impacted masking in all

@@ -33,6 +33,8 @@
  * parameters x, y, r. xmin is inclusive and xmax is exclusive.
  * Ensures that box is within image bound and sets a flag if it is not.
  */
+
+
 inline void boxextent(double x, double y, double rx, double ry, int w, int h,
 		      int *xmin, int *xmax, int *ymin, int *ymax,
 		      short *flag)
@@ -62,6 +64,23 @@ inline void boxextent(double x, double y, double rx, double ry, int w, int h,
       *flag |= SEP_APER_TRUNC;
     }
 }
+
+
+inline void boxextent_ellipse(double x, double y,
+			      double cxx, double cyy, double cxy, double r,
+			      int w, int h,
+			      int *xmin, int *xmax, int *ymin, int *ymax,
+			      short *flag)
+{
+  double dxlim, dylim;
+
+  dxlim = cxx - cxy*cxy/(4.0*cyy);
+  dxlim = dxlim>0.0 ? r/sqrt(dxlim) : 0.0;
+  dylim = cyy - cxy*cxy/(4.0*cxx);
+  dylim = dylim > 0.0 ? r/sqrt(dylim) : 0.0;
+  boxextent(x, y, dxlim, dylim, w, h, xmin, xmax, ymin, ymax, flag);
+}
+
 
 int sep_apercirc(void *data, void *error, void *mask,
 		 int dtype, int edtype, int mdtype, int w, int h,
@@ -431,6 +450,169 @@ int sep_apercircann(void *data, void *error, void *mask,
   return status;
 }
 
+int sep_aperell(void *data, void *error, void *mask,
+		int dtype, int edtype, int mdtype, int w, int h,
+		double maskthresh, double gain, short inflag,
+		double x, double y, double cxx, double cyy, double cxy,
+		double r, int subpix,
+		double *sum, double *sumerr, double *area, short *flag)
+{
+  float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
+  float scale, scale2, pix, varpix, tmp;
+  double tv, sigtv, okarea, totarea;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  long pos;
+  short errisarray, errisstd, maskignore;
+  BYTE *datat, *errort, *maskt;
+  converter convert, econvert, mconvert;
+
+  /* initializations */
+  size = esize = msize = 0;
+  tv = sigtv = 0.0;
+  overlap = totarea = okarea = 0.0;
+  datat = maskt = NULL;
+  errort = error;
+  *flag = 0;
+  r2 = r*r;
+  varpix = 0.0;
+  scale = 1.0/subpix;
+  scale2 = scale*scale;
+  offset = 0.5*(scale-1.0);
+  rin = r - 0.7072;  /* Internal radius of oversampled annulus */
+  rout = r + 0.7072;  /* external radius of oversampled annulus */
+  rin2 = (rin>0.0)? rin*rin: 0.0;
+  rout2 = rout*rout;
+
+  /* get converter(s) for input array(s) */
+  if ((status = get_converter(dtype, &convert, &size)))
+    return status;
+  if (error && (status = get_converter(edtype, &econvert, &esize)))
+    return status;
+  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+    return status;
+
+  /* options for interpreting error array and treating masked pixels. */
+  errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    errisarray = 0;  /* in case user set flag but error is NULL */
+  errisstd = !(inflag & SEP_ERROR_IS_VAR);
+  maskignore = inflag & SEP_MASK_IGNORE;
+
+  /* If error exists and is scalar, set the pixel variance now */
+  if (error && !errisarray)
+    {
+      varpix = econvert(errort);
+      if (errisstd)
+	varpix *= varpix;
+    }
+
+  /* get extent of box */
+  boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
+		    &xmin, &xmax, &ymin, &ymax, flag);
+
+  /* loop over rows in the box */
+  for (iy=ymin; iy<ymax; iy++)
+    {
+      /* set pointers to the start of this row */
+      pos = (iy%h) * w + xmin;
+      datat = data + pos*size;
+      if (errisarray)
+	errort = error + pos*esize;
+      if (mask)
+	maskt = mask + pos*msize;
+
+      /* loop over pixels in this row */
+      for (ix=xmin; ix<xmax; ix++)
+	{
+	  dx = ix - x;
+	  dy = iy - y;
+	  if ((rpix2 = cxx*dx*dx + cyy*dy*dy + cxy*dx*dy) < rout2)
+	    {
+	      if (rpix2 > rin2)
+		/* might be partially in the aperture; calculate overlap */
+		{
+		  dx += offset;
+		  dy += offset;
+		  overlap = 0.0;
+		  for (sy=subpix; sy--; dy+=scale)
+		    {
+		      dx1 = dx;
+		      dy2 = dy*dy;
+		      for (sx=subpix; sx--; dx1+=scale)
+			if (cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy < r2)
+			  overlap += scale2;
+		    }
+		}
+	      else
+		/* definitely fully in aperture */
+		overlap = 1.0;
+	      
+	      /* get pixel value */
+	      pix = convert(datat);
+
+	      /* only update varpix if error is an array */
+	      if (errisarray)
+		{
+		  varpix = econvert(errort);
+		  if (errisstd)
+		    varpix *= varpix;
+		}
+
+	      /* if mask is given and mask value is above thresh, enter
+	         masking procedure */
+	      if (mask)
+		{
+		  if (mconvert(maskt) > maskthresh)
+		    { 
+		      *flag |= SEP_APER_HASMASKED;
+		    }
+		  else
+		    {
+		      tv += pix*overlap;
+		      sigtv += varpix*overlap;
+		      okarea += overlap;
+		    }
+		}
+	      else
+		{
+		  tv += pix*overlap;
+		  sigtv += varpix*overlap;
+		}
+
+	      totarea += overlap;
+
+	    } /* closes "if pixel within rout" */
+	  
+	  /* increment pointers by one element */
+	  datat += size;
+	  if (errisarray)
+	    errort += esize;
+	  maskt += msize;
+	}
+    }
+
+  /* correct for masked values */
+  if (mask)
+    {
+      if (maskignore)
+	totarea = okarea;
+      else
+	{
+	  tv *= (tmp = totarea/okarea);
+	  sigtv *= tmp;
+	}
+    }
+
+  /* add poisson noise, only if gain > 0 */
+  if (gain > 0.0 && tv>0.0)
+    sigtv += tv/gain;
+
+  *sum = tv;
+  *sumerr = sqrt(sigtv);
+  *area = totarea;
+
+  return status;
+}
 
 /* calculate Kron radius from pixels within an ellipse. */
 int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
@@ -438,11 +620,10 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 		double x, double y, double cxx, double cyy, double cxy,
 		double r, double *kronrad, short *flag)
 {
-  float scale, scale2, pix, varpix;
-  double r1, v1, area, rpix2;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  float pix;
+  double r1, v1, r2, area, rpix2, dx, dy;
+  int ix, iy, xmin, xmax, ymin, ymax, status, size, msize;
   long pos;
-  short errisarray, errisstd, maskignore;
   BYTE *datat, *maskt;
   converter convert, mconvert;
 
@@ -450,26 +631,19 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
   r1 = v1 = 0.0;
   area = 0.0;
   *flag = 0;
+  datat = maskt = NULL;
+  size = msize = 0;
 
   /* get data converter(s) for input array(s) */
-  size = msize = 0;
-  status = get_converter(dtype, &convert, &size);
-  if (status)
+  if ((status = get_converter(dtype, &convert, &size)))
     return status;
+  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+      return status;
 
-  if (mask)
-    {
-      status = get_converter(mdtype, &mconvert, &msize);
-      if (status)
-	return status;
-    }
 
   /* get extent of ellipse in x and y */
-  dxlim = cxx - cxy*cxy/(4.0*cyy);
-  dxlim = dxlim>0.0 ? r/sqrt(dxlim) : 0.0;
-  dylim = cyy - cxy*cxy/(4.0*cxx);
-  dylim = dylim > 0.0 ? r/sqrt(dylim) : 0.0;
-  boxextent(x, y, dxlim, dylim, w, h, &xmin, &xmax, &ymin, &ymax, flag);
+  boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
+		    &xmin, &xmax, &ymin, &ymax, flag);
 
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
@@ -526,26 +700,21 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 }
 
 
-/* set array values within an ellipse
- * UCC = Unsigned Char array, Coefficient ellipse representation
- */
-void sep_setellipse_ucc(unsigned char *arr, int w, int h,
-                        float x, float y, float cxx, float cyy, float cxy,
-		        float r, unsigned char val)
+/* set array values within an ellipse (uc = unsigned char array) */
+void sep_setell_uc(unsigned char *arr, int w, int h,
+		   double x, double y, double cxx, double cyy, double cxy,
+		   double r, unsigned char val)
 {
   unsigned char *arrt;
   int xmin, xmax, ymin, ymax, xi, yi;
-  float dxlim, dylim, r2, dx, dy, dy2;
-  short *flag;  /* not actually used, but we need an extra input to boxextent */
+  double r2, dx, dy, dy2;
+  short flag; /* not actually used, but input to boxextent */
 
-  /* get extent of ellipse in x and y */
-  dxlim = cxx - cxy*cxy/(4.0*cyy);
-  dxlim = dxlim>0.0 ? r/sqrt(dxlim) : 0.0;
-  dylim = cyy - cxy*cxy/(4.0*cxx);
-  dylim = dylim > 0.0 ? r/sqrt(dylim) : 0.0;
+  flag = 0;
   r2 = r*r;
 
-  boxextent(x, y, dxlim, dylim, w, h, &xmin, &xmax, &ymin, &ymax, flag);
+  boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
+		    &xmin, &xmax, &ymin, &ymax, &flag);
 
   for (yi=ymin; yi<ymax; yi++)
     {
