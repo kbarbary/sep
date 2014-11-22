@@ -791,7 +791,7 @@ def apercirc(np.ndarray data not None, x, y, r,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def apercircann(np.ndarray data not None, x, y, rin, rout
+def apercircann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
                 double maskthresh=0.0, int subpix=5):
     """apercircann(data, x, y, rin, rout, err=None, var=None, mask=None,
@@ -1183,8 +1183,8 @@ def aperellipann(np.ndarray data not None, x, y, cxx, cyy, cxy, rin, rout,
     cxx = np.require(cxx, dtype=np.float)
     cyy = np.require(cyy, dtype=np.float)
     cxy = np.require(cxy, dtype=np.float)
-    rin = np.require(r, dtype=np.float)
-    rout = np.require(r, dtype=np.float)
+    rin = np.require(rin, dtype=np.float)
+    rout = np.require(rout, dtype=np.float)
 
     # allocate ouput arrays
     shape = np.broadcast(x, y, cxx, cyy, cxy, rin, rout).shape
