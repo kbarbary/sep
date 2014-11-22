@@ -10,6 +10,7 @@ cimport numpy as np
 from libc cimport limits
 cimport cython
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
@@ -109,21 +110,28 @@ cdef extern from "sep.h":
                         double x, double y, double rin, double rout, int subpix,
                         double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_aperell(void *data, void *error, void *mask,
-                    int dtype, int edtype, int mdtype, int w, int h,
-                    double maskthresh, double gain, short inflag,
-                    double x, double y, double cxx, double cyy, double cxy,
-                    double r, int subpix,
-                    double *sum, double *sumerr, double *area, short *flag)
+    int sep_aperellip(void *data, void *error, void *mask,
+                      int dtype, int edtype, int mdtype, int w, int h,
+                      double maskthresh, double gain, short inflag,
+                      double x, double y, double cxx, double cyy, double cxy,
+                      double r, int subpix,
+                      double *sum, double *sumerr, double *area, short *flag)
+
+    int sep_aperellipann(void *data, void *error, void *mask,
+                         int dtype, int edtype, int mdtype, int w, int h,
+                         double maskthresh, double gain, short inflag,
+                         double x, double y, double cxx, double cyy, double cxy,
+                         double rin, double rout, int subpix,
+                         double *sum, double *sumerr, double *area, short *flag)
 
     int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
                     double maskthresh, double x, double y, double cxx,
                     double cyy, double cxy, double r, double *kronrad,
                     short *flag)
 
-    void sep_setell_uc(unsigned char *arr, int w, int h,
-                       double x, double y, double cxx, double cyy, double cxy,
-                       double r, unsigned char val)
+    void sep_setellip_uc(unsigned char *arr, int w, int h,
+                         double x, double y, double cxx, double cyy, double cxy,
+                         double r, unsigned char val)
 
     void sep_get_errmsg(int status, char *errtext)
     void sep_get_errdetail(char *errtext)
@@ -611,7 +619,7 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
 def apercirc(np.ndarray data not None, x, y, r,
              var=None, err=None, gain=None, np.ndarray mask=None,
              double maskthresh=0.0, bkgann=None, int subpix=5):
-    """apercirc(data, x, y, r, err=None, var=None, mask=maskthresh=0.0,
+    """apercirc(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
                 bkgann=None, gain=None, subpix=5)
 
     Sum data in circular apertures.
@@ -628,10 +636,10 @@ def apercirc(np.ndarray data not None, x, y, r,
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
         element of the array. These inputs obey numpy broadcasting rules.
 
-    err, var : float or ndarray
+    err, var : float or `~numpy.ndarray`
         Error *or* variance (specify at most one).
 
-    mask : ndarray, optional
+    mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
         is greater than ``maskthresh``.
 
@@ -642,7 +650,7 @@ def apercirc(np.ndarray data not None, x, y, r,
         Length 2 tuple giving the inner and outer radius of a
         "background annulus". If supplied, the background is estimated
         by averaging unmasked pixels in this annulus. If supplied, the inner
-        and outer radii obey numpy broadcasting rules, along with ``x``,
+        and outer radii obey numpy broadcasting rules along with ``x``,
         ``y`` and ``r``.
 
     gain : float, optional
@@ -655,17 +663,17 @@ def apercirc(np.ndarray data not None, x, y, r,
 
     Returns
     -------
-    sum : ndarray
+    sum : `~numpy.ndarray`
         The sum of the data array within the aperture.
 
-    sumerr : ndarray
+    sumerr : `~numpy.ndarray`
         Error on the sum.
 
-    flags : ndarray
+    flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
     """
 
-    cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
+    cdef double flux1, fluxerr1, area1,
     cdef double bkgflux, bkgfluxerr, bkgarea, gain_
     cdef float scalarerr
     cdef short flag1, bkgflag
@@ -702,7 +710,6 @@ def apercirc(np.ndarray data not None, x, y, r,
     # is not clear to me at this time.
     #
     # docs.scipy.org/doc/numpy/reference/c-api.iterator.html#NpyIter_MultiNew
-    # 
     x = np.require(x, dtype=np.float)
     y = np.require(y, dtype=np.float)
     r = np.require(r, dtype=np.float)
@@ -715,28 +722,22 @@ def apercirc(np.ndarray data not None, x, y, r,
         sumerr = np.empty(shape, np.float)
         flag = np.empty(shape, np.short)
 
-        # broadcasting iterator over x, y, r
         it = np.broadcast(x, y, r, sum, sumerr, flag)
-
         while np.PyArray_MultiIter_NOTDONE(it):
-
-            x1 = (<double*>np.PyArray_MultiIter_DATA(it, 0))[0]
-            y1 = (<double*>np.PyArray_MultiIter_DATA(it, 1))[0]
-            r1 = (<double*>np.PyArray_MultiIter_DATA(it, 2))[0]
-            
-            status = sep_apercirc(ptr, eptr, mptr,
-                                  dtype, edtype, mdtype, w, h,
-                                  maskthresh, gain_, inflag,
-                                  x1, y1, r1, subpix,
-                                  &flux1, &fluxerr1, &area1, &flag1)
-
+            status = sep_apercirc(
+                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+                maskthresh, gain_, inflag,
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                subpix,
+                <double*>np.PyArray_MultiIter_DATA(it, 3),
+                <double*>np.PyArray_MultiIter_DATA(it, 4),
+                &area1,
+                <short*>np.PyArray_MultiIter_DATA(it, 5))
             _assert_ok(status)
-            
-            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0] = flux1
-            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0] = fluxerr1
-            (<short*>np.PyArray_MultiIter_DATA(it, 5))[0] = flag1
 
-            #PyArray_MultiIter_NEXT is used to advance the iterator
+            # Advance the iterator
             np.PyArray_MultiIter_NEXT(it)
 
         return sum, sumerr, flag
@@ -756,54 +757,163 @@ def apercirc(np.ndarray data not None, x, y, r,
 
         it = np.broadcast(x, y, r, rin, rout, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
-
-            x1 = (<double*>np.PyArray_MultiIter_DATA(it, 0))[0]
-            y1 = (<double*>np.PyArray_MultiIter_DATA(it, 1))[0]
-            r1 = (<double*>np.PyArray_MultiIter_DATA(it, 2))[0]
-            rin1 = (<double*>np.PyArray_MultiIter_DATA(it, 3))[0]
-            rout1 = (<double*>np.PyArray_MultiIter_DATA(it, 4))[0]
-
-            status = sep_apercirc(ptr, eptr, mptr,
-                                  dtype, edtype, mdtype, w, h,
-                                  maskthresh, gain_, inflag,
-                                  x1, y1, r1, subpix,
-                                  &flux1, &fluxerr1, &area1, &flag1)
+            status = sep_apercirc(
+                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+                maskthresh, gain_, inflag,
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                subpix, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
                 
             # background subtraction
             # Note that background output flags are not used.
-            status = sep_apercircann(ptr, eptr, mptr,
-                                     dtype, edtype, mdtype, w, h,
-                                     maskthresh, gain_,
-                                     inflag | SEP_MASK_IGNORE,
-                                     x1, y1, rin1, rout1, 1,
-                                     &bkgflux, &bkgfluxerr, &bkgarea,
-                                     &bkgflag)
+            status = sep_apercircann(
+                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+                maskthresh, gain_, inflag | SEP_MASK_IGNORE,
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                1, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
             flux1 -= bkgflux / bkgarea * area1
             bkgfluxerr = bkgfluxerr / bkgarea * area1
             fluxerr1 = fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr
-
             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0] = flux1
             (<double*>np.PyArray_MultiIter_DATA(it, 6))[0] = fluxerr1
             (<short*>np.PyArray_MultiIter_DATA(it, 7))[0] = flag1
 
-            #PyArray_MultiIter_NEXT is used to advance the iterator
             np.PyArray_MultiIter_NEXT(it)
 
         return sum, sumerr, flag
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def apercircann(np.ndarray data not None, x, y, rin, rout
+                var=None, err=None, gain=None, np.ndarray mask=None,
+                double maskthresh=0.0, int subpix=5):
+    """apercircann(data, x, y, rin, rout, err=None, var=None, mask=None,
+                   maskthresh=0.0, gain=None, subpix=5)
+
+    Sum data in circular annular aperture(s).
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        2-d array to be summed.
+
+    x, y, rin, rout : array_like
+        Center coordinates and inner and outer radii of aperture(s). 
+        ``x`` corresponds to the second ("fast") axis of the input array
+        and ``y`` corresponds to the first ("slow") axis.
+        ``x, y = (0.0, 0.0)`` corresponds to the center of the first
+        element of the array. These inputs obey numpy broadcasting rules.
+
+    err, var : float or ndarray
+        Error *or* variance (specify at most one).
+
+    mask : ndarray, optional
+        Mask array. If supplied, a given pixel is masked if its value
+        is greater than ``maskthresh``.
+
+    maskthresh : float, optional
+        Threshold for a pixel to be masked. Default is ``0.0``.
+
+    gain : float, optional
+        Conversion factor between data array units and poisson counts,
+        used in calculating poisson noise in aperture sum. If ``None``
+        (default), do not add poisson noise.
+
+    subpix : int, optional
+        Subpixel sampling factor. Default is 5.
+
+    Returns
+    -------
+    sum : ndarray
+        The sum of the data array within the aperture.
+
+    sumerr : ndarray
+        Error on the sum.
+
+    flags : ndarray
+        Integer giving flags. (0 if no flags set.)
+    """
+
+    cdef double area1, gain_
+    cdef float scalarerr
+    cdef short inflag
+    cdef size_t i
+    cdef int w, h, dtype, edtype, mdtype, status
+    cdef void *ptr
+    cdef void *eptr
+    cdef void *mptr
+    cdef np.broadcast it
+
+    dtype = 0
+    edtype = 0
+    mdtype = 0
+    w = 0
+    h = 0
+    ptr = NULL
+    eptr = NULL
+    mptr = NULL
+    scalarerr = 0.0
+    area1 = 0.0
+    inflag = 0
+    _parse_arrays(data, err, var, mask,
+                  &dtype, &edtype, &mdtype, &w, &h,
+                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
+
+    gain_ = 0.0
+    if gain is not None:
+        gain_ = gain
+
+    # convert inputs to double arrays
+    x = np.require(x, dtype=np.float)
+    y = np.require(y, dtype=np.float)
+    rin = np.require(rin, dtype=np.float)
+    rout = np.require(rout, dtype=np.float)
+
+    # allocate ouput arrays
+    shape = np.broadcast(x, y, rin, rout).shape
+    sum = np.empty(shape, np.float)
+    sumerr = np.empty(shape, np.float)
+    flag = np.empty(shape, np.short)
+
+    # broadcasting iterator over x, y, r
+    it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
+
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_apercircann(
+            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+            maskthresh, gain_, inflag,
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[1],
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[2],
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[3],
+            subpix,
+            <double*>np.PyArray_MultiIter_DATA(it, 4),
+            <double*>np.PyArray_MultiIter_DATA(it, 5),
+            &area1,
+            <short*>np.PyArray_MultiIter_DATA(it, 6))
+        _assert_ok(status)
+
+        np.PyArray_MultiIter_NEXT(it)
+
+    return sum, sumerr, flag
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def aperell(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
-            var=None, err=None, gain=None, np.ndarray mask=None,
-            double maskthresh=0.0, bkgann=None, int subpix=5):
-    """aperell(data, x, y, cxx, cyy, cxy, r, err=None, var=None, mask=None,
-               maskthresh=0.0, gain=None, subpix=5)
+def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
+              var=None, err=None, gain=None, np.ndarray mask=None,
+              double maskthresh=0.0, bkgann=None, int subpix=5):
+    """aperellip(data, x, y, cxx, cyy, cxy, r, err=None, var=None, mask=None,
+                 maskthresh=0.0, bkgann=None, gain=None, subpix=5)
 
-    Sum data in circular apertures.
+    Sum data in elliptical apertures.
 
     Parameters
     ----------
@@ -830,6 +940,13 @@ def aperell(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
 
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
+
+    bkgann : tuple, optional
+        Length 2 tuple giving the inner and outer radius of a
+        "background annulus". If supplied, the background is estimated
+        by averaging unmasked pixels in this annulus. If supplied, the inner
+        and outer radii obey numpy broadcasting rules, along with ``x``,
+        ``y``, and ellipse parameters.
 
     gain : float, optional
         Conversion factor between data array units and poisson counts,
@@ -897,11 +1014,9 @@ def aperell(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         sumerr = np.empty(shape, np.float)
         flag = np.empty(shape, np.short)
 
-        # broadcasting iterator over x, y, r
         it = np.broadcast(x, y, cxx, cyy, cxy, r, sum, sumerr, flag)
-
         while np.PyArray_MultiIter_NOTDONE(it):
-            status = sep_aperell(
+            status = sep_aperellip(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -923,14 +1038,188 @@ def aperell(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         return sum, sumerr, flag
 
     else:
-        raise ValueError("bkgann not yet supported")
+        rin, rout = bkgann
 
-# -----------------------------------------------------------------------------
-# Masking shapes
+        # Require float arrays (see note above)
+        rin = np.require(rin, dtype=np.float)
+        rout = np.require(rout, dtype=np.float)
 
+        # allocate ouput arrays
+        shape = np.broadcast(x, y, cxx, cyy, cxy, r, rin, rout).shape
+        sum = np.empty(shape, np.float)
+        sumerr = np.empty(shape, np.float)
+        flag = np.empty(shape, np.short)
+
+        it = np.broadcast(x, y, cxx, cyy, cxy, r, rin, rout, sum, sumerr, flag)
+        while np.PyArray_MultiIter_NOTDONE(it):
+            status = sep_aperellip(
+                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+                maskthresh, gain_, inflag,
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                subpix, &flux1, &fluxerr1, &area1, &flag1)
+            _assert_ok(status)
+
+            status = sep_aperellipann(
+                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+                maskthresh, gain_, inflag,
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 7))[0],
+                subpix, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
+            _assert_ok(status)
+
+            flux1 -= bkgflux / bkgarea * area1
+            bkgfluxerr = bkgfluxerr / bkgarea * area1
+            fluxerr1 = fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr
+
+            (<double*>np.PyArray_MultiIter_DATA(it, 8))[0] = flux1
+            (<double*>np.PyArray_MultiIter_DATA(it, 9))[0] = fluxerr1
+            (<short*>np.PyArray_MultiIter_DATA(it, 10))[0] = flag1
+
+            #PyArray_MultiIter_NEXT is used to advance the iterator
+            np.PyArray_MultiIter_NEXT(it)
+
+        return sum, sumerr, flag
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def aperellipann(np.ndarray data not None, x, y, cxx, cyy, cxy, rin, rout,
+                 var=None, err=None, gain=None, np.ndarray mask=None,
+                 double maskthresh=0.0, int subpix=5):
+    """aperellipann(data, x, y, cxx, cyy, cxy, rin, rout, err=None, var=None,
+                    mask=None, maskthresh=0.0, gain=None, subpix=5)
+
+    Sum data in elliptical annular apertures.
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        2-d array to be summed.
+
+    x, y : array_like
+        Center coordinates and radius (radii) of aperture(s). 
+        ``x`` corresponds to the second ("fast") axis of the input array
+        and ``y`` corresponds to the first ("slow") axis.
+        ``x, y = (0.0, 0.0)`` corresponds to the center of the first
+        element of the array. These inputs obey numpy broadcasting rules.
+
+    cxx, cyy, cxy, rin, rout : array_like
+        Elliptial annulus parameters. These inputs, along with ``x`` and ``y``,
+        obey numpy broadcasting rules.
+
+    err, var : float or `~numpy.ndarray`
+        Error *or* variance (specify at most one).
+
+    mask : `~numpy.ndarray`, optional
+        Mask array. If supplied, a given pixel is masked if its value
+        is greater than ``maskthresh``.
+
+    maskthresh : float, optional
+        Threshold for a pixel to be masked. Default is ``0.0``.
+
+    gain : float, optional
+        Conversion factor between data array units and poisson counts,
+        used in calculating poisson noise in aperture sum. If ``None``
+        (default), do not add poisson noise.
+
+    subpix : int, optional
+        Subpixel sampling factor. Default is 5.
+
+    Returns
+    -------
+    sum : `~numpy.ndarray`
+        The sum of the data array within the aperture(s).
+
+    sumerr : `~numpy.ndarray`
+        Error on the sum.
+
+    flags : `~numpy.ndarray`
+        Integer giving flags. (0 if no flags set.)
+    """
+
+    cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
+    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
+    cdef float scalarerr
+    cdef short flag1, bkgflag
+    cdef short inflag
+    cdef size_t i
+    cdef int w, h, dtype, edtype, mdtype, status
+    cdef void *ptr
+    cdef void *eptr
+    cdef void *mptr
+    cdef np.broadcast it
+
+    dtype = 0
+    edtype = 0
+    mdtype = 0
+    w = 0
+    h = 0
+    ptr = NULL
+    eptr = NULL
+    mptr = NULL
+    scalarerr = 0.0
+    inflag = 0
+    _parse_arrays(data, err, var, mask,
+                  &dtype, &edtype, &mdtype, &w, &h,
+                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
+
+    gain_ = 0.0
+    if gain is not None:
+        gain_ = gain
+
+    # Require that inputs are float64 arrays. See note in circular aperture.
+    x = np.require(x, dtype=np.float)
+    y = np.require(y, dtype=np.float)
+    cxx = np.require(cxx, dtype=np.float)
+    cyy = np.require(cyy, dtype=np.float)
+    cxy = np.require(cxy, dtype=np.float)
+    rin = np.require(r, dtype=np.float)
+    rout = np.require(r, dtype=np.float)
+
+    # allocate ouput arrays
+    shape = np.broadcast(x, y, cxx, cyy, cxy, rin, rout).shape
+    sum = np.empty(shape, np.float)
+    sumerr = np.empty(shape, np.float)
+    flag = np.empty(shape, np.short)
+
+    it = np.broadcast(x, y, cxx, cyy, cxy, rin, rout, sum, sumerr, flag)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_aperellipann(
+            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+            maskthresh, gain_, inflag,
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
+            subpix,
+            <double*>np.PyArray_MultiIter_DATA(it, 7),
+            <double*>np.PyArray_MultiIter_DATA(it, 8),
+            &area1,
+            <short*>np.PyArray_MultiIter_DATA(it, 9))
+        _assert_ok(status)
+        np.PyArray_MultiIter_NEXT(it)
+
+    return sum, sumerr, flag
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
-                 scale=1.0):
-    """mask_ellipse(arr, x, y, cxx=None, cyy=None, cxy=None, scale=1.0)
+                 r=1.0, scale=None):
+    """mask_ellipse(arr, x, y, cxx=None, cyy=None, cxy=None, r=1.0)
 
     Mask ellipse(s) in an array.
 
@@ -945,12 +1234,18 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
         Center of ellipse(s).
     cxx, cyy, cxy : array_like
         Parameters defining the extent of the ellipe(s).
-    scale : array_like, optional
+    r : array_like, optional
         Scale factor of ellipse(s). Default is 1.
     """
 
     cdef int w, h
     cdef np.uint8_t[:,:] buf
+
+    # TODO `scale` is deprecated
+    if scale is not None:
+        warn("scale keyword is deprecated and will be removed in a future "
+             "release. Use r keyword instead")
+        r = scale
 
     # only boolean arrays supported
     if not (arr.dtype.type is np.bool_ or arr.dtype.type is np.ubyte):
@@ -962,31 +1257,28 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
     # See note in apercirc on requiring specific array type
     x = np.require(x, dtype=np.float)
     y = np.require(y, dtype=np.float)
-    scale = np.require(scale, dtype=np.float)
+    r = np.require(r, dtype=np.float)
 
     if (cxx is not None and cyy is not None and cxy is not None):
         cxx = np.require(cxx, dtype=np.float)
         cyy = np.require(cyy, dtype=np.float)
         cxy = np.require(cxy, dtype=np.float)
 
-        it = np.broadcast(x, y, cxx, cyy, cxy, scale)
+        it = np.broadcast(x, y, cxx, cyy, cxy, r)
         while np.PyArray_MultiIter_NOTDONE(it):
-            sep_setell_uc(<unsigned char *>&buf[0, 0], w, h,
-                          (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-                          (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                          (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                          (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-                          (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                          (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                          1)
+            sep_setellip_uc(<unsigned char *>&buf[0, 0], w, h,
+                            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                            1)
             np.PyArray_MultiIter_NEXT(it)
 
     else:
         raise ValueError("Must specify cxx, cyy and cxy keywords")
 
-
-# -----------------------------------------------------------------------------
-# Aperture-related utility functions
 
 def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
             np.ndarray mask=None, double maskthresh=0.0):

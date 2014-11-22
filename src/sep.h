@@ -174,14 +174,6 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-/* alternative names? 
-   circsum(), circannsum(), sep_ellipsum()
-   sumcirc(), sumcircann(), sumellip(), sumellipann()
-   circlesum(), circleannsum(), ellipsesum(), ellipseannsum()
-   sumcircle(), sumcircleann(), sumellipse(), sumellipseann()
-*/
-
-
 int sep_apercirc(void *data,        /* data array */
 		 void *error,       /* error value or array or NULL */
 		 void *mask,        /* mask array (can be NULL) */
@@ -223,12 +215,19 @@ int sep_apercircann(void *data, void *error, void *mask,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-int sep_aperell(void *data, void *error, void *mask,
-		int dtype, int edtype, int mdtype, int w, int h,
-		double maskthresh, double gain, short inflag,
-		double x, double y, double cxx, double cyy, double cxy,
-		double r, int subpix,
-		double *sum, double *sumerr, double *area, short *flag);
+int sep_aperellip(void *data, void *error, void *mask,
+		  int dtype, int edtype, int mdtype, int w, int h,
+		  double maskthresh, double gain, short inflag,
+		  double x, double y, double cxx, double cyy, double cxy,
+		  double r, int subpix,
+		  double *sum, double *sumerr, double *area, short *flag);
+
+int sep_aperellipann(void *data, void *error, void *mask,
+		     int dtype, int edtype, int mdtype, int w, int h,
+		     double maskthresh, double gain, short inflag,
+		     double x, double y, double cxx, double cyy, double cxy,
+		     double rin, double rout, int subpix,
+		     double *sum, double *sumerr, double *area, short *flag);
 
 int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 		double maskthresh, double x, double y, double cxx, double cyy,
@@ -248,9 +247,9 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
  *                        kronrad = 0.
  */
 
-void sep_setell_uc(unsigned char *arr, int w, int h,
-		   double x, double y, double cxx, double cyy, double cxy,
-		   double r, unsigned char val);
+void sep_setellip_uc(unsigned char *arr, int w, int h,
+		     double x, double y, double cxx, double cyy, double cxy,
+		     double r, unsigned char val);
 
 /* Set array elements within an ellipitcal aperture to a given value.
  *
