@@ -29,11 +29,68 @@
 #include "sep.h"
 #include "sepcore.h"
 
+typedef struct
+{
+  void *image;
+  void *error;
+  void *mask;
+  converter convert;
+  converter econvert;
+  converter mconvert;
+  int size;
+  int esize;
+  int msize;
+  short errisarray;
+  short errisstd;
+} sepimage;
+
+inline int get_image_info(void *image, void *error, void *mask,
+			  int dtype, int edtype, int mdtype,
+			  short inflag, sepimage *sepim)
+{
+  int status = 0;
+
+  sepim->image = image;
+  sepim->error = error;
+  sepim->mask = mask;
+  sepim->size = 0;
+  sepim->esize = 0;
+  sepim->msize = 0;
+
+  /* get data converter(s) for input array(s) */
+  if ((status = get_converter(dtype, &(sepim->convert), &(sepim->size))))
+    return status;
+  if (error)
+    if ((status = get_converter(edtype, &(sepim->econvert), &(sepim->esize))))
+      return status;
+  if (mask)
+    if ((status = get_converter(mdtype, &(sepim->mconvert), &(sepim->msize))))
+      return status;
+
+  /* get options for how to interpret error array and
+   * how to treat masked pixels.
+   */
+  sepim->errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    sepim->errisarray = 0;  /* in case user set flag but error is NULL */
+  sepim->errisstd = !(inflag & SEP_ERROR_IS_VAR);
+
+  return status;
+}
+
+
+inline void update_var(sepimage *sepim, void *errort, PIXTYPE *var)
+{
+  *var = sepim->econvert(errort);
+  if (sepim->errisstd)
+    *var *= *var;
+}
+  
+
 /* determine the extent of the box that just contains the circle with
  * parameters x, y, r. xmin is inclusive and xmax is exclusive.
  * Ensures that box is within image bound and sets a flag if it is not.
  */
-
 
 inline void boxextent(double x, double y, double rx, double ry, int w, int h,
 		      int *xmin, int *xmax, int *ymin, int *ymax,
@@ -90,34 +147,15 @@ int sep_apercirc(void *data, void *error, void *mask,
 {
   float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
   float scale, scale2, pix, varpix, tmp;
-  double tv, sigtv, okarea, totarea;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  double tv, sigtv, totarea, maskarea;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status;
   long pos;
-  short errisarray, errisstd, maskignore;
   BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
-
-  /* get data converter(s) for input array(s) */
-  status = get_converter(dtype, &convert, &size);
-  if (status)
-    return status;
-  if (error)
-    {
-      status = get_converter(edtype, &econvert, &esize);
-      if (status)
-	return status;
-    }
-  if (mask)
-    {
-      status = get_converter(mdtype, &mconvert, &msize);
-      if (status)
-	return status;
-    }
+  sepimage sepim;
 
   /* initializations */
-  size = esize = msize = 0;
   tv = sigtv = 0.0;
-  overlap = totarea = okarea = 0.0;
+  overlap = totarea = maskarea = 0.0;
   datat = maskt = NULL;
   errort = error;
   *flag = 0;
@@ -131,30 +169,14 @@ int sep_apercirc(void *data, void *error, void *mask,
   rin2 = (rin>0.0)? rin*rin: 0.0;
   rout2 = rout*rout;
 
-  /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
-    return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+  /* get image info */
+  if ((status = get_image_info(data, error, mask, dtype, edtype, mdtype,
+			       inflag, &sepim)))
     return status;
 
-  /* get options for how to interpret error array and
-   * how to treat masked pixels.
-   */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0;  /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-  maskignore = inflag & SEP_MASK_IGNORE;
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
-    {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
-    }
+  /* set varpix once if error is not an array */
+  if (error && !sepim.errisarray)
+    update_var(&sepim, error, &varpix);
 
   /* get extent of box */
   boxextent(x, y, r, r, w, h, &xmin, &xmax, &ymin, &ymax, flag);
@@ -164,11 +186,11 @@ int sep_apercirc(void *data, void *error, void *mask,
     {
       /* set pointers to the start of this row */
       pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
-      if (errisarray)
-	errort = error + pos*esize;
+      datat = data + pos*sepim.size;
+      if (sepim.errisarray)
+	errort = error + pos*sepim.esize;
       if (mask)
-	maskt = mask + pos*msize;
+	maskt = mask + pos*sepim.msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -196,31 +218,15 @@ int sep_apercirc(void *data, void *error, void *mask,
 		/* definitely fully in aperture */
 		overlap = 1.0;
 	      
-	      /* get pixel value */
-	      pix = convert(datat);
+	      pix = sepim.convert(datat);
 
-	      /* only update varpix if error is an array */
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
+	      if (sepim.errisarray)
+		update_var(&sepim, errort, &varpix);
 
-	      /* if mask is given and mask value is above thresh, enter
-	         masking procedure */
-	      if (mask)
-		{
-		  if (mconvert(maskt) > maskthresh)
-		    { 
-		      *flag |= SEP_APER_HASMASKED;
-		    }
-		  else
-		    {
-		      tv += pix*overlap;
-		      sigtv += varpix*overlap;
-		      okarea += overlap;
-		    }
+	      if (mask && (sepim.mconvert(maskt) > maskthresh))
+		{ 
+		  *flag |= SEP_APER_HASMASKED;
+		  maskarea += overlap;
 		}
 	      else
 		{
@@ -233,21 +239,21 @@ int sep_apercirc(void *data, void *error, void *mask,
 	    } /* closes "if pixel within rout" */
 	  
 	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
+	  datat += sepim.size;
+	  if (sepim.errisarray)
+	    errort += sepim.esize;
+	  maskt += sepim.msize;
 	}
     }
 
   /* correct for masked values */
   if (mask)
     {
-      if (maskignore)
-	totarea = okarea;
+      if (inflag & SEP_MASK_IGNORE)
+	totarea -= maskarea;
       else
 	{
-	  tv *= (tmp = totarea/okarea);
+	  tv *= (tmp = totarea/(totarea-maskarea));
 	  sigtv *= tmp;
 	}
     }
@@ -262,6 +268,7 @@ int sep_apercirc(void *data, void *error, void *mask,
 
   return status;
 }
+
 
 int sep_apercircann(void *data, void *error, void *mask,
 		    int dtype, int edtype, int mdtype, int w, int h,
