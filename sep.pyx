@@ -282,11 +282,11 @@ cdef class Background:
         Thus, given a threshold of zero, True corresponds to masked and
         False corresponds to unmasked.
     bw, bh : int, optional
-        Size of background boxes in pixels. Default is 3.
+        Size of background boxes in pixels. Default is 64.
     fw, fh : int, optional
         Filter width and height in boxes. Default is 3.
     fthresh : float, optional
-        Filter threshold.
+        Filter threshold. Default is 0.0.
     """
 
     cdef sepbackmap *ptr      # pointer to C struct

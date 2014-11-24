@@ -144,7 +144,9 @@ API
    :toctree: api
    
    sep.apercirc
+   sep.apercircann
    sep.aperellip
+   sep.aperellipann
    sep.mask_ellipse
    sep.kronrad
 
