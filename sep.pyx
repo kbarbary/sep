@@ -659,7 +659,8 @@ def apercirc(np.ndarray data not None, x, y, r,
         (default), do not add poisson noise.
 
     subpix : int, optional
-        Subpixel sampling factor. Default is 5.
+        Subpixel sampling factor. If 0, exact overlap is calculated.
+        Default is 5.
 
     Returns
     -------

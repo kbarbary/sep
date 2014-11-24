@@ -250,7 +250,7 @@ static double circoverlap(double xmin, double ymin, double xmax, double ymax,
 	return circoverlap_core(-xmax, ymin, -xmin, ymax, r);
       else if (0. >= ymax)
 	return circoverlap_core(-xmax, -ymax, -xmin, -ymin, r);
-      else:
+      else
 	return (circoverlap(xmin, ymin, xmax, 0., r) +
                 circoverlap(xmin, 0., xmax, ymax, r));
     }
@@ -364,19 +364,23 @@ int sep_apercirc(void *data, void *error, void *mask,
 	  dy = iy - y;
 	  if ((rpix2=dx*dx+dy*dy) < rout2)
 	    {
-	      if (rpix2 > rin2)
-		/* might be partially in the aperture; calculate overlap */
+	      if (rpix2 > rin2)  /* might be partially in aperture */
 		{
-		  dx += offset;
-		  dy += offset;
-		  overlap = 0.0;
-		  for (sy=subpix; sy--; dy+=scale)
+		  if (subpix == 0)
+		    overlap = circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r);
+		  else
 		    {
-		      dx1 = dx;
-		      dy2 = dy*dy;
-		      for (sx=subpix; sx--; dx1+=scale)
-			if (dx1*dx1 + dy2 < r2)
-			  overlap += scale2;
+		      dx += offset;
+		      dy += offset;
+		      overlap = 0.0;
+		      for (sy=subpix; sy--; dy+=scale)
+			{
+			  dx1 = dx;
+			  dy2 = dy*dy;
+			  for (sx=subpix; sx--; dx1+=scale)
+			    if (dx1*dx1 + dy2 < r2)
+			      overlap += scale2;
+			}
 		    }
 		}
 	      else
