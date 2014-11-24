@@ -29,9 +29,12 @@
 #include "sep.h"
 #include "sepcore.h"
 
+/*****************************************************************************/
+/* Convenience functions for aperture functions */
+
 typedef struct
 {
-  void *image;
+  void *data;
   void *error;
   void *mask;
   converter convert;
@@ -44,13 +47,13 @@ typedef struct
   short errisstd;
 } sepimage;
 
-inline int get_image_info(void *image, void *error, void *mask,
+inline int get_image_info(void *data, void *error, void *mask,
 			  int dtype, int edtype, int mdtype,
 			  short inflag, sepimage *sepim)
 {
   int status = 0;
 
-  sepim->image = image;
+  sepim->data = data;
   sepim->error = error;
   sepim->mask = mask;
   sepim->size = 0;
@@ -138,6 +141,168 @@ inline void boxextent_ellipse(double x, double y,
   boxextent(x, y, dxlim, dylim, w, h, xmin, xmax, ymin, ymax, flag);
 }
 
+/*****************************************************************************/
+/* exact mode subpixel sampling */
+
+/* Return area of a circle arc between (x1, y1) and (x2, y2) with radius r */
+/* reference: http://mathworld.wolfram.com/CircularSegment.html */
+static inline double area_arc(double x1, double y1, double x2, double y2,
+			      double r)
+{
+  double a, theta;
+
+  a = sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+  theta = 2. * asin(0.5 * a / r);
+  return 0.5 * r * r * (theta - sin(theta));
+}
+
+/* Area of a triangle defined by three verticies */
+static inline double area_triangle(double x1, double y1, double x2, double y2,
+				   double x3, double y3)
+{
+  return 0.5 * fabs(x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2));
+}
+
+/* Core of circular overlap routine.
+ * Assumes that xmax >= xmin >= 0.0, ymax >= ymin >= 0.0.
+ * (can always modify input to conform to this).
+ */
+static inline double circoverlap_core(double xmin, double ymin,
+				      double xmax, double ymax, double r)
+{
+  double a, b, x1, x2, y1, y2, r2, xmin2, ymin2, xmax2, ymax2;
+
+  xmin2 = xmin*xmin;
+  ymin2 = ymin*ymin;
+  r2 = r*r;
+  if (xmin2 + ymin2 > r2)
+    return 0.;
+
+  xmax2 = xmax*xmax;
+  ymax2 = ymax*ymax;
+  if (xmax2 + ymax2 < r2)
+    return (xmax-xmin)*(ymax-ymin);
+
+  a = xmax2 + ymin2;  /* (corner 1 distance)^2 */
+  b = xmin2 + ymax2;  /* (corner 2 distance)^2 */
+
+  if (a < r2 && b < r2)
+    {
+      x1 = sqrt(r2 - ymax2);
+      y1 = ymax;
+      x2 = xmax;
+      y2 = sqrt(r2 - xmax2);
+      return ((xmax-xmin)*(ymax-ymin) -
+	      area_triangle(x1, y1, x2, y2, xmax, ymax) +
+	      area_arc(x1, y1, x2, y2, r));
+    }
+
+  if (a < r2)
+    {
+      x1 = xmin;
+      y1 = sqrt(r2 - xmin2);
+      x2 = xmax;
+      y2 = sqrt(r2 - xmax2);
+      return (area_arc(x1, y1, x2, y2, r) +
+	      area_triangle(x1, y1, x1, ymin, xmax, ymin) +
+	      area_triangle(x1, y1, x2, ymin, x2, y2));
+    }
+
+  if (b < r2)
+    {
+      x1 = sqrt(r2 - ymin2);
+      y1 = ymin;
+      x2 = sqrt(r2 - ymax2);
+      y2 = ymax;
+      return (area_arc(x1, y1, x2, y2, r) +
+	      area_triangle(x1, y1, xmin, y1, xmin, ymax) +
+	      area_triangle(x1, y1, xmin, y2, x2, y2));
+    }
+
+  /* else */
+  x1 = sqrt(r2 - ymin2);
+  y1 = ymin;
+  x2 = xmin;
+  y2 = sqrt(r2 - xmin2);
+  return (area_arc(x1, y1, x2, y2, r) +
+	  area_triangle(x1, y1, x2, y2, xmin, ymin));
+}
+
+
+
+/* Area of overlap of a rectangle and a circle */
+static double circoverlap(double xmin, double ymin, double xmax, double ymax,
+			  double r)
+{
+  if (0. <= xmin)
+    {
+      if (0. <= ymin)
+	return circoverlap_core(xmin, ymin, xmax, ymax, r);
+      else if (0. >= ymax)
+	return circoverlap_core(-ymax, xmin, -ymin, xmax, r);
+      else
+	return (circoverlap(xmin, ymin, xmax, 0., r) +
+                circoverlap(xmin, 0., xmax, ymax, r));
+    }
+  else if (0. >= xmax)
+    {
+      if (0. <= ymin)
+	return circoverlap_core(-xmax, ymin, -xmin, ymax, r);
+      else if (0. >= ymax)
+	return circoverlap_core(-xmax, -ymax, -xmin, -ymin, r);
+      else:
+	return (circoverlap(xmin, ymin, xmax, 0., r) +
+                circoverlap(xmin, 0., xmax, ymax, r));
+    }
+  else
+    {
+      if (0. <= ymin)
+	return (circoverlap(xmin, ymin, 0., ymax, r) +
+                circoverlap(0., ymin, xmax, ymax, r));
+      if (0. >= ymax)
+	return (circoverlap(xmin, ymin, 0., ymax, r) +
+                circoverlap(0., ymin, xmax, ymax, r));
+      else
+	return (circoverlap(xmin, ymin, 0., 0., r) +
+                circoverlap(0., ymin, xmax, 0., r) +
+                circoverlap(xmin, 0., 0., ymax, r) +
+                circoverlap(0., 0., xmax, ymax, r));
+    }
+}
+
+/*
+Start of new circular overlap routine that might be faster.
+
+double circoverlap_new(double dx, double dy, double r)
+{
+  double xmin, xmax, ymin, ymax, xmin2, xmax2, ymin2, ymax2, r2;
+
+  if (dx < 0.)
+    dx = -dx;
+  if (dy < 0.)
+    dy = -dy;
+  if (dy > dx)
+    {
+      r2 = dy;
+      dy = dx;
+      dx = r2;
+    }
+
+  xmax = dx + 0.5;
+  ymax = dy + 0.5;
+  xmax2 = xmax*xmax;
+  ymax2 = ymax*ymax;
+  r2 = r*r;
+
+  if (xmax2 + ymax2 < r2)
+    return 1.;
+
+  xmin2 = xmin*xmin;
+  if (xmin2 +
+}
+*/
+
+/*****************************************************************************/
 
 int sep_apercirc(void *data, void *error, void *mask,
 		 int dtype, int edtype, int mdtype, int w, int h,
