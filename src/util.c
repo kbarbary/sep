@@ -267,6 +267,8 @@ void sep_get_errmsg(int status, char *errtext)
     case ILLEGAL_DTYPE:
       strcpy(errtext, "dtype not recognized or unsupported");
       break;
+    case ILLEGAL_SUBPIX:
+      strcpy(errtext, "subpix value must be nonnegative");
     default:
        strcpy(errtext, "unknown error status");
        break;

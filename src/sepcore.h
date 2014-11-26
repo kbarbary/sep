@@ -24,6 +24,7 @@
 #define MEMORY_ALLOC_ERROR 1
 #define SEP_INTERNAL_ERROR 2
 #define ILLEGAL_DTYPE      3
+#define ILLEGAL_SUBPIX     4
 
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
 #define	PI  3.1415926535898

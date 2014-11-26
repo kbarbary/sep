@@ -28,74 +28,16 @@
 #include <string.h>
 #include "sep.h"
 #include "sepcore.h"
+#include "overlap.h"
 
 /*****************************************************************************/
-/* Convenience functions for aperture functions */
-
-typedef struct
-{
-  void *data;
-  void *error;
-  void *mask;
-  converter convert;
-  converter econvert;
-  converter mconvert;
-  int size;
-  int esize;
-  int msize;
-  short errisarray;
-  short errisstd;
-} sepimage;
-
-inline int get_image_info(void *data, void *error, void *mask,
-			  int dtype, int edtype, int mdtype,
-			  short inflag, sepimage *sepim)
-{
-  int status = 0;
-
-  sepim->data = data;
-  sepim->error = error;
-  sepim->mask = mask;
-  sepim->size = 0;
-  sepim->esize = 0;
-  sepim->msize = 0;
-
-  /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &(sepim->convert), &(sepim->size))))
-    return status;
-  if (error)
-    if ((status = get_converter(edtype, &(sepim->econvert), &(sepim->esize))))
-      return status;
-  if (mask)
-    if ((status = get_converter(mdtype, &(sepim->mconvert), &(sepim->msize))))
-      return status;
-
-  /* get options for how to interpret error array and
-   * how to treat masked pixels.
-   */
-  sepim->errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    sepim->errisarray = 0;  /* in case user set flag but error is NULL */
-  sepim->errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  return status;
-}
-
-
-inline void update_var(sepimage *sepim, void *errort, PIXTYPE *var)
-{
-  *var = sepim->econvert(errort);
-  if (sepim->errisstd)
-    *var *= *var;
-}
-  
+/* Helper functions for aperture functions */
 
 /* determine the extent of the box that just contains the circle with
  * parameters x, y, r. xmin is inclusive and xmax is exclusive.
  * Ensures that box is within image bound and sets a flag if it is not.
  */
-
-inline void boxextent(double x, double y, double rx, double ry, int w, int h,
+static void boxextent(double x, double y, double rx, double ry, int w, int h,
 		      int *xmin, int *xmax, int *ymin, int *ymax,
 		      short *flag)
 {
@@ -126,7 +68,7 @@ inline void boxextent(double x, double y, double rx, double ry, int w, int h,
 }
 
 
-inline void boxextent_ellipse(double x, double y,
+static void boxextent_ellipse(double x, double y,
 			      double cxx, double cyy, double cxy, double r,
 			      int w, int h,
 			      int *xmin, int *xmax, int *ymin, int *ymax,
@@ -142,167 +84,6 @@ inline void boxextent_ellipse(double x, double y,
 }
 
 /*****************************************************************************/
-/* exact mode subpixel sampling */
-
-/* Return area of a circle arc between (x1, y1) and (x2, y2) with radius r */
-/* reference: http://mathworld.wolfram.com/CircularSegment.html */
-static inline double area_arc(double x1, double y1, double x2, double y2,
-			      double r)
-{
-  double a, theta;
-
-  a = sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
-  theta = 2. * asin(0.5 * a / r);
-  return 0.5 * r * r * (theta - sin(theta));
-}
-
-/* Area of a triangle defined by three verticies */
-static inline double area_triangle(double x1, double y1, double x2, double y2,
-				   double x3, double y3)
-{
-  return 0.5 * fabs(x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2));
-}
-
-/* Core of circular overlap routine.
- * Assumes that xmax >= xmin >= 0.0, ymax >= ymin >= 0.0.
- * (can always modify input to conform to this).
- */
-static inline double circoverlap_core(double xmin, double ymin,
-				      double xmax, double ymax, double r)
-{
-  double a, b, x1, x2, y1, y2, r2, xmin2, ymin2, xmax2, ymax2;
-
-  xmin2 = xmin*xmin;
-  ymin2 = ymin*ymin;
-  r2 = r*r;
-  if (xmin2 + ymin2 > r2)
-    return 0.;
-
-  xmax2 = xmax*xmax;
-  ymax2 = ymax*ymax;
-  if (xmax2 + ymax2 < r2)
-    return (xmax-xmin)*(ymax-ymin);
-
-  a = xmax2 + ymin2;  /* (corner 1 distance)^2 */
-  b = xmin2 + ymax2;  /* (corner 2 distance)^2 */
-
-  if (a < r2 && b < r2)
-    {
-      x1 = sqrt(r2 - ymax2);
-      y1 = ymax;
-      x2 = xmax;
-      y2 = sqrt(r2 - xmax2);
-      return ((xmax-xmin)*(ymax-ymin) -
-	      area_triangle(x1, y1, x2, y2, xmax, ymax) +
-	      area_arc(x1, y1, x2, y2, r));
-    }
-
-  if (a < r2)
-    {
-      x1 = xmin;
-      y1 = sqrt(r2 - xmin2);
-      x2 = xmax;
-      y2 = sqrt(r2 - xmax2);
-      return (area_arc(x1, y1, x2, y2, r) +
-	      area_triangle(x1, y1, x1, ymin, xmax, ymin) +
-	      area_triangle(x1, y1, x2, ymin, x2, y2));
-    }
-
-  if (b < r2)
-    {
-      x1 = sqrt(r2 - ymin2);
-      y1 = ymin;
-      x2 = sqrt(r2 - ymax2);
-      y2 = ymax;
-      return (area_arc(x1, y1, x2, y2, r) +
-	      area_triangle(x1, y1, xmin, y1, xmin, ymax) +
-	      area_triangle(x1, y1, xmin, y2, x2, y2));
-    }
-
-  /* else */
-  x1 = sqrt(r2 - ymin2);
-  y1 = ymin;
-  x2 = xmin;
-  y2 = sqrt(r2 - xmin2);
-  return (area_arc(x1, y1, x2, y2, r) +
-	  area_triangle(x1, y1, x2, y2, xmin, ymin));
-}
-
-
-
-/* Area of overlap of a rectangle and a circle */
-static double circoverlap(double xmin, double ymin, double xmax, double ymax,
-			  double r)
-{
-  if (0. <= xmin)
-    {
-      if (0. <= ymin)
-	return circoverlap_core(xmin, ymin, xmax, ymax, r);
-      else if (0. >= ymax)
-	return circoverlap_core(-ymax, xmin, -ymin, xmax, r);
-      else
-	return (circoverlap(xmin, ymin, xmax, 0., r) +
-                circoverlap(xmin, 0., xmax, ymax, r));
-    }
-  else if (0. >= xmax)
-    {
-      if (0. <= ymin)
-	return circoverlap_core(-xmax, ymin, -xmin, ymax, r);
-      else if (0. >= ymax)
-	return circoverlap_core(-xmax, -ymax, -xmin, -ymin, r);
-      else
-	return (circoverlap(xmin, ymin, xmax, 0., r) +
-                circoverlap(xmin, 0., xmax, ymax, r));
-    }
-  else
-    {
-      if (0. <= ymin)
-	return (circoverlap(xmin, ymin, 0., ymax, r) +
-                circoverlap(0., ymin, xmax, ymax, r));
-      if (0. >= ymax)
-	return (circoverlap(xmin, ymin, 0., ymax, r) +
-                circoverlap(0., ymin, xmax, ymax, r));
-      else
-	return (circoverlap(xmin, ymin, 0., 0., r) +
-                circoverlap(0., ymin, xmax, 0., r) +
-                circoverlap(xmin, 0., 0., ymax, r) +
-                circoverlap(0., 0., xmax, ymax, r));
-    }
-}
-
-/*
-Start of new circular overlap routine that might be faster.
-
-double circoverlap_new(double dx, double dy, double r)
-{
-  double xmin, xmax, ymin, ymax, xmin2, xmax2, ymin2, ymax2, r2;
-
-  if (dx < 0.)
-    dx = -dx;
-  if (dy < 0.)
-    dy = -dy;
-  if (dy > dx)
-    {
-      r2 = dy;
-      dy = dx;
-      dx = r2;
-    }
-
-  xmax = dx + 0.5;
-  ymax = dy + 0.5;
-  xmax2 = xmax*xmax;
-  ymax2 = ymax*ymax;
-  r2 = r*r;
-
-  if (xmax2 + ymax2 < r2)
-    return 1.;
-
-  xmin2 = xmin*xmin;
-  if (xmin2 +
-}
-*/
-
-/*****************************************************************************/
 
 int sep_apercirc(void *data, void *error, void *mask,
 		 int dtype, int edtype, int mdtype, int w, int h,
@@ -313,10 +94,11 @@ int sep_apercirc(void *data, void *error, void *mask,
   float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
   float scale, scale2, pix, varpix, tmp;
   double tv, sigtv, totarea, maskarea;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
+  short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
-  sepimage sepim;
+  converter convert, econvert, mconvert;
 
   /* initializations */
   tv = sigtv = 0.0;
@@ -324,24 +106,42 @@ int sep_apercirc(void *data, void *error, void *mask,
   datat = maskt = NULL;
   errort = error;
   *flag = 0;
-  r2 = r*r;
   varpix = 0.0;
   scale = 1.0/subpix;
   scale2 = scale*scale;
   offset = 0.5*(scale-1.0);
-  rin = r - 0.7072;  /* Internal radius of oversampled annulus */
-  rout = r + 0.7072;  /* external radius of oversampled annulus */
+  r2 = r*r;
+
+  /* oversampled annulus */
+  rin = r - 0.7072;
+  rout = r + 0.7072;
   rin2 = (rin>0.0)? rin*rin: 0.0;
   rout2 = rout*rout;
 
-  /* get image info */
-  if ((status = get_image_info(data, error, mask, dtype, edtype, mdtype,
-			       inflag, &sepim)))
+  if (subpix < 0)
+    return ILLEGAL_SUBPIX;
+
+  /* get data converter(s) for input array(s) */
+  if ((status = get_converter(dtype, &convert, &size)))
+    return status;
+  if (error && (status = get_converter(edtype, &econvert, &esize)))
+    return status;
+  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
     return status;
 
-  /* set varpix once if error is not an array */
-  if (error && !sepim.errisarray)
-    update_var(&sepim, error, &varpix);
+  /* get options */
+  errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    errisarray = 0; /* in case user set flag but error is NULL */
+  errisstd = !(inflag & SEP_ERROR_IS_VAR);
+
+  /* If error exists and is scalar, set the pixel variance now */
+  if (error && !errisarray)
+    {
+      varpix = econvert(errort);
+      if (errisstd)
+	varpix *= varpix;
+    }
 
   /* get extent of box */
   boxextent(x, y, r, r, w, h, &xmin, &xmax, &ymin, &ymax, flag);
@@ -351,11 +151,11 @@ int sep_apercirc(void *data, void *error, void *mask,
     {
       /* set pointers to the start of this row */
       pos = (iy%h) * w + xmin;
-      datat = data + pos*sepim.size;
-      if (sepim.errisarray)
-	errort = error + pos*sepim.esize;
+      datat = data + pos*size;
+      if (errisarray)
+	errort = error + pos*esize;
       if (mask)
-	maskt = mask + pos*sepim.msize;
+	maskt = mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -387,12 +187,16 @@ int sep_apercirc(void *data, void *error, void *mask,
 		/* definitely fully in aperture */
 		overlap = 1.0;
 	      
-	      pix = sepim.convert(datat);
+	      pix = convert(datat);
 
-	      if (sepim.errisarray)
-		update_var(&sepim, errort, &varpix);
+	      if (errisarray)
+		{
+		  varpix = econvert(errort);
+		  if (errisstd)
+		    varpix *= varpix;
+		}
 
-	      if (mask && (sepim.mconvert(maskt) > maskthresh))
+	      if (mask && (mconvert(maskt) > maskthresh))
 		{ 
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;
@@ -408,10 +212,10 @@ int sep_apercirc(void *data, void *error, void *mask,
 	    } /* closes "if pixel within rout" */
 	  
 	  /* increment pointers by one element */
-	  datat += sepim.size;
-	  if (sepim.errisarray)
-	    errort += sepim.esize;
-	  maskt += sepim.msize;
+	  datat += size;
+	  if (errisarray)
+	    errort += esize;
+	  maskt += msize;
 	}
     }
 
@@ -451,7 +255,7 @@ int sep_apercircann(void *data, void *error, void *mask,
   double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  short errisarray, errisstd, maskignore;
+  short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
 
@@ -481,6 +285,9 @@ int sep_apercircann(void *data, void *error, void *mask,
   routin2 = (routin>0.0)? routin*routin: 0.0;
   routout2 = routout*routout;
 
+  if (subpix < 0)
+    return ILLEGAL_SUBPIX;
+
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))
     return status;
@@ -494,7 +301,6 @@ int sep_apercircann(void *data, void *error, void *mask,
   if (!error)
     errisarray = 0; /* in case user set flag but error is NULL */
   errisstd = !(inflag & SEP_ERROR_IS_VAR);
-  maskignore = inflag & SEP_MASK_IGNORE;
 
   /* If error exists and is scalar, set the pixel variance now */
   if (error && !errisarray)
@@ -531,18 +337,26 @@ int sep_apercircann(void *data, void *error, void *mask,
                  annulus */
 	      if ((rpix2 > routin2) || (rpix2 < rinout2))
 		{
-		  dx += offset;
-		  dy += offset;
-		  overlap = 0.0;
-		  for (sy=subpix; sy--; dy+=scale)
+		  if (subpix == 0)
+		    overlap = (circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
+					   rout) -
+			       circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
+					   rin));
+		  else
 		    {
-		      dx1 = dx;
-		      dy2 = dy*dy;
-		      for (sx=subpix; sx--; dx1+=scale)
+		      dx += offset;
+		      dy += offset;
+		      overlap = 0.0;
+		      for (sy=subpix; sy--; dy+=scale)
 			{
-			  rpix2 = dx1*dx1 + dy2;
-			  if ((rpix2 < rout2) && (rpix2 > rin2))
-			    overlap += scale2;
+			  dx1 = dx;
+			  dy2 = dy*dy;
+			  for (sx=subpix; sx--; dx1+=scale)
+			    {
+			      rpix2 = dx1*dx1 + dy2;
+			      if ((rpix2 < rout2) && (rpix2 > rin2))
+				overlap += scale2;
+			    }
 			}
 		    }
 		}
@@ -597,7 +411,7 @@ int sep_apercircann(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      if (maskignore)
+      if (inflag & SEP_MASK_IGNORE)
 	totarea = okarea;
       else
 	{
@@ -629,7 +443,7 @@ int sep_aperellip(void *data, void *error, void *mask,
   double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  short errisarray, errisstd, maskignore;
+  short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
 
@@ -663,7 +477,6 @@ int sep_aperellip(void *data, void *error, void *mask,
   if (!error)
     errisarray = 0;  /* in case user set flag but error is NULL */
   errisstd = !(inflag & SEP_ERROR_IS_VAR);
-  maskignore = inflag & SEP_MASK_IGNORE;
 
   /* If error exists and is scalar, set the pixel variance now */
   if (error && !errisarray)
@@ -761,7 +574,7 @@ int sep_aperellip(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      if (maskignore)
+      if (inflag & SEP_MASK_IGNORE)
 	totarea = okarea;
       else
 	{
@@ -794,7 +607,7 @@ int sep_aperellipann(void *data, void *error, void *mask,
   double tv, sigtv, okarea, totarea;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
-  short errisarray, errisstd, maskignore;
+  short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
 
@@ -837,7 +650,6 @@ int sep_aperellipann(void *data, void *error, void *mask,
   if (!error)
     errisarray = 0; /* in case user set flag but error is NULL */
   errisstd = !(inflag & SEP_ERROR_IS_VAR);
-  maskignore = inflag & SEP_MASK_IGNORE;
 
   /* If error exists and is scalar, set the pixel variance now */
   if (error && !errisarray)
@@ -941,7 +753,7 @@ int sep_aperellipann(void *data, void *error, void *mask,
   /* correct for masked values */
   if (mask)
     {
-      if (maskignore)
+      if (inflag & SEP_MASK_IGNORE)
 	totarea = okarea;
       else
 	{
