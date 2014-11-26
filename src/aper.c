@@ -464,6 +464,9 @@ int sep_aperellip(void *data, void *error, void *mask,
   rin2 = (rin>0.0)? rin*rin: 0.0;
   rout2 = rout*rout;
 
+  if (subpix < 1)
+    return ILLEGAL_SUBPIX;
+
   /* get converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))
     return status;
@@ -636,6 +639,9 @@ int sep_aperellipann(void *data, void *error, void *mask,
   routout = rout + 0.7072;
   routin2 = (routin>0.0)? routin*routin: 0.0;
   routout2 = routout*routout;
+
+  if (subpix < 1)
+    return ILLEGAL_SUBPIX;
 
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))
