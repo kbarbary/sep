@@ -31,7 +31,7 @@ MASK_TYPE        NONE           # type of detection MASKing: can be one of
 #------------------------------ Photometry -----------------------------------
  
 PHOT_APERTURES   10.0           # MAG_APER aperture diameter(s) in pixels
-PHOT_AUTOPARAMS  2.5, 3.5       # MAG_AUTO parameters: <Kron_fact>,<min_radius>
+PHOT_AUTOPARAMS  2.5, 0.0       # MAG_AUTO parameters: <Kron_fact>,<min_radius>
 PHOT_PETROPARAMS 2.0, 3.5       # MAG_PETRO parameters: <Petrosian_fact>,
                                 # <min_radius>
  

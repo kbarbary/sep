@@ -14,7 +14,10 @@ try:
     NO_FITS = False
 except:
     try:
-        from astropy.io.fits import getdata
+        from astropy.io.fits import getdata as _getdata
+        def getdata(path):
+            data = _getdata(path)
+            return data.byteswap(True).newbyteorder()
         NO_FITS = False
     except:
         NO_FITS = True
@@ -25,8 +28,11 @@ IMAGECAT_FNAME = os.path.join("data", "image.cat")
 IMAGECAT_DTYPE = [('number', np.int64),
                   ('x', np.float64),
                   ('y', np.float64),
-                  ('flux', np.float64),
-                  ('fluxerr', np.float64),
+                  ('flux_aper', np.float64),
+                  ('fluxerr_aper', np.float64),
+                  ('kron_radius', np.float64),
+                  ('flux_auto', np.float64),
+                  ('fluxerr_auto', np.float64),
                   ('flags', np.int64)]
 IMAGE_DTYPES = [np.float64, np.float32, np.int32]  # supported image dtypes
 
@@ -67,20 +73,27 @@ def test_vs_sextractor():
     assert_allclose(objects['x'], refobjects['x'] - 1., atol=1.e-3)
     assert_allclose(objects['y'], refobjects['y'] - 1., atol=1.e-3)
 
-    # Test flux
+    # Test aperture flux
     flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 5.,
                                        err=bkg.globalrms)
-    assert_allclose(flux, refobjects['flux'], rtol=2.e-4)
-    assert_allclose(fluxerr, refobjects['fluxerr'], rtol=1.0e-5)
+    assert_allclose(flux, refobjects['flux_aper'], rtol=2.e-4)
+    assert_allclose(fluxerr, refobjects['fluxerr_aper'], rtol=1.0e-5)
 
+    # check if the flag functions work at all
     assert sep.istruncated(flag).sum() == 4
     assert sep.hasmasked(flag).sum() == 0
 
-    # Test kron radius
-    kr, flags = sep.kronrad(data, objects['x'], objects['y'], objects['cxx'],
-                            objects['cyy'], objects['cxy'], 6.0)
-    print(kr)
-    print(flags)
+    # Test "flux_auto"
+    kr, flag = sep.kronrad(data, objects['x'], objects['y'], objects['cxx'],
+                           objects['cyy'], objects['cxy'], 6.0)
+
+    flux, fluxerr, flag = sep.aperellip(data, objects['x'], objects['y'],
+                                        objects['cxx'], objects['cyy'],
+                                        objects['cxy'], kr * 2.5, subpix=1)
+    for i in range(len(objects)):
+        print(refobjects[i]['x'], refobjects[i]['y'], kr[i], refobjects[i]['kron_radius']/2.5,
+              flux[i], refobjects[i]['flux_auto'],
+              flux[i]/ refobjects[i]['flux_auto'], flag[i], objects[i]['flag'])
 
 
 def test_extract_noise_array():
@@ -137,11 +150,11 @@ def test_mask_ellipse():
     arr = np.zeros((20, 20), dtype=np.bool)
 
     # should mask 5 pixels:
-    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=1.001)
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, r=1.001)
     assert arr.sum() == 5
 
     # should mask 13 pixels:
-    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=2.001)
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, r=2.001)
     assert arr.sum() == 13
 
 
