@@ -14,10 +14,7 @@ try:
     NO_FITS = False
 except:
     try:
-        from astropy.io.fits import getdata as _getdata
-        def getdata(path):
-            data = _getdata(path)
-            return data.byteswap(True).newbyteorder()
+        from astropy.io.fits import getdata
         NO_FITS = False
     except:
         NO_FITS = True

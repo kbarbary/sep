@@ -20,10 +20,7 @@ try:
     NEED_BYTESWAP = False
 except:
     try:
-        from astropy.io.fits import getdata as _getdata
-        def getdata(path):
-            data = _getdata(path)
-            return data.byteswap(True).newbyteorder()
+        from astropy.io.fits import getdata
         HAVE_FITS = True
     except:
         HAVE_FITS = False
