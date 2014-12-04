@@ -258,6 +258,11 @@ void sep_setellip_uc(unsigned char *arr, int w, int h,
  * Ellipse: cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = r^2  
  */
 
+int sep_ellipse_axes(double cxx, double cyy, double cxy,
+		     double *a, double *b, double *theta);
+void sep_ellipse_coeffs(double a, double b, double theta,
+			double *cxx, double *cyy, double *cxy);
+
 /*----------------------- info & error messaging ----------------------------*/
 
 extern char *sep_version_string;

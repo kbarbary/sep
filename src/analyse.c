@@ -266,7 +266,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   obj->mxy = xym;
   obj->a = (float)sqrt(pmx2);
   obj->b = (float)sqrt(pmy2);
-  obj->theta = theta*180.0/PI;
+  obj->theta = theta;
   
   obj->cxx = (float)(ym2/temp2);
   obj->cyy = (float)(xm2/temp2);

@@ -30,6 +30,55 @@
 #include "sepcore.h"
 #include "overlap.h"
 
+/****************************************************************************/
+/* conversions between ellipse representations */
+
+/* return ellipse semi-major and semi-minor axes and position angle, given
+   representation: cxx*x^2 + cyy*y^2 + cxy*x*y = 1
+   derived from http://mathworld.wolfram.com/Ellipse.html
+
+   Input requirements:
+   cxx*cyy - cxy*cxy/4. > 0.
+   cxx + cyy > 0.
+*/
+int sep_ellipse_axes(double cxx, double cyy, double cxy,
+                     double *a, double *b, double *theta)
+{
+  double p, q, t;
+
+  p = cxx + cyy;
+  q = cxx - cyy;
+  t = sqrt(q*q + cxy*cxy);
+
+  /* Ensure that parameters actually describe an ellipse. */
+  if ((cxx*cyy - cxy*cxy/4. <= 0.) || (p <= 0.))
+    return NON_ELLIPSE_PARAMS;
+
+  *a = sqrt(2. / (p - t));
+  *b = sqrt(2. / (p + t));
+
+  *theta = (cxy == 0.) ? 0. : (q == 0. ? 0. : atan(cxy/q))/2.;  /* (1/2) acot(q/cxy) */
+  if (cxx>cyy)
+    *theta += PI/2.;
+  if (*theta > PI/2.)
+    *theta -= PI;
+
+  return RETURN_OK;
+}
+
+void sep_ellipse_coeffs(double a, double b, double theta,
+                        double *cxx, double *cyy, double *cxy)
+{
+  double costheta, sintheta;
+
+  costheta = cos(theta);
+  sintheta = sin(theta);
+
+  *cxx = costheta*costheta/(a*a) + sintheta*sintheta/(b*b);
+  *cyy = sintheta*sintheta/(a*a) + costheta*costheta/(b*b);
+  *cxy = 2.*costheta*sintheta * (1./(a*a) - 1./(b*b));
+}
+
 /*****************************************************************************/
 /* Helper functions for aperture functions */
 
@@ -441,6 +490,7 @@ int sep_aperellip(void *data, void *error, void *mask,
   float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
   float scale, scale2, pix, varpix, tmp;
   double tv, sigtv, okarea, totarea;
+  double a, b, theta;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
   short errisarray, errisstd;
@@ -463,9 +513,19 @@ int sep_aperellip(void *data, void *error, void *mask,
   rout = r + 0.7072;  /* external radius of oversampled annulus */
   rin2 = (rin>0.0)? rin*rin: 0.0;
   rout2 = rout*rout;
+  a = 0.;
+  b = 0.;
+  theta = 0.;
 
-  if (subpix < 1)
+  if (subpix < 0)
     return ILLEGAL_SUBPIX;
+  if (subpix == 0)
+    {
+      if ((status = sep_ellipse_axes(cxx, cyy, cxy, &a, &b, &theta)))
+	return status;
+      a *= r;
+      b *= r;
+    }
 
   /* get converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))
@@ -514,16 +574,22 @@ int sep_aperellip(void *data, void *error, void *mask,
 	      if (rpix2 > rin2)
 		/* might be partially in the aperture; calculate overlap */
 		{
-		  dx += offset;
-		  dy += offset;
-		  overlap = 0.0;
-		  for (sy=subpix; sy--; dy+=scale)
+		  if (subpix == 0)
+		    overlap = ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
+					   a, b, theta);
+		  else
 		    {
-		      dx1 = dx;
-		      dy2 = dy*dy;
-		      for (sx=subpix; sx--; dx1+=scale)
-			if (cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy < r2)
-			  overlap += scale2;
+		      dx += offset;
+		      dy += offset;
+		      overlap = 0.0;
+		      for (sy=subpix; sy--; dy+=scale)
+			{
+			  dx1 = dx;
+			  dy2 = dy*dy;
+			  for (sx=subpix; sx--; dx1+=scale)
+			    if (cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy < r2)
+			      overlap += scale2;
+			}
 		    }
 		}
 	      else

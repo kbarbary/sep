@@ -59,47 +59,64 @@ def test_vs_sextractor():
 
     # Extract objects
     bkg.subfrom(data)
-    objects = sep.extract(data, 1.5*bkg.globalrms)
-    objects = np.sort(objects, order=['y'])
+    objs = sep.extract(data, 1.5*bkg.globalrms)
+    objs = np.sort(objs, order=['y'])
 
     # Read SExtractor result
-    refobjects = np.loadtxt(IMAGECAT_FNAME, dtype=IMAGECAT_DTYPE)
-    refobjects = np.sort(refobjects, order=['y'])
+    refobjs = np.loadtxt(IMAGECAT_FNAME, dtype=IMAGECAT_DTYPE)
+    refobjs = np.sort(refobjs, order=['y'])
 
     # Found correct number of sources at the right locations?
-    assert_allclose(objects['x'], refobjects['x'] - 1., atol=1.e-3)
-    assert_allclose(objects['y'], refobjects['y'] - 1., atol=1.e-3)
+    assert_allclose(objs['x'], refobjs['x'] - 1., atol=1.e-3)
+    assert_allclose(objs['y'], refobjs['y'] - 1., atol=1.e-3)
 
     # Test aperture flux
-    flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 5.,
+    flux, fluxerr, flag = sep.apercirc(data, objs['x'], objs['y'], 5.,
                                        err=bkg.globalrms)
-    assert_allclose(flux, refobjects['flux_aper'], rtol=2.e-4)
-    assert_allclose(fluxerr, refobjects['fluxerr_aper'], rtol=1.0e-5)
+    assert_allclose(flux, refobjs['flux_aper'], rtol=2.e-4)
+    assert_allclose(fluxerr, refobjs['fluxerr_aper'], rtol=1.0e-5)
 
     # check if the flag functions work at all
     assert sep.istruncated(flag).sum() == 4
     assert sep.hasmasked(flag).sum() == 0
 
     # Test "flux_auto"
-    kr, flag = sep.kronrad(data, objects['x'], objects['y'], objects['cxx'],
-                           objects['cyy'], objects['cxy'], 6.0)
+    kr, flag = sep.kronrad(data, objs['x'], objs['y'], objs['cxx'],
+                           objs['cyy'], objs['cxy'], 6.0)
 
-    flux, fluxerr, flag = sep.aperellip(data, objects['x'], objects['y'],
-                                        objects['cxx'], objects['cyy'],
-                                        objects['cxy'], 2.5 * kr,
+    flux, fluxerr, flag = sep.aperellip(data, objs['x'], objs['y'],
+                                        objs['cxx'], objs['cyy'],
+                                        objs['cxy'], 2.5 * kr,
                                         err=bkg.globalrms, subpix=1)
 
     # For some reason, object at index 59 doesn't match. It's very small
     # and kron_radius is set to 0.0 in SExtractor, but 0.08 in sep.
     # Most of the other values are within 1e-4 except one which is only
-    # within 0.01.
+    # within 0.01. This might be due to a change in SExtractor between
+    # v2.8.6 (used to generate truth catalog) and v2.18.11.
     kr[59] = 0.0
     flux[59] = 0.0
     fluxerr[59] = 0.0
-    assert_allclose(2.5*kr, refobjects['kron_radius'], rtol=0.01)
-    assert_allclose(flux, refobjects['flux_auto'], rtol=0.01)
-    assert_allclose(fluxerr, refobjects['fluxerr_auto'], rtol=0.01)
+    assert_allclose(2.5*kr, refobjs['kron_radius'], rtol=0.01)
+    assert_allclose(flux, refobjs['flux_auto'], rtol=0.01)
+    assert_allclose(fluxerr, refobjs['fluxerr_auto'], rtol=0.01)
 
+    # Test ellipse representation conversion
+    cxx, cyy, cxy = sep.ellipse_coeffs(objs['a'], objs['b'], objs['theta'])
+    assert_allclose(cxx, objs['cxx'], rtol=1.e-5)
+    assert_allclose(cyy, objs['cyy'], rtol=1.e-5)
+    assert_allclose(cxy, objs['cxy'], rtol=1.e-5)
+
+    a, b, theta = sep.ellipse_axes(objs['cxx'], objs['cyy'], objs['cxy'])
+    assert_allclose(a, objs['a'], rtol=1.e-5)
+    assert_allclose(b, objs['b'], rtol=1.e-5)
+    assert_allclose(theta, objs['theta'], rtol=1.e-5)
+
+    #test round trip
+    cxx, cyy, cxy = sep.ellipse_coeffs(a, b, theta)
+    assert_allclose(cxx, objs['cxx'], rtol=1.e-5)
+    assert_allclose(cyy, objs['cyy'], rtol=1.e-5)
+    assert_allclose(cxy, objs['cxy'], rtol=1.e-5)
 
 def test_extract_noise_array():
 

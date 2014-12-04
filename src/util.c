@@ -269,6 +269,10 @@ void sep_get_errmsg(int status, char *errtext)
       break;
     case ILLEGAL_SUBPIX:
       strcpy(errtext, "subpix value must be nonnegative");
+      break;
+    case NON_ELLIPSE_PARAMS:
+      strcpy(errtext, "parameters do not describe ellipse");
+      break;
     default:
        strcpy(errtext, "unknown error status");
        break;

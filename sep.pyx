@@ -129,6 +129,11 @@ cdef extern from "sep.h":
                     double cyy, double cxy, double r, double *kronrad,
                     short *flag)
 
+    int sep_ellipse_axes(double cxx, double cyy, double cxy,
+                         double *a, double *b, double *theta)
+    void sep_ellipse_coeffs(double a, double b, double theta,
+                            double *cxx, double *cyy, double *cxy)
+
     void sep_setellip_uc(unsigned char *arr, int w, int h,
                          double x, double y, double cxx, double cyy, double cxy,
                          double r, unsigned char val)
@@ -1383,6 +1388,70 @@ def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
 
     return kr, flag 
 
+def ellipse_coeffs(a, b, theta):
+    """Convert from axes to coefficient ellipse representation."""
+
+    dt = np.dtype(np.double)
+    a = np.require(a, dtype=dt)
+    b = np.require(b, dtype=dt)
+    theta = np.require(theta, dtype=dt)
+
+    shape = np.broadcast(a, b, theta).shape
+    cxx = np.empty(shape, dt)
+    cyy = np.empty(shape, dt)
+    cxy = np.empty(shape, dt)
+
+    it = np.broadcast(a, b, theta, cxx, cyy, cxy)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                           <double*>np.PyArray_MultiIter_DATA(it, 3),
+                           <double*>np.PyArray_MultiIter_DATA(it, 4),
+                           <double*>np.PyArray_MultiIter_DATA(it, 5))
+        np.PyArray_MultiIter_NEXT(it)
+
+    return cxx, cyy, cxy
+
+def ellipse_axes(cxx, cyy, cxy):
+    """Convert from axes to coefficient ellipse representation."""
+
+    cdef int status
+
+    dt = np.dtype(np.double)
+    cxx = np.require(cxx, dtype=dt)
+    cyy = np.require(cyy, dtype=dt)
+    cxy = np.require(cxy, dtype=dt)
+
+    shape = np.broadcast(cxx, cyy, cxy).shape
+    a = np.empty(shape, dt)
+    b = np.empty(shape, dt)
+    theta = np.empty(shape, dt)
+
+    status = 0
+    it = np.broadcast(cxx, cyy, cxy, a, b, theta)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_ellipse_axes(
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+            <double*>np.PyArray_MultiIter_DATA(it, 3),
+            <double*>np.PyArray_MultiIter_DATA(it, 4),
+            <double*>np.PyArray_MultiIter_DATA(it, 5))
+        if status:
+            break
+
+        np.PyArray_MultiIter_NEXT(it)
+
+    if status:
+        raise ValueError(
+            "parameters do not describe ellipse: "
+            "cxx={0:f}, cyy={1:f}, cxy={2:f}".format(
+                (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                (<double*>np.PyArray_MultiIter_DATA(it, 2))[0]))
+
+    return a, b, theta
 
 # -----------------------------------------------------------------------------
 # Utility functions for interpreting flags
