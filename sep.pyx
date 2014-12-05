@@ -98,29 +98,29 @@ cdef extern from "sep.h":
 
     void sep_freeobjarray(sepobj *objects, int nobj)
 
-    int sep_apercirc(void *data, void *error, void *mask,
-                     int dtype, int edtype, int mdtype, int w, int h,
-                     double maskthresh, double gain, short inflags,
-                     double x, double y, double r, int subpix,
-                     double *sum, double *sumerr, double *area, short *flag)
+    int sep_sum_circle(void *data, void *error, void *mask,
+                       int dtype, int edtype, int mdtype, int w, int h,
+                       double maskthresh, double gain, short inflags,
+                       double x, double y, double r, int subpix,
+                       double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_apercircann(void *data, void *error, void *mask,
+    int sep_sum_circann(void *data, void *error, void *mask,
                         int dtype, int edtype, int mdtype, int w, int h,
                         double maskthresh, double gain, short inflags,
                         double x, double y, double rin, double rout, int subpix,
                         double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_aperellip(void *data, void *error, void *mask,
-                      int dtype, int edtype, int mdtype, int w, int h,
-                      double maskthresh, double gain, short inflag,
-                      double x, double y, double cxx, double cyy, double cxy,
-                      double r, int subpix,
-                      double *sum, double *sumerr, double *area, short *flag)
+    int sep_sum_ellipse(void *data, void *error, void *mask,
+                        int dtype, int edtype, int mdtype, int w, int h,
+                        double maskthresh, double gain, short inflag,
+                        double x, double y, double a, double b, double theta,
+                        double r, int subpix,
+                        double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_aperellipann(void *data, void *error, void *mask,
+    int sep_sum_ellipann(void *data, void *error, void *mask,
                          int dtype, int edtype, int mdtype, int w, int h,
                          double maskthresh, double gain, short inflag,
-                         double x, double y, double cxx, double cyy, double cxy,
+                         double x, double y, double a, double b, double theta,
                          double rin, double rout, int subpix,
                          double *sum, double *sumerr, double *area, short *flag)
 
@@ -621,11 +621,11 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def apercirc(np.ndarray data not None, x, y, r,
-             var=None, err=None, gain=None, np.ndarray mask=None,
-             double maskthresh=0.0, bkgann=None, int subpix=5):
-    """apercirc(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
-                bkgann=None, gain=None, subpix=5)
+def sum_circle(np.ndarray data not None, x, y, r,
+               var=None, err=None, gain=None, np.ndarray mask=None,
+               double maskthresh=0.0, bkgann=None, int subpix=5):
+    """sum_circle(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
+                  bkgann=None, gain=None, subpix=5)
 
     Sum data in circular apertures.
 
@@ -716,21 +716,22 @@ def apercirc(np.ndarray data not None, x, y, r,
     # is not clear to me at this time.
     #
     # docs.scipy.org/doc/numpy/reference/c-api.iterator.html#NpyIter_MultiNew
-    x = np.require(x, dtype=np.float)
-    y = np.require(y, dtype=np.float)
-    r = np.require(r, dtype=np.float)
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    r = np.require(r, dtype=dt)
 
     if bkgann is None:
 
         # allocate ouput arrays
         shape = np.broadcast(x, y, r).shape
-        sum = np.empty(shape, np.float)
-        sumerr = np.empty(shape, np.float)
+        sum = np.empty(shape, dt)
+        sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
         it = np.broadcast(x, y, r, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
-            status = sep_apercirc(
+            status = sep_sum_circle(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -752,18 +753,18 @@ def apercirc(np.ndarray data not None, x, y, r,
         rin, rout = bkgann
 
         # Require float arrays (see note above)
-        rin = np.require(rin, dtype=np.float)
-        rout = np.require(rout, dtype=np.float)
+        rin = np.require(rin, dtype=dt)
+        rout = np.require(rout, dtype=dt)
 
         # allocate ouput arrays
         shape = np.broadcast(x, y, r, rin, rout).shape
-        sum = np.empty(shape, np.float)
-        sumerr = np.empty(shape, np.float)
+        sum = np.empty(shape, dt)
+        sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
         it = np.broadcast(x, y, r, rin, rout, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
-            status = sep_apercirc(
+            status = sep_sum_circle(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -774,7 +775,7 @@ def apercirc(np.ndarray data not None, x, y, r,
                 
             # background subtraction
             # Note that background output flags are not used.
-            status = sep_apercircann(
+            status = sep_sum_circann(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag | SEP_MASK_IGNORE,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -797,10 +798,10 @@ def apercirc(np.ndarray data not None, x, y, r,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def apercircann(np.ndarray data not None, x, y, rin, rout,
+def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
                 double maskthresh=0.0, int subpix=5):
-    """apercircann(data, x, y, rin, rout, err=None, var=None, mask=None,
+    """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
                    maskthresh=0.0, gain=None, subpix=5)
 
     Sum data in circular annular aperture(s).
@@ -877,22 +878,23 @@ def apercircann(np.ndarray data not None, x, y, rin, rout,
         gain_ = gain
 
     # convert inputs to double arrays
-    x = np.require(x, dtype=np.float)
-    y = np.require(y, dtype=np.float)
-    rin = np.require(rin, dtype=np.float)
-    rout = np.require(rout, dtype=np.float)
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    rin = np.require(rin, dtype=dt)
+    rout = np.require(rout, dtype=dt)
 
     # allocate ouput arrays
     shape = np.broadcast(x, y, rin, rout).shape
-    sum = np.empty(shape, np.float)
-    sumerr = np.empty(shape, np.float)
+    sum = np.empty(shape, dt)
+    sumerr = np.empty(shape, dt)
     flag = np.empty(shape, np.short)
 
     # broadcasting iterator over x, y, r
     it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
 
     while np.PyArray_MultiIter_NOTDONE(it):
-        status = sep_apercircann(
+        status = sep_sum_circann(
             ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
             maskthresh, gain_, inflag,
             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -911,13 +913,13 @@ def apercircann(np.ndarray data not None, x, y, rin, rout,
     return sum, sumerr, flag
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
-              var=None, err=None, gain=None, np.ndarray mask=None,
-              double maskthresh=0.0, bkgann=None, int subpix=5):
-    """aperellip(data, x, y, cxx, cyy, cxy, r, err=None, var=None, mask=None,
-                 maskthresh=0.0, bkgann=None, gain=None, subpix=5)
+#@cython.boundscheck(False)
+#@cython.wraparound(False)
+def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
+                var=None, err=None, gain=None, np.ndarray mask=None,
+                double maskthresh=0.0, bkgann=None, int subpix=5):
+    """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
+                   maskthresh=0.0, bkgann=None, gain=None, subpix=5)
 
     Sum data in elliptical apertures.
 
@@ -933,9 +935,12 @@ def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
         element of the array. These inputs obey numpy broadcasting rules.
 
-    cxx, cyy, cxy, r : array_like
-        Ellipse parameters. These inputs, along with ``x`` and ``y``,
+    a, b, theta : array_like
+        Ellipse parameters. These inputs, along with ``x``, ``y``, and ``r``,
         obey numpy broadcasting rules.
+
+    r : array_like, optional
+        Scaling factor for the ellipse. Default is 1.0.
 
     err, var : float or ndarray
         Error *or* variance (specify at most one).
@@ -1005,24 +1010,25 @@ def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         gain_ = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
-    x = np.require(x, dtype=np.float)
-    y = np.require(y, dtype=np.float)
-    cxx = np.require(cxx, dtype=np.float)
-    cyy = np.require(cyy, dtype=np.float)
-    cxy = np.require(cxy, dtype=np.float)
-    r = np.require(r, dtype=np.float)
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    a = np.require(a, dtype=dt)
+    b = np.require(b, dtype=dt)
+    theta = np.require(theta, dtype=dt)
+    r = np.require(r, dtype=dt)
 
     if bkgann is None:
 
         # allocate ouput arrays
-        shape = np.broadcast(x, y, cxx, cyy, cxy, r).shape
-        sum = np.empty(shape, np.float)
-        sumerr = np.empty(shape, np.float)
+        shape = np.broadcast(x, y, a, b, theta, r).shape
+        sum = np.empty(shape, dt)
+        sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, cxx, cyy, cxy, r, sum, sumerr, flag)
+        it = np.broadcast(x, y, a, b, theta, r, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
-            status = sep_aperellip(
+            status = sep_sum_ellipse(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -1047,18 +1053,18 @@ def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         rin, rout = bkgann
 
         # Require float arrays (see note above)
-        rin = np.require(rin, dtype=np.float)
-        rout = np.require(rout, dtype=np.float)
+        rin = np.require(rin, dtype=dt)
+        rout = np.require(rout, dtype=dt)
 
         # allocate ouput arrays
-        shape = np.broadcast(x, y, cxx, cyy, cxy, r, rin, rout).shape
-        sum = np.empty(shape, np.float)
-        sumerr = np.empty(shape, np.float)
+        shape = np.broadcast(x, y, a, b, theta, r, rin, rout).shape
+        sum = np.empty(shape, dt)
+        sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, cxx, cyy, cxy, r, rin, rout, sum, sumerr, flag)
+        it = np.broadcast(x, y, a, b, theta, r, rin, rout, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
-            status = sep_aperellip(
+            status = sep_sum_ellipse(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -1070,7 +1076,7 @@ def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
                 subpix, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
 
-            status = sep_aperellipann(
+            status = sep_sum_ellipann(
                 ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
                 maskthresh, gain_, inflag,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -1099,10 +1105,10 @@ def aperellip(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def aperellipann(np.ndarray data not None, x, y, cxx, cyy, cxy, rin, rout,
+def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
                  var=None, err=None, gain=None, np.ndarray mask=None,
                  double maskthresh=0.0, int subpix=5):
-    """aperellipann(data, x, y, cxx, cyy, cxy, rin, rout, err=None, var=None,
+    """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
 
     Sum data in elliptical annular apertures.
@@ -1119,7 +1125,7 @@ def aperellipann(np.ndarray data not None, x, y, cxx, cyy, cxy, rin, rout,
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
         element of the array. These inputs obey numpy broadcasting rules.
 
-    cxx, cyy, cxy, rin, rout : array_like
+    a, b, theta, rin, rout : array_like
         Elliptial annulus parameters. These inputs, along with ``x`` and ``y``,
         obey numpy broadcasting rules.
 
@@ -1184,23 +1190,24 @@ def aperellipann(np.ndarray data not None, x, y, cxx, cyy, cxy, rin, rout,
         gain_ = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
-    x = np.require(x, dtype=np.float)
-    y = np.require(y, dtype=np.float)
-    cxx = np.require(cxx, dtype=np.float)
-    cyy = np.require(cyy, dtype=np.float)
-    cxy = np.require(cxy, dtype=np.float)
-    rin = np.require(rin, dtype=np.float)
-    rout = np.require(rout, dtype=np.float)
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    a = np.require(a, dtype=dt)
+    b = np.require(b, dtype=dt)
+    theta = np.require(theta, dtype=dt)
+    rin = np.require(rin, dtype=dt)
+    rout = np.require(rout, dtype=dt)
 
     # allocate ouput arrays
-    shape = np.broadcast(x, y, cxx, cyy, cxy, rin, rout).shape
-    sum = np.empty(shape, np.float)
-    sumerr = np.empty(shape, np.float)
+    shape = np.broadcast(x, y, a, b, theta, rin, rout).shape
+    sum = np.empty(shape, dt)
+    sumerr = np.empty(shape, dt)
     flag = np.empty(shape, np.short)
 
-    it = np.broadcast(x, y, cxx, cyy, cxy, rin, rout, sum, sumerr, flag)
+    it = np.broadcast(x, y, a, b, theta, rin, rout, sum, sumerr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
-        status = sep_aperellipann(
+        status = sep_sum_ellipann(
             ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
             maskthresh, gain_, inflag,
             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -1261,14 +1268,14 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
     buf = arr.view(dtype=np.uint8)
 
     # See note in apercirc on requiring specific array type
-    x = np.require(x, dtype=np.float)
-    y = np.require(y, dtype=np.float)
-    r = np.require(r, dtype=np.float)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    r = np.require(r, dtype=dt)
 
     if (cxx is not None and cyy is not None and cxy is not None):
-        cxx = np.require(cxx, dtype=np.float)
-        cyy = np.require(cyy, dtype=np.float)
-        cxy = np.require(cxy, dtype=np.float)
+        cxx = np.require(cxx, dtype=dt)
+        cyy = np.require(cyy, dtype=dt)
+        cxy = np.require(cxy, dtype=dt)
 
         it = np.broadcast(x, y, cxx, cyy, cxy, r)
         while np.PyArray_MultiIter_NOTDONE(it):

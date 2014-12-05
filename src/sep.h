@@ -174,24 +174,24 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-int sep_apercirc(void *data,        /* data array */
-		 void *error,       /* error value or array or NULL */
-		 void *mask,        /* mask array (can be NULL) */
-		 int dtype,         /* data dtype code */
-		 int edtype,        /* error dtype code */
-		 int mdtype,        /* mask dtype code */
-		 int w, int h,      /* width, height of input arrays */
-		 double maskthresh, /* pixel masked if mask > maskthresh */
-		 double gain,       /* (poisson counts / data unit) */
-		 short inflags,     /* input flags (see below) */
-		 double x,          /* center of aperture in x */
-		 double y,          /* center of aperture in y */
-		 double r,          /* radius of aperture */
-		 int subpix,        /* subpixel sampling */
-		 double *sum,       /* OUTPUT: sum */
-		 double *sumerr,    /* OUTPUT: error on sum */
-		 double *area,      /* OUTPUT: area included in sum */
-		 short *flag);      /* OUTPUT: flags */
+int sep_sum_circle(void *data,        /* data array */
+		   void *error,       /* error value or array or NULL */
+		   void *mask,        /* mask array (can be NULL) */
+		   int dtype,         /* data dtype code */
+		   int edtype,        /* error dtype code */
+		   int mdtype,        /* mask dtype code */
+		   int w, int h,      /* width, height of input arrays */
+		   double maskthresh, /* pixel masked if mask > maskthresh */
+		   double gain,       /* (poisson counts / data unit) */
+		   short inflags,     /* input flags (see below) */
+		   double x,          /* center of aperture in x */
+		   double y,          /* center of aperture in y */
+		   double r,          /* radius of aperture */
+		   int subpix,        /* subpixel sampling */
+		   double *sum,       /* OUTPUT: sum */
+		   double *sumerr,    /* OUTPUT: error on sum */
+		   double *area,      /* OUTPUT: area included in sum */
+		   short *flag);      /* OUTPUT: flags */
 /* Sum array values within a circular aperture.
  * 
  * Notes
@@ -209,20 +209,20 @@ int sep_apercirc(void *data,        /* data array */
  *        to inexact subpixel sampling and intersection with array boundaries.
  */
 
-int sep_apercircann(void *data, void *error, void *mask,
+int sep_sum_circann(void *data, void *error, void *mask,
 		    int dtype, int edtype, int mdtype, int w, int h,
 		    double maskthresh, double gain, short inflags,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-int sep_aperellip(void *data, void *error, void *mask,
-		  int dtype, int edtype, int mdtype, int w, int h,
-		  double maskthresh, double gain, short inflag,
-		  double x, double y, double cxx, double cyy, double cxy,
-		  double r, int subpix,
-		  double *sum, double *sumerr, double *area, short *flag);
+int sep_sum_ellipse(void *data, void *error, void *mask,
+		    int dtype, int edtype, int mdtype, int w, int h,
+		    double maskthresh, double gain, short inflag,
+		    double x, double y, double cxx, double cyy, double cxy,
+		    double r, int subpix,
+		    double *sum, double *sumerr, double *area, short *flag);
 
-int sep_aperellipann(void *data, void *error, void *mask,
+int sep_sum_ellipann(void *data, void *error, void *mask,
 		     int dtype, int edtype, int mdtype, int w, int h,
 		     double maskthresh, double gain, short inflag,
 		     double x, double y, double cxx, double cyy, double cxy,

@@ -533,7 +533,7 @@ static double triangle_unitcircle_overlap(double x1, double y1,
    ymax) and an ellipse with major and minor axes rx and ry
    respectively and position angle theta. */
 static double ellipoverlap(double xmin, double ymin, double xmax, double ymax,
-			   double rx, double ry, double theta)
+			   double a, double b, double theta)
 {
   double cos_m_theta, sin_m_theta, scale;
   double x1, y1, x2, y2, x3, y3, x4, y4;
@@ -542,17 +542,17 @@ static double ellipoverlap(double xmin, double ymin, double xmax, double ymax,
   sin_m_theta = sin(-theta);
 
   /* scale by which the areas will be shrunk */
-  scale = rx * ry;
+  scale = a * b;
 
   /* Reproject rectangle to a frame in which ellipse is a unit circle */
-  x1 = (xmin * cos_m_theta - ymin * sin_m_theta) / rx;
-  y1 = (xmin * sin_m_theta + ymin * cos_m_theta) / ry;
-  x2 = (xmax * cos_m_theta - ymin * sin_m_theta) / rx;
-  y2 = (xmax * sin_m_theta + ymin * cos_m_theta) / ry;
-  x3 = (xmax * cos_m_theta - ymax * sin_m_theta) / rx;
-  y3 = (xmax * sin_m_theta + ymax * cos_m_theta) / ry;
-  x4 = (xmin * cos_m_theta - ymax * sin_m_theta) / rx;
-  y4 = (xmin * sin_m_theta + ymax * cos_m_theta) / ry;
+  x1 = (xmin * cos_m_theta - ymin * sin_m_theta) / a;
+  y1 = (xmin * sin_m_theta + ymin * cos_m_theta) / b;
+  x2 = (xmax * cos_m_theta - ymin * sin_m_theta) / a;
+  y2 = (xmax * sin_m_theta + ymin * cos_m_theta) / b;
+  x3 = (xmax * cos_m_theta - ymax * sin_m_theta) / a;
+  y3 = (xmax * sin_m_theta + ymax * cos_m_theta) / b;
+  x4 = (xmin * cos_m_theta - ymax * sin_m_theta) / a;
+  y4 = (xmin * sin_m_theta + ymax * cos_m_theta) / b;
 
   /* Divide resulting quadrilateral into two triangles and find
      intersection with unit circle */

@@ -57,7 +57,8 @@ int sep_ellipse_axes(double cxx, double cyy, double cxy,
   *a = sqrt(2. / (p - t));
   *b = sqrt(2. / (p + t));
 
-  *theta = (cxy == 0.) ? 0. : (q == 0. ? 0. : atan(cxy/q))/2.;  /* (1/2) acot(q/cxy) */
+  /* theta = 0 if cxy == 0, else (1/2) acot(q/cxy) */
+  *theta = (cxy == 0.) ? 0. : (q == 0. ? 0. : atan(cxy/q))/2.;
   if (cxx>cyy)
     *theta += PI/2.;
   if (*theta > PI/2.)
@@ -132,719 +133,149 @@ static void boxextent_ellipse(double x, double y,
   boxextent(x, y, dxlim, dylim, w, h, xmin, xmax, ymin, ymax, flag);
 }
 
+/* determine oversampled annulus for a circle */
+static void oversamp_ann_circle(double r, double *r_in2, double *r_out2)
+{
+   *r_in2 = r - 0.7072;
+   *r_in2 = (*r_in2 > 0.0) ? (*r_in2)*(*r_in2) : 0.0;
+   *r_out2 = r + 0.7072;
+   *r_out2 = (*r_out2) * (*r_out2);
+}
+
+/* determine oversampled "annulus" for an ellipse */
+static void oversamp_ann_ellipse(double r, double b, double *r_in2,
+				 double *r_out2)
+{
+   *r_in2 = r - 0.7072/b;
+   *r_in2 = (*r_in2 > 0.0) ? (*r_in2)*(*r_in2) : 0.0;
+   *r_out2 = r + 0.7072/b;
+   *r_out2 = (*r_out2) * (*r_out2);
+}
+
 /*****************************************************************************/
 
-int sep_apercirc(void *data, void *error, void *mask,
-		 int dtype, int edtype, int mdtype, int w, int h,
-		 double maskthresh, double gain, short inflag,
-		 double x, double y, double r, int subpix,
-		 double *sum, double *sumerr, double *area, short *flag)
-{
-  float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
-  float scale, scale2, pix, varpix, tmp;
-  double tv, sigtv, totarea, maskarea;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
-  long pos;
-  short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
-
-  /* initializations */
-  tv = sigtv = 0.0;
-  overlap = totarea = maskarea = 0.0;
-  datat = maskt = NULL;
-  errort = error;
-  *flag = 0;
-  varpix = 0.0;
-  scale = 1.0/subpix;
-  scale2 = scale*scale;
-  offset = 0.5*(scale-1.0);
-  r2 = r*r;
-
-  /* oversampled annulus */
-  rin = r - 0.7072;
-  rout = r + 0.7072;
-  rin2 = (rin>0.0)? rin*rin: 0.0;
-  rout2 = rout*rout;
-
-  if (subpix < 0)
-    return ILLEGAL_SUBPIX;
-
-  /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
-    return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
-    return status;
-
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
-    {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
-    }
-
-  /* get extent of box */
-  boxextent(x, y, r, r, w, h, &xmin, &xmax, &ymin, &ymax, flag);
-
-  /* loop over rows in the box */
-  for (iy=ymin; iy<ymax; iy++)
-    {
-      /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
-      if (errisarray)
-	errort = error + pos*esize;
-      if (mask)
-	maskt = mask + pos*msize;
-
-      /* loop over pixels in this row */
-      for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  if ((rpix2=dx*dx+dy*dy) < rout2)
-	    {
-	      if (rpix2 > rin2)  /* might be partially in aperture */
-		{
-		  if (subpix == 0)
-		    overlap = circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r);
-		  else
-		    {
-		      dx += offset;
-		      dy += offset;
-		      overlap = 0.0;
-		      for (sy=subpix; sy--; dy+=scale)
-			{
-			  dx1 = dx;
-			  dy2 = dy*dy;
-			  for (sx=subpix; sx--; dx1+=scale)
-			    if (dx1*dx1 + dy2 < r2)
-			      overlap += scale2;
-			}
-		    }
-		}
-	      else
-		/* definitely fully in aperture */
-		overlap = 1.0;
-	      
-	      pix = convert(datat);
-
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
-
-	      if (mask && (mconvert(maskt) > maskthresh))
-		{ 
-		  *flag |= SEP_APER_HASMASKED;
-		  maskarea += overlap;
-		}
-	      else
-		{
-		  tv += pix*overlap;
-		  sigtv += varpix*overlap;
-		}
-
-	      totarea += overlap;
-
-	    } /* closes "if pixel within rout" */
-	  
-	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
-	}
-    }
-
-  /* correct for masked values */
-  if (mask)
-    {
-      if (inflag & SEP_MASK_IGNORE)
-	totarea -= maskarea;
-      else
-	{
-	  tv *= (tmp = totarea/(totarea-maskarea));
-	  sigtv *= tmp;
-	}
-    }
-
-  /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
-
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
-
-  return status;
-}
-
-
-int sep_apercircann(void *data, void *error, void *mask,
-		    int dtype, int edtype, int mdtype, int w, int h,
-		    double maskthresh, double gain, short inflag,
-		    double x, double y, double rin, double rout, int subpix,
-		    double *sum, double *sumerr, double *area, short *flag)
-{
-  float dx, dy, dx1, dy2, rpix2, overlap, offset, rin2, rout2;
-  float rinin, rinout, routin, routout, rinin2, rinout2, routin2, routout2;
-  float scale, scale2, pix, varpix, tmp;
-  double tv, sigtv, okarea, totarea;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
-  long pos;
-  short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
-
-  /* initializations */
-  size = esize = msize = 0;
-  tv = sigtv = 0.0;
-  overlap = totarea = okarea = 0.0;
-  datat = maskt = NULL;
-  errort = error;
-  *flag = 0;
-  varpix = 0.0;
-  scale = 1.0/subpix;
-  scale2 = scale*scale;
-  offset = 0.5*(scale-1.0);
-  rin2 = rin*rin;
-  rout2 = rout*rout;
-
-  /* inner oversampled annulus */
-  rinin = rin - 0.7072;
-  rinout = rin + 0.7072;
-  rinin2 = (rinin>0.0)? rinin*rinin: 0.0;
-  rinout2 = rinout*rinout;
-
-  /* outer oversampled annulus */
-  routin = rout - 0.7072;
-  routout = rout + 0.7072;
-  routin2 = (routin>0.0)? routin*routin: 0.0;
-  routout2 = routout*routout;
-
-  if (subpix < 0)
-    return ILLEGAL_SUBPIX;
-
-  /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
-    return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
-    return status;
-
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
-    {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
-    }
-
-  /* get extent of box */
-  boxextent(x, y, rout, rout, w, h, &xmin, &xmax, &ymin, &ymax, flag);
-
-  /* loop over rows in the box */
-  for (iy=ymin; iy<ymax; iy++)
-    {
-      /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
-      if (errisarray)
-	errort = error + pos*esize;
-      if (mask)
-	maskt = mask + pos*msize;
-
-      /* loop over pixels in this row */
-      for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  rpix2 = dx*dx + dy*dy;
-
-	  if ((rpix2 < routout2) && (rpix2 > rinin2))
-	    {
-	      /* check if pixel is in either the outer or inner oversampled
-                 annulus */
-	      if ((rpix2 > routin2) || (rpix2 < rinout2))
-		{
-		  if (subpix == 0)
-		    overlap = (circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
-					   rout) -
-			       circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
-					   rin));
-		  else
-		    {
-		      dx += offset;
-		      dy += offset;
-		      overlap = 0.0;
-		      for (sy=subpix; sy--; dy+=scale)
-			{
-			  dx1 = dx;
-			  dy2 = dy*dy;
-			  for (sx=subpix; sx--; dx1+=scale)
-			    {
-			      rpix2 = dx1*dx1 + dy2;
-			      if ((rpix2 < rout2) && (rpix2 > rin2))
-				overlap += scale2;
-			    }
-			}
-		    }
-		}
-	      else
-		/* definitely fully in aperture */
-		overlap = 1.0;
-	      
-	      /* get pixel value */
-	      pix = convert(datat);
-
-	      /* only update varpix if error is an array */
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
-
-	      /* if mask is given and mask value is above thresh, enter
-	         masking procedure */
-	      if (mask)
-		{
-		  if (mconvert(maskt) > maskthresh)
-		    { 
-		      *flag |= SEP_APER_HASMASKED;
-		    }
-		  else
-		    {
-		      tv += pix*overlap;
-		      sigtv += varpix*overlap;
-		      okarea += overlap;
-		    }
-		}
-	      else
-		{
-		  tv += pix*overlap;
-		  sigtv += varpix*overlap;
-		}
-
-	      totarea += overlap;
-
-	    } /* closes "if pixel within rout" */
-	  
-	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
-	}
-    }
-
-  /* correct for masked values */
-  if (mask)
-    {
-      if (inflag & SEP_MASK_IGNORE)
-	totarea = okarea;
-      else
-	{
-	  tv *= (tmp = totarea/okarea);
-	  sigtv *= tmp;
-	}
-    }
-
-  /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
-
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
-
-  return status;
-}
-
-int sep_aperellip(void *data, void *error, void *mask,
-		  int dtype, int edtype, int mdtype, int w, int h,
-		  double maskthresh, double gain, short inflag,
-		  double x, double y, double cxx, double cyy, double cxy,
-		  double r, int subpix,
-		  double *sum, double *sumerr, double *area, short *flag)
-{
-  float dx, dy, dx1, dy2, r2, rpix2, overlap, offset, rin, rout, rin2, rout2;
-  float scale, scale2, pix, varpix, tmp;
-  double tv, sigtv, okarea, totarea;
-  double a, b, theta;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
-  long pos;
-  short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
-
-  /* initializations */
-  size = esize = msize = 0;
-  tv = sigtv = 0.0;
-  overlap = totarea = okarea = 0.0;
-  datat = maskt = NULL;
-  errort = error;
-  *flag = 0;
-  r2 = r*r;
-  varpix = 0.0;
-  scale = 1.0/subpix;
-  scale2 = scale*scale;
-  offset = 0.5*(scale-1.0);
-  rin = r - 0.7072;  /* Internal radius of oversampled annulus */
-  rout = r + 0.7072;  /* external radius of oversampled annulus */
-  rin2 = (rin>0.0)? rin*rin: 0.0;
-  rout2 = rout*rout;
-  a = 0.;
-  b = 0.;
-  theta = 0.;
-
-  if (subpix < 0)
-    return ILLEGAL_SUBPIX;
-  if (subpix == 0)
-    {
-      if ((status = sep_ellipse_axes(cxx, cyy, cxy, &a, &b, &theta)))
-	return status;
-      a *= r;
-      b *= r;
-    }
-
-  /* get converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
-    return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
-    return status;
-
-  /* options for interpreting error array and treating masked pixels. */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0;  /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
-    {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
-    }
-
-  /* get extent of box */
-  boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
-		    &xmin, &xmax, &ymin, &ymax, flag);
-
-  /* loop over rows in the box */
-  for (iy=ymin; iy<ymax; iy++)
-    {
-      /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
-      if (errisarray)
-	errort = error + pos*esize;
-      if (mask)
-	maskt = mask + pos*msize;
-
-      /* loop over pixels in this row */
-      for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  if ((rpix2 = cxx*dx*dx + cyy*dy*dy + cxy*dx*dy) < rout2)
-	    {
-	      if (rpix2 > rin2)
-		/* might be partially in the aperture; calculate overlap */
-		{
-		  if (subpix == 0)
-		    overlap = ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
-					   a, b, theta);
-		  else
-		    {
-		      dx += offset;
-		      dy += offset;
-		      overlap = 0.0;
-		      for (sy=subpix; sy--; dy+=scale)
-			{
-			  dx1 = dx;
-			  dy2 = dy*dy;
-			  for (sx=subpix; sx--; dx1+=scale)
-			    if (cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy < r2)
-			      overlap += scale2;
-			}
-		    }
-		}
-	      else
-		/* definitely fully in aperture */
-		overlap = 1.0;
-	      
-	      /* get pixel value */
-	      pix = convert(datat);
-
-	      /* only update varpix if error is an array */
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
-
-	      /* if mask is given and mask value is above thresh, enter
-	         masking procedure */
-	      if (mask)
-		{
-		  if (mconvert(maskt) > maskthresh)
-		    { 
-		      *flag |= SEP_APER_HASMASKED;
-		    }
-		  else
-		    {
-		      tv += pix*overlap;
-		      sigtv += varpix*overlap;
-		      okarea += overlap;
-		    }
-		}
-	      else
-		{
-		  tv += pix*overlap;
-		  sigtv += varpix*overlap;
-		}
-
-	      totarea += overlap;
-
-	    } /* closes "if pixel within rout" */
-	  
-	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
-	}
-    }
-
-  /* correct for masked values */
-  if (mask)
-    {
-      if (inflag & SEP_MASK_IGNORE)
-	totarea = okarea;
-      else
-	{
-	  tv *= (tmp = totarea/okarea);
-	  sigtv *= tmp;
-	}
-    }
-
-  /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
-
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
-
-  return status;
-}
-
-int sep_aperellipann(void *data, void *error, void *mask,
-		     int dtype, int edtype, int mdtype, int w, int h,
-		     double maskthresh, double gain, short inflag,
-		     double x, double y, double cxx, double cyy, double cxy,
-		     double rin, double rout, int subpix,
-		     double *sum, double *sumerr, double *area, short *flag)
-{
-  float dx, dy, dx1, dy2, rpix2, overlap, offset, rin2, rout2;
-  float rinin, rinout, routin, routout, rinin2, rinout2, routin2, routout2;
-  float scale, scale2, pix, varpix, tmp;
-  double tv, sigtv, okarea, totarea;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
-  long pos;
-  short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
-
-  /* initializations */
-  size = esize = msize = 0;
-  tv = sigtv = 0.0;
-  overlap = totarea = okarea = 0.0;
-  datat = maskt = NULL;
-  errort = error;
-  *flag = 0;
-  varpix = 0.0;
-  scale = 1.0/subpix;
-  scale2 = scale*scale;
-  offset = 0.5*(scale-1.0);
-  rin2 = rin*rin;
-  rout2 = rout*rout;
-
-  /* inner oversampled annulus */
-  rinin = rin - 0.7072;
-  rinout = rin + 0.7072;
-  rinin2 = (rinin>0.0)? rinin*rinin: 0.0;
-  rinout2 = rinout*rinout;
-
-  /* outer oversampled annulus */
-  routin = rout - 0.7072;
-  routout = rout + 0.7072;
-  routin2 = (routin>0.0)? routin*routin: 0.0;
-  routout2 = routout*routout;
-
-  if (subpix < 1)
-    return ILLEGAL_SUBPIX;
-
-  /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
-    return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
-    return status;
-
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
-    {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
-    }
-
-  /* get extent of box */
-  boxextent_ellipse(x, y, cxx, cyy, cxy, rout, w, h,
-		    &xmin, &xmax, &ymin, &ymax, flag);
-
-  /* loop over rows in the box */
-  for (iy=ymin; iy<ymax; iy++)
-    {
-      /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
-      if (errisarray)
-	errort = error + pos*esize;
-      if (mask)
-	maskt = mask + pos*msize;
-
-      /* loop over pixels in this row */
-      for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  rpix2 = cxx*dx*dx + cyy*dy*dy + cxy*dx*dy;
-
-	  if ((rpix2 < routout2) && (rpix2 > rinin2))
-	    {
-	      /* check if pixel is in either the outer or inner oversampled
-                 annulus */
-	      if ((rpix2 > routin2) || (rpix2 < rinout2))
-		{
-		  dx += offset;
-		  dy += offset;
-		  overlap = 0.0;
-		  for (sy=subpix; sy--; dy+=scale)
-		    {
-		      dx1 = dx;
-		      dy2 = dy*dy;
-		      for (sx=subpix; sx--; dx1+=scale)
-			{
-			  rpix2 = cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy;
-			  if ((rpix2 < rout2) && (rpix2 > rin2))
-			    overlap += scale2;
-			}
-		    }
-		}
-	      else
-		/* definitely fully in aperture */
-		overlap = 1.0;
-	      
-	      /* get pixel value */
-	      pix = convert(datat);
-
-	      /* only update varpix if error is an array */
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
-
-	      /* if mask is given and mask value is above thresh, enter
-	         masking procedure */
-	      if (mask)
-		{
-		  if (mconvert(maskt) > maskthresh)
-		    { 
-		      *flag |= SEP_APER_HASMASKED;
-		    }
-		  else
-		    {
-		      tv += pix*overlap;
-		      sigtv += varpix*overlap;
-		      okarea += overlap;
-		    }
-		}
-	      else
-		{
-		  tv += pix*overlap;
-		  sigtv += varpix*overlap;
-		}
-
-	      totarea += overlap;
-
-	    } /* closes "if pixel within rout" */
-	  
-	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
-	}
-    }
-
-  /* correct for masked values */
-  if (mask)
-    {
-      if (inflag & SEP_MASK_IGNORE)
-	totarea = okarea;
-      else
-	{
-	  tv *= (tmp = totarea/okarea);
-	  sigtv *= tmp;
-	}
-    }
-
-  /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
-
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
-
-  return status;
-}
-
+#define APER_NAME sep_sum_circle
+#define APER_ARGS double r
+#define APER_DECL double r2, r_in2, r_out2
+#define APER_INIT				\
+  r2 = r*r;					\
+  oversamp_ann_circle(r, &r_in2, &r_out2)
+#define APER_BOXEXTENT boxextent(x, y, r, r, w, h,			\
+                                 &xmin, &xmax, &ymin, &ymax, flag)
+#define APER_EXACT circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r)
+#define APER_RPIX2 dx*dx + dy*dy
+#define APER_RPIX2_SUBPIX dx1*dx1 + dy2
+#define APER_COMPARE1 rpix2 < r_out2
+#define APER_COMPARE2 rpix2 > r_in2
+#define APER_COMPARE3 rpix2 < r2
+#include "aperbody.h"
+#undef APER_NAME
+#undef APER_ARGS
+#undef APER_DECL
+#undef APER_INIT
+#undef APER_BOXEXTENT
+#undef APER_EXACT
+#undef APER_RPIX2
+#undef APER_RPIX2_SUBPIX
+#undef APER_COMPARE1
+#undef APER_COMPARE2
+#undef APER_COMPARE3
+
+/* TODO: require that a>b, a and b positive, theta in range -PI/2, PI/2 */
+#define APER_NAME sep_sum_ellipse
+#define APER_ARGS double a, double b, double theta, double r
+#define APER_DECL double cxx, cyy, cxy, r2, r_in2, r_out2
+#define APER_INIT						\
+  r2 = r*r;							\
+  oversamp_ann_ellipse(r, b, &r_in2, &r_out2);			\
+  sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy);		\
+  a *= r;	       						\
+  b *= r
+#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h, \
+		                         &xmin, &xmax, &ymin, &ymax, flag)
+#define APER_EXACT ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a, b, theta)
+#define APER_RPIX2 cxx*dx*dx + cyy*dy*dy + cxy*dx*dy
+#define APER_RPIX2_SUBPIX cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy
+#define APER_COMPARE1 rpix2 < r_out2
+#define APER_COMPARE2 rpix2 > r_in2
+#define APER_COMPARE3 rpix2 < r2
+#include "aperbody.h"
+#undef APER_NAME
+#undef APER_ARGS
+#undef APER_DECL
+#undef APER_INIT
+#undef APER_BOXEXTENT
+#undef APER_EXACT
+#undef APER_RPIX2
+#undef APER_RPIX2_SUBPIX
+#undef APER_COMPARE1
+#undef APER_COMPARE2
+#undef APER_COMPARE3
+
+#define APER_NAME sep_sum_circann
+#define APER_ARGS double rin, double rout
+#define APER_DECL double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
+#define APER_INIT					\
+  rin2 = rin*rin;					\
+  oversamp_ann_circle(rin, &rin_in2, &rin_out2);	\
+  rout2 = rout*rout;					\
+  oversamp_ann_circle(rout, &rout_in2, &rout_out2)
+#define APER_BOXEXTENT boxextent(x, y, rout, rout, w, h, \
+				 &xmin, &xmax, &ymin, &ymax, flag)
+#define APER_EXACT (circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rout) - \
+		    circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rin))
+#define APER_RPIX2 dx*dx + dy*dy
+#define APER_RPIX2_SUBPIX dx1*dx1 + dy2
+#define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
+#define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
+#define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
+#include "aperbody.h"
+#undef APER_NAME
+#undef APER_ARGS
+#undef APER_DECL
+#undef APER_INIT
+#undef APER_BOXEXTENT
+#undef APER_EXACT
+#undef APER_RPIX2
+#undef APER_RPIX2_SUBPIX
+#undef APER_COMPARE1
+#undef APER_COMPARE2
+#undef APER_COMPARE3
+
+#define APER_NAME sep_sum_ellipann
+#define APER_ARGS double a, double b, double theta, double rin, double rout
+#define APER_DECL double cxx, cyy, cxy;				\
+  double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
+#define APER_INIT						\
+  rin2 = rin*rin;						\
+  oversamp_ann_ellipse(rin, b, &rin_in2, &rin_out2);		\
+  rout2 = rout*rout;						\
+  oversamp_ann_ellipse(rout, b, &rout_in2, &rout_out2);		\
+  sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy)
+#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, rout, w, h, \
+		                         &xmin, &xmax, &ymin, &ymax, flag)
+#define APER_EXACT							\
+  (ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a*rout, b*rout, theta) - \
+   ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a*rin, b*rin, theta))
+#define APER_RPIX2 cxx*dx*dx + cyy*dy*dy + cxy*dx*dy
+#define APER_RPIX2_SUBPIX cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy
+#define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
+#define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
+#define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
+#include "aperbody.h"
+#undef APER_NAME
+#undef APER_ARGS
+#undef APER_DECL
+#undef APER_INIT
+#undef APER_BOXEXTENT
+#undef APER_EXACT
+#undef APER_RPIX2
+#undef APER_RPIX2_SUBPIX
+#undef APER_COMPARE1
+#undef APER_COMPARE2
+#undef APER_COMPARE3
+
+/*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
 int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 		double maskthresh,

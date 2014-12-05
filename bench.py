@@ -69,12 +69,16 @@ if HAVE_PHOTUTILS:
     print("""
 | test                    | sep             | photutils       | ratio  |
 |-------------------------|-----------------|-----------------|--------|""")
+    blankline = \
+"|                         |                 |                 |        |"
 
 else:
     print("sep version: ", sep.__version__)
     print("""
 | test                    | sep             |
 |-------------------------|-----------------|""")
+    blankline = "|                         |                 |"
+
 
 for ntile in [4]:
     data = np.tile(rawdata, (ntile, ntile))
@@ -98,6 +102,7 @@ for ntile in [4]:
 #------------------------------------------------------------------------------
 # Circular aperture photometry benchmarks
 
+print(blankline)
 line = "| **aperture photometry** |                 |"
 if HAVE_PHOTUTILS:
     line += "                 |        |"
@@ -109,13 +114,13 @@ data = np.ones((2000, 2000), dtype=np.float32)
 x = np.random.uniform(200., 1800., naper)
 y = np.random.uniform(200., 1800., naper)
 
-for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
-    for r in [3., 5., 10., 20., 100.]:
+for r in [3., 5., 10., 20.]:
+    for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
+
         line = "| circles r={0:3d} subpix={1}  |".format(int(r), subpix)
-        rs = r * np.ones(naper, dtype=np.float)
 
         t0 = time.time()
-        flux, fluxerr, flag = sep.apercirc(data, x, y, rs, subpix=subpix)
+        flux, fluxerr, flag = sep.sum_circle(data, x, y, r, subpix=subpix)
         t1 = time.time()
         t_sep = (t1-t0) * 1.e6 / naper / nloop
         line += " {0:7.2f} us/aper |".format(t_sep)
@@ -131,21 +136,20 @@ for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
 
         print(line)
 
-
+print(blankline)
 naper = 1000
 nloop = 1
-a = 2.
+a = 1.
 b = 1.
 theta = np.pi/4.
-cxx, cyy, cxy = sep.ellipse_coeffs(a, b, theta)
 
-for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
-    for r in [3., 5., 10., 20.]:
+for r in [3., 5., 10., 20.]:
+    for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
         line = "| ellipses r={0:3d} subpix={1} |".format(int(r), subpix)
-        rs = r * np.ones(naper, dtype=np.float)
 
         t0 = time.time()
-        flux, fluxerr, flag = sep.aperellip(data, x, y, cxx, cyy, cxy, r, subpix=subpix)
+        flux, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta, r,
+                                              subpix=subpix)
         t1 = time.time()
         t_sep = (t1-t0) * 1.e6 / naper / nloop
         line += " {0:7.2f} us/aper |".format(t_sep)
