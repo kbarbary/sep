@@ -71,8 +71,8 @@ def test_vs_sextractor():
     assert_allclose(objs['y'], refobjs['y'] - 1., atol=1.e-3)
 
     # Test aperture flux
-    flux, fluxerr, flag = sep.apercirc(data, objs['x'], objs['y'], 5.,
-                                       err=bkg.globalrms)
+    flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 5.,
+                                         err=bkg.globalrms)
     assert_allclose(flux, refobjs['flux_aper'], rtol=2.e-4)
     assert_allclose(fluxerr, refobjs['fluxerr_aper'], rtol=1.0e-5)
 
@@ -81,13 +81,13 @@ def test_vs_sextractor():
     assert sep.hasmasked(flag).sum() == 0
 
     # Test "flux_auto"
-    kr, flag = sep.kronrad(data, objs['x'], objs['y'], objs['cxx'],
-                           objs['cyy'], objs['cxy'], 6.0)
+    kr, flag = sep.kron_radius(data, objs['x'], objs['y'], objs['cxx'],
+                               objs['cyy'], objs['cxy'], 6.0)
 
-    flux, fluxerr, flag = sep.aperellip(data, objs['x'], objs['y'],
-                                        objs['cxx'], objs['cyy'],
-                                        objs['cxy'], 2.5 * kr,
-                                        err=bkg.globalrms, subpix=1)
+    flux, fluxerr, flag = sep.sum_ellipse(data, objs['x'], objs['y'],
+                                          objs['a'], objs['b'],
+                                          objs['theta'], r=2.5 * kr,
+                                          err=bkg.globalrms, subpix=1)
 
     # For some reason, object at index 59 doesn't match. It's very small
     # and kron_radius is set to 0.0 in SExtractor, but 0.08 in sep.
@@ -161,7 +161,7 @@ def test_apercirc_dtypes():
     fluxes = []
     for dt in IMAGE_DTYPES:
         data = np.ones((1000, 1000), dtype=dt)
-        flux, fluxerr, flag = sep.apercirc(data, x, y, r)
+        flux, fluxerr, flag = sep.sum_circle(data, x, y, r)
         fluxes.append(flux)
 
     for i in range(1, len(fluxes)):

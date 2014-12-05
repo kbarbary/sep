@@ -60,49 +60,49 @@ Usage
 The follow examples demonstrate options for circular aperture photometry::
 
    # sum flux in circles of radius=3.0
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0)
 
    # x, y and r can be arrays and obey numpy broadcasting rules
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'],
-                                      3.0 * np.ones(len(objects)))
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'],
+                                        3.0 * np.ones(len(objects)))
 
    # use a different subpixel sampling (default is 5)
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      subpix=10)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        subpix=10)
 
    # Specify a per-pixel "background" error (default is zero):
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      err=bkg.globalrms, gain=1.0)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        err=bkg.globalrms, gain=1.0)
 
    # Use "var" for variance rather than error:
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      var=bkg.globalrms**2, gain=1.0)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        var=bkg.globalrms**2, gain=1.0)
 
    # err/var can also be an array:
    bkgrms = bkg.rms()  # array, same shape as data
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      err=bkgrms, gain=1.0)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        err=bkgrms, gain=1.0)
 
    # If your uncertainty array includes Poisson noise from the object,
    # leave gain as None (default):
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      err=error_array)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        err=error_array)
 
    # If your data represent raw counts (not background-subtracted), set only
    # gain to get the poisson error:
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      gain=1.0)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        gain=1.0)
 
    # Apply a mask (same shape as data). Pixels are igored where mask is True.
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      mask=mask)
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        mask=mask)
 
    # Perform local background subtraction in an annulus between 6 and 8 pixel
    # radius. Pixels in the background annulus are not subsampled and any masked
    # pixels in the annulus are completely igored rather than corrected.
    # Inner and outer radii can also be arrays: 
-   flux, fluxerr, flag = sep.apercirc(data, objects['x'], objects['y'], 3.0,
-                                      mask=mask, bkgann=(6., 8.))
+   flux, fluxerr, flag = sep.sum_circle(data, objects['x'], objects['y'], 3.0,
+                                        mask=mask, bkgann=(6., 8.))
 
    # Convert flag array to boolean for specific flags:
    sep.istruncated(flag)  # True where aperture was truncated by image edge.
@@ -121,34 +121,27 @@ The follow examples demonstrate options for circular aperture photometry::
 API
 ---
 
-**Global Background Estimation**
+**background estimation & source detection**
 
 .. autosummary::
    :toctree: api
    
    sep.Background
-   sep.Background.back
-   sep.Background.rms
-   sep.Background.subfrom
-
-**Object detection**
-
-.. autosummary::
-   :toctree: api
-
    sep.extract
 
-**Aperture photometry & masking**
+**Aperture photometry**
 
 .. autosummary::
    :toctree: api
    
-   sep.apercirc
-   sep.apercircann
-   sep.aperellip
-   sep.aperellipann
+   sep.sum_circle
+   sep.sum_circann
+   sep.sum_ellipse
+   sep.sum_ellipann
    sep.mask_ellipse
-   sep.kronrad
+   sep.kron_radius
+   sep.ellipse_axes
+   sep.ellipse_coeffs
 
 
 Indices and tables

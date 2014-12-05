@@ -107,7 +107,8 @@ cdef extern from "sep.h":
     int sep_sum_circann(void *data, void *error, void *mask,
                         int dtype, int edtype, int mdtype, int w, int h,
                         double maskthresh, double gain, short inflags,
-                        double x, double y, double rin, double rout, int subpix,
+                        double x, double y,
+                        double rin, double rout, int subpix,
                         double *sum, double *sumerr, double *area, short *flag)
 
     int sep_sum_ellipse(void *data, void *error, void *mask,
@@ -115,28 +116,32 @@ cdef extern from "sep.h":
                         double maskthresh, double gain, short inflag,
                         double x, double y, double a, double b, double theta,
                         double r, int subpix,
-                        double *sum, double *sumerr, double *area, short *flag)
+                        double *sum, double *sumerr, double *area,
+                        short *flag)
 
     int sep_sum_ellipann(void *data, void *error, void *mask,
                          int dtype, int edtype, int mdtype, int w, int h,
                          double maskthresh, double gain, short inflag,
-                         double x, double y, double a, double b, double theta,
-                         double rin, double rout, int subpix,
-                         double *sum, double *sumerr, double *area, short *flag)
+                         double x, double y, double a, double b,
+                         double theta, double rin, double rout, int subpix,
+                         double *sum, double *sumerr, double *area,
+                         short *flag)
 
-    int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
-                    double maskthresh, double x, double y, double cxx,
-                    double cyy, double cxy, double r, double *kronrad,
-                    short *flag)
+    int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
+                        int w, int h, double maskthresh, double x, double y,
+                        double cxx, double cyy, double cxy, double r,
+                        double *kronrad, short *flag)
 
     int sep_ellipse_axes(double cxx, double cyy, double cxy,
                          double *a, double *b, double *theta)
+
     void sep_ellipse_coeffs(double a, double b, double theta,
                             double *cxx, double *cyy, double *cxy)
 
-    void sep_setellip_uc(unsigned char *arr, int w, int h,
-                         double x, double y, double cxx, double cyy, double cxy,
-                         double r, unsigned char val)
+    void sep_set_ellipse(unsigned char *arr, int w, int h,
+                         double x, double y,
+                         double cxx, double cyy, double cxy, double r,
+                         unsigned char val)
 
     void sep_get_errmsg(int status, char *errtext)
     void sep_get_errdetail(char *errtext)
@@ -1268,6 +1273,7 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
     buf = arr.view(dtype=np.uint8)
 
     # See note in apercirc on requiring specific array type
+    dt = np.dtype(np.double)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
@@ -1279,7 +1285,7 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
 
         it = np.broadcast(x, y, cxx, cyy, cxy, r)
         while np.PyArray_MultiIter_NOTDONE(it):
-            sep_setellip_uc(<unsigned char *>&buf[0, 0], w, h,
+            sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
                             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                             (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                             (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
@@ -1293,9 +1299,9 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
         raise ValueError("Must specify cxx, cyy and cxy keywords")
 
 
-def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
-            np.ndarray mask=None, double maskthresh=0.0):
-    """kronrad(data, x, y, cxx, cyy, cxy, r, mask=None, maskthresh=0.0)
+def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
+                np.ndarray mask=None, double maskthresh=0.0):
+    """kron_radius(data, x, y, cxx, cyy, cxy, r, mask=None, maskthresh=0.0)
 
     Calculate Kron radius within an ellipse.
 
@@ -1360,12 +1366,13 @@ def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
     ptr = <void*>&buf[0, 0]
 
     # See note in apercirc on requiring specific array type
-    x = np.require(x, dtype='=f8')
-    y = np.require(y, dtype='=f8')
-    cxx = np.require(cxx, dtype='=f8')
-    cyy = np.require(cyy, dtype='=f8')
-    cxy = np.require(cxy, dtype='=f8')
-    r = np.require(r, dtype='=f8')
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    cxx = np.require(cxx, dtype=dt)
+    cyy = np.require(cyy, dtype=dt)
+    cxy = np.require(cxy, dtype=dt)
+    r = np.require(r, dtype=dt)
 
     if mask is not None:
         _check_array_get_dims(mask, &mw, &mh)
@@ -1382,15 +1389,15 @@ def kronrad(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
 
     it = np.broadcast(x, y, cxx, cyy, cxy, r, kr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
-        sep_kronrad(ptr, mptr, dtype, mdtype, w, h, maskthresh,
-                    (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-                    (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                    (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                    (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-                    (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                    (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                    <double*>np.PyArray_MultiIter_DATA(it, 6),
-                    <short*>np.PyArray_MultiIter_DATA(it, 7))
+        sep_kron_radius(ptr, mptr, dtype, mdtype, w, h, maskthresh,
+                        (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                        <double*>np.PyArray_MultiIter_DATA(it, 6),
+                        <short*>np.PyArray_MultiIter_DATA(it, 7))
         np.PyArray_MultiIter_NEXT(it)
 
     return kr, flag 
@@ -1470,3 +1477,8 @@ def istruncated(np.ndarray flag not None):
 def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
     return (flag & SEP_APER_HASMASKED) != 0
+
+# -----------------------------------------------------------------------------
+# Backwards compatibility
+
+apercirc = sum_circle
