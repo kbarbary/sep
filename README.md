@@ -59,6 +59,9 @@ present.
 C Library
 ---------
 
+_Note: The C library should not yet be considered stable. (To my knowledge,
+no one is using it directly.)_
+
 **Build:** To build the C library from source, you must have
 [scons](http://scons.org/) available on your system. In the top level
 directory,

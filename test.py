@@ -103,20 +103,20 @@ def test_vs_sextractor():
 
     # Test ellipse representation conversion
     cxx, cyy, cxy = sep.ellipse_coeffs(objs['a'], objs['b'], objs['theta'])
-    assert_allclose(cxx, objs['cxx'], rtol=1.e-5)
-    assert_allclose(cyy, objs['cyy'], rtol=1.e-5)
-    assert_allclose(cxy, objs['cxy'], rtol=1.e-5)
+    assert_allclose(cxx, objs['cxx'], rtol=1.e-4)
+    assert_allclose(cyy, objs['cyy'], rtol=1.e-4)
+    assert_allclose(cxy, objs['cxy'], rtol=1.e-4)
 
     a, b, theta = sep.ellipse_axes(objs['cxx'], objs['cyy'], objs['cxy'])
-    assert_allclose(a, objs['a'], rtol=1.e-5)
-    assert_allclose(b, objs['b'], rtol=1.e-5)
-    assert_allclose(theta, objs['theta'], rtol=1.e-5)
+    assert_allclose(a, objs['a'], rtol=1.e-4)
+    assert_allclose(b, objs['b'], rtol=1.e-4)
+    assert_allclose(theta, objs['theta'], rtol=1.e-4)
 
     #test round trip
     cxx, cyy, cxy = sep.ellipse_coeffs(a, b, theta)
-    assert_allclose(cxx, objs['cxx'], rtol=1.e-5)
-    assert_allclose(cyy, objs['cyy'], rtol=1.e-5)
-    assert_allclose(cxy, objs['cxy'], rtol=1.e-5)
+    assert_allclose(cxx, objs['cxx'], rtol=1.e-4)
+    assert_allclose(cyy, objs['cyy'], rtol=1.e-4)
+    assert_allclose(cxy, objs['cxy'], rtol=1.e-4)
 
 def test_extract_noise_array():
 
