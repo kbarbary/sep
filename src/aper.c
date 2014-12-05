@@ -153,10 +153,14 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 }
 
 /*****************************************************************************/
+/* circular aperture */
 
 #define APER_NAME sep_sum_circle
 #define APER_ARGS double r
 #define APER_DECL double r2, r_in2, r_out2
+#define APER_CHECKS				\
+  if (r < 0.0)					\
+    return ILLEGAL_APER_PARAMS
 #define APER_INIT				\
   r2 = r*r;					\
   oversamp_ann_circle(r, &r_in2, &r_out2)
@@ -172,6 +176,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
+#undef APER_CHECKS
 #undef APER_INIT
 #undef APER_BOXEXTENT
 #undef APER_EXACT
@@ -181,10 +186,16 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_COMPARE2
 #undef APER_COMPARE3
 
-/* TODO: require that a>b, a and b positive, theta in range -PI/2, PI/2 */
+/*****************************************************************************/
+/* elliptical aperture */
+
 #define APER_NAME sep_sum_ellipse
 #define APER_ARGS double a, double b, double theta, double r
 #define APER_DECL double cxx, cyy, cxy, r2, r_in2, r_out2
+#define APER_CHECKS							\
+  if (!(r >= 0.0 && b >= 0.0 && a >= b &&				\
+	theta >= -PI/2. && theta <= PI/2.))				\
+    return ILLEGAL_APER_PARAMS
 #define APER_INIT						\
   r2 = r*r;							\
   oversamp_ann_ellipse(r, b, &r_in2, &r_out2);			\
@@ -203,6 +214,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
+#undef APER_CHECKS
 #undef APER_INIT
 #undef APER_BOXEXTENT
 #undef APER_EXACT
@@ -212,9 +224,15 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_COMPARE2
 #undef APER_COMPARE3
 
+/*****************************************************************************/
+/* circular annulus aperture */
+
 #define APER_NAME sep_sum_circann
 #define APER_ARGS double rin, double rout
 #define APER_DECL double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
+#define APER_CHECKS		    \
+  if (!(rin >= 0.0 && rout >= rin)) \
+    return ILLEGAL_APER_PARAMS
 #define APER_INIT					\
   rin2 = rin*rin;					\
   oversamp_ann_circle(rin, &rin_in2, &rin_out2);	\
@@ -233,6 +251,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
+#undef APER_CHECKS
 #undef APER_INIT
 #undef APER_BOXEXTENT
 #undef APER_EXACT
@@ -242,10 +261,18 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_COMPARE2
 #undef APER_COMPARE3
 
+/*****************************************************************************/
+/* elliptical annulus aperture */
+
 #define APER_NAME sep_sum_ellipann
 #define APER_ARGS double a, double b, double theta, double rin, double rout
-#define APER_DECL double cxx, cyy, cxy;				\
+#define APER_DECL						\
+  double cxx, cyy, cxy;						\
   double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
+#define APER_CHECKS					    \
+  if (!(rin >= 0.0 && rout >= rin && b >= 0.0 && a >= b &&  \
+	theta >= -PI/2. && theta <= PI/2.))		    \
+    return ILLEGAL_APER_PARAMS
 #define APER_INIT						\
   rin2 = rin*rin;						\
   oversamp_ann_ellipse(rin, b, &rin_in2, &rin_out2);		\
@@ -266,6 +293,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
+#undef APER_CHECKS
 #undef APER_INIT
 #undef APER_BOXEXTENT
 #undef APER_EXACT
@@ -277,10 +305,10 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
-int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
-		double maskthresh,
-		double x, double y, double cxx, double cyy, double cxy,
-		double r, double *kronrad, short *flag)
+int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
+		    int w, int h, double maskthresh, double x, double y,
+		    double cxx, double cyy, double cxy, double r,
+		    double *kronrad, short *flag)
 {
   float pix;
   double r1, v1, r2, area, rpix2, dx, dy;
@@ -363,7 +391,7 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
 
 
 /* set array values within an ellipse (uc = unsigned char array) */
-void sep_setellip_uc(unsigned char *arr, int w, int h,
+void sep_set_ellipse(unsigned char *arr, int w, int h,
 		     double x, double y, double cxx, double cyy, double cxy,
 		     double r, unsigned char val)
 {

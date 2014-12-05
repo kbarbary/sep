@@ -218,20 +218,21 @@ int sep_sum_circann(void *data, void *error, void *mask,
 int sep_sum_ellipse(void *data, void *error, void *mask,
 		    int dtype, int edtype, int mdtype, int w, int h,
 		    double maskthresh, double gain, short inflag,
-		    double x, double y, double cxx, double cyy, double cxy,
+		    double x, double y, double a, double b, double theta,
 		    double r, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
 int sep_sum_ellipann(void *data, void *error, void *mask,
 		     int dtype, int edtype, int mdtype, int w, int h,
 		     double maskthresh, double gain, short inflag,
-		     double x, double y, double cxx, double cyy, double cxy,
+		     double x, double y, double a, double b, double theta,
 		     double rin, double rout, int subpix,
 		     double *sum, double *sumerr, double *area, short *flag);
 
-int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
-		double maskthresh, double x, double y, double cxx, double cyy,
-		double cxy, double r, double *kronrad, short *flag);
+int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
+		    int w, int h, double maskthresh, double x, double y,
+		    double cxx, double cyy, double cxy, double r,
+		    double *kronrad, short *flag);
 /* Calculate Kron radius within an ellipse given by 
  *
  *     cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) < r^2
@@ -247,14 +248,11 @@ int sep_kronrad(void *data, void *mask, int dtype, int mdtype, int w, int h,
  *                        kronrad = 0.
  */
 
-void sep_setellip_uc(unsigned char *arr, int w, int h,
+void sep_set_ellipse(unsigned char *arr, int w, int h,
 		     double x, double y, double cxx, double cyy, double cxy,
 		     double r, unsigned char val);
-
 /* Set array elements within an ellipitcal aperture to a given value.
  *
- * "ucc" = Unsigned Char type, Coefficient ellipse representation.
- * 
  * Ellipse: cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = r^2  
  */
 

@@ -16,6 +16,11 @@ int APER_NAME(void *data, void *error, void *mask,
   converter convert, econvert, mconvert;
   APER_DECL;
 
+  /* input checks */
+  APER_CHECKS;
+  if (subpix < 0)
+    return ILLEGAL_SUBPIX;
+
   /* initializations */
   size = esize = msize = 0;
   tv = sigtv = 0.0;
@@ -29,9 +34,6 @@ int APER_NAME(void *data, void *error, void *mask,
   offset = 0.5*(scale-1.0);
 
   APER_INIT;
-
-  if (subpix < 0)
-    return ILLEGAL_SUBPIX;
 
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))

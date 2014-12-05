@@ -273,6 +273,9 @@ void sep_get_errmsg(int status, char *errtext)
     case NON_ELLIPSE_PARAMS:
       strcpy(errtext, "parameters do not describe ellipse");
       break;
+    case ILLEGAL_APER_PARAMS:
+      strcpy(errtext, "invalid aperture parameters");
+      break;
     default:
        strcpy(errtext, "unknown error status");
        break;
