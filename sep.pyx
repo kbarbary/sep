@@ -199,6 +199,7 @@ cdef int _assert_ok(int status) except -1:
     cdef char *errdetail
     cdef bytes pyerrmsg
     cdef bytes pyerrdetail
+    cdef bytes separator
 
     if status == 0:
         return 0
@@ -216,7 +217,11 @@ cdef int _assert_ok(int status) except -1:
     pyerrdetail = errdetail
     PyMem_Free(errdetail)
 
-    raise Exception(pyerrmsg + " " + pyerrdetail)    
+    if pyerrdetail == "":
+        raise Exception(pyerrmsg)
+    else:
+        raise Exception(pyerrmsg + ": " + pyerrdetail)
+
 
 cdef int _parse_arrays(np.ndarray data, err, var, mask,
                        int *dtype, int *edtype, int *mdtype, int *w, int *h,

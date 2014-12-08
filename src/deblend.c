@@ -32,7 +32,10 @@
 #define	RAND_MAX 2147483647
 #endif
 #define	NSONMAX	1024  /* max. number per level */
+#define NSONMAX_STR "1024" /* just for error message */
 #define	NBRANCH	16    /* starting number per branch */
+
+
 
 int belong(int, objliststruct *, int, objliststruct *);
 int *createsubmap(objliststruct *, int, int *, int *, int *, int *);
@@ -105,8 +108,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       /*--------- Build tree (bottom->up) */
       if (objlist[k-1].nobj>=NSONMAX)
 	{
-	  status = SEP_INTERNAL_ERROR;
-	  put_errdetail("Deblending overflow (# sons >= NSONMAX)");
+	  status = DEBLEND_OVERFLOW;
 	  goto exit;
 	}
       
@@ -127,8 +129,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		m = objlist[k].nobj - 1;
 		if (m>=NSONMAX)
 		  {
-		    status = SEP_INTERNAL_ERROR;
-		    put_errdetail("Deblending overflow (# sons >= NSONMAX)");
+		    status = DEBLEND_OVERFLOW;
 		    goto exit;
 		  }
 		if (h>=nbm-1)
@@ -181,6 +182,11 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
     status = gatherup(&debobjlist2, objlistout);
   
  exit:
+  if (status == DEBLEND_OVERFLOW)
+    put_errdetail("limit of " NSONMAX_STR " sub-objects reached while "
+		  "deblending. Decrease number of deblending thresholds "
+		  "or increase the detection threshold.");
+
   free(submap);
   submap = NULL;
   free(debobjlist2.obj);

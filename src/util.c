@@ -22,11 +22,10 @@
 #include "sep.h"
 #include "sepcore.h"
 
-#define GETDETAIL 1
-#define PUTDETAIL 2
 #define DETAILSIZE 512
 
 char *sep_version_string = "0.2.0.dev";
+static char _errdetail_buffer[DETAILSIZE] = "";
 
 /****************************************************************************/
 /* data type conversion mechanics for runtime type conversion */
@@ -237,8 +236,7 @@ int get_array_subtractor(int dtype, array_writer *f, int *size)
       *f = NULL;
       *size = 0;
       status = ILLEGAL_DTYPE;
-      sprintf(errtext, "unsupported data type in get_array_subtractor(): %d",
-	      dtype);
+      sprintf(errtext, "in get_array_subtractor(): %d", dtype);
       put_errdetail(errtext);
     }
   return status;
@@ -261,11 +259,14 @@ void sep_get_errmsg(int status, char *errtext)
     case MEMORY_ALLOC_ERROR:
       strcpy(errtext, "memory allocation");
       break;
-    case SEP_INTERNAL_ERROR:
-      strcpy(errtext, "SEP internal error");
+    case PIXSTACK_FULL:
+      strcpy(errtext, "internal pixel buffer full");
+      break;
+    case DEBLEND_OVERFLOW:
+      strcpy(errtext, "object deblending overflow");
       break;
     case ILLEGAL_DTYPE:
-      strcpy(errtext, "dtype not recognized or unsupported");
+      strcpy(errtext, "dtype not recognized/unsupported");
       break;
     case ILLEGAL_SUBPIX:
       strcpy(errtext, "subpix value must be nonnegative");
@@ -282,33 +283,16 @@ void sep_get_errmsg(int status, char *errtext)
     }
 }
 
-void errdetail(int action, char *errtext)
-/* Read or write message to a static buffer.
-
-   action == GETDETAIL ==> read
-   action == PUTDETAIL ==> write
-*/
-{
-  static char buff[DETAILSIZE];
-
-  if (action == PUTDETAIL)
-    strcpy(buff, errtext);
-  else if (action == GETDETAIL)
-    strcpy(errtext, buff);
-
-  return;
-}
-
 void sep_get_errdetail(char *errtext)
 {
-  errdetail(GETDETAIL, errtext);
-  return;
+  strcpy(errtext, _errdetail_buffer);
+  memset(_errdetail_buffer, 0, DETAILSIZE);
 }
 
 void put_errdetail(char *errtext)
 {
-  errdetail(PUTDETAIL, errtext);
-  return;
+   strcpy(_errdetail_buffer, errtext);
+
 }
 
 /*****************************************************************************/

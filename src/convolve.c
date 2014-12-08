@@ -76,8 +76,7 @@ int get_convolver(int dtype, convolver *f)
     {
       *f = NULL;
       status = ILLEGAL_DTYPE;
-      sprintf(errtext, "unsupported data type in get_convolver(): %d",
-	      dtype);
+      sprintf(errtext, "%d (in get_convolver())", dtype);
       put_errdetail(errtext);
     }
   return status;

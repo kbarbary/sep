@@ -30,11 +30,11 @@
 #include "sepcore.h"
 #include "extract.h"
 
-#define DETECT_MAXAREA 0        /* replaces prefs.ext_maxarea */
-#define MEMORY_PIXSTACK 300000  /* number of pixels in stack */
-                                /* (replaces prefs.mem_pixstack) */
-#define	WTHRESH_CONVFAC	1e-4    /* Factor to apply to weights when */
-			        /* thresholding filtered weight-maps */
+#define DETECT_MAXAREA 0             /* replaces prefs.ext_maxarea */
+#define MEMORY_PIXSTACK_INIT 300000  /* number of pixels in stack */
+                                     /* (replaces prefs.mem_pixstack) */
+#define	WTHRESH_CONVFAC	1e-4         /* Factor to apply to weights when */
+			             /* thresholding filtered weight-maps */
 
 /* globals */
 int plistexist_cdvalue, plistexist_thresh, plistexist_var;
@@ -55,18 +55,20 @@ int sep_extract(void *image, void *noise,
 		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
-  infostruct curpixinfo, initinfo, freeinfo;
+  infostruct        curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
-  int               co, i, j, flag, luflag, pstop, xl, xl2, yl, cn;
-  int               nposize, stacksize, maxpixnb, convn, status;
+  size_t            mem_pixstack;
+  int               nposize, oldnposize;
+  int               co, i, j, luflag, pstop, xl, xl2, yl, cn;
+  int               stacksize, convn, status;
   int               elsize_im, elsize_noise;
   short             trunflag;
   PIXTYPE           relthresh, cdnewsymbol;
   float             sum;
   pixstatus         cs, ps;
 
-  infostruct *info, *store, *victim;
+  infostruct        *info, *store;
   objliststruct     *finalobjlist;
   pliststruct	    *pixel, *pixt;
   char              *marker;
@@ -77,13 +79,12 @@ int sep_extract(void *image, void *noise,
   BYTE              *imageline, *noiseline;
   convolver         convolve_im, convolve_noise;
   array_converter   convert_im, convert_noise;
-  char              errtext[80];
+  char              errtext[512];
 
   status = RETURN_OK;
   pixel = NULL;
   convnorm = NULL;
   scan = wscan = cdscan = cdwscan = dumscan = NULL;
-  victim = NULL;
   info = NULL;
   store = NULL;
   marker = NULL;
@@ -98,6 +99,7 @@ int sep_extract(void *image, void *noise,
   convert_noise = NULL;
   imageline = (BYTE *)image;
   noiseline = (BYTE *)noise;
+  mem_pixstack = MEMORY_PIXSTACK_INIT;
 
   /* seed the random number generator consistently on each call to get
      consistent results. rand() is used in deblending. */
@@ -160,7 +162,7 @@ int sep_extract(void *image, void *noise,
 
   /* Allocate memory for the pixel list */
   plistinit(conv, noise);
-  if (!(pixel = objlist.plist = malloc(nposize=MEMORY_PIXSTACK*plistsize)))
+  if (!(pixel = objlist.plist = malloc(nposize=mem_pixstack*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
       goto exit;
@@ -292,48 +294,50 @@ int sep_extract(void *image, void *noise,
 		PLISTPIX(pixt, thresh) = thresh;
 
 	      /* Check if we are running out of free pixels in objlist.plist */
-	      /* (previously, the largest object became a "victim") */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
-		  status = SEP_INTERNAL_ERROR;
-		  sprintf(errtext, "Pixel stack overflow at position %d,%d.",
-			  xl+1, yl+1);
+		  
+		  status = PIXSTACK_FULL;
+		  sprintf(errtext,
+			  "The limit of %d active object pixels over the "
+			  "detection threshold was reached. Check that "
+			  "the image is background subtracted or increase "
+			  "the detection threshold "
+			  "(limit reached at pixel %d at x=%d, y=%d).",
+			  (int)mem_pixstack, yl*w+xl, xl, yl);
 		  put_errdetail(errtext);
 		  goto exit;
-		  
-		  /* NOTE: The above error was originally just a warning.
-		     with the change to an error, the following code in this
-		     if block is never executed.
-		     TODO: should this just be a warning (or nothing?)
-		  */
 
-		  /* loop over pixels in row to find largest object */
-		  maxpixnb = 0;
-		  for (i=0; i<=w; i++)
-		    if (store[i].pixnb>maxpixnb)
-		      if (marker[i]=='S' || (newmarker=='S' && i==xl))
-			{
-			  flag = 0;
-			  if (i<xl)
-			    for (j=0; j<=co; j++)
-			      flag |= (start[j]==i);
-			  if (!flag)
-			    maxpixnb = (victim = &store[i])->pixnb;
-			}
-		  for (j=1; j<=co; j++)
-		    if (info[j].pixnb>maxpixnb)
-		      maxpixnb = (victim = &info[j])->pixnb;
-		  
-		  if ((!maxpixnb) || (maxpixnb <= 1))
+		  /* The code in the rest of this block increases the
+		   * stack size as needed. Currently, it is never
+		   * executed. This is because it isn't clear that
+		   * this is a good idea: most times when the stack
+		   * overflows it is due to user error: too-low
+		   * threshold or image not background subtracted. */
+
+		  /* increase the stack size */
+		  oldnposize = nposize;
+ 		  mem_pixstack = (int)(mem_pixstack * 2);
+		  nposize = mem_pixstack * plistsize;
+		  pixel = (pliststruct *)realloc(pixel, nposize);
+		  objlist.plist = pixel;
+		  if (!pixel)
 		    {
-		      status = SEP_INTERNAL_ERROR;
+		      status = MEMORY_ALLOC_ERROR;
 		      goto exit;
 		    }
-		  freeinfo.firstpix = PLIST(pixel+victim->firstpix, nextpix);
-		  PLIST(pixel+victim->lastpix, nextpix) = freeinfo.lastpix;
-		  PLIST(pixel+(victim->lastpix=victim->firstpix), nextpix) = -1;
-		  victim->pixnb = 1;
-		  victim->flag |= SEP_OBJ_OVERFLOW;
+
+		  /* set next free pixel to the start of the new block 
+		   * and link up all the pixels in the new block */
+		  PLIST(pixel+freeinfo.firstpix, nextpix) = oldnposize;
+		  pixt = pixel + oldnposize;
+		  for (i=oldnposize + plistsize; i<nposize;
+		       i += plistsize, pixt += plistsize)
+		    PLIST(pixt, nextpix) = i;
+		  PLIST(pixt, nextpix) = -1;
+
+		  /* last free pixel is now at the end of the new block */
+		  freeinfo.lastpix = nposize - plistsize;
 		}
 	      /*------------------------------------------------------------*/
 
