@@ -30,7 +30,7 @@ DEF SEP_ERROR_IS_VAR = 0x0001
 DEF SEP_ERROR_IS_ARRAY = 0x0002
 DEF SEP_MASK_IGNORE = 0x0004
 DEF SEP_APER_TRUNC = 0x0010
-DEF SEP_APER_HASMASKED = 0x0200
+DEF SEP_APER_HASMASKED = 0x0020
 
 # macro defintion from sepcore.h
 # This is not part of the SEP API, but we pull it out because want to
@@ -462,10 +462,11 @@ default_conv = np.array([[1.0, 2.0, 1.0],
                          [2.0, 4.0, 2.0],
                          [1.0, 2.0, 1.0]], dtype=np.float32)
 
-def extract(np.ndarray data not None, float thresh, int minarea=5,
+def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
+            int minarea=5,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
-            double clean_param=1.0, np.ndarray noise=None):
+            double clean_param=1.0):
     """extract(data, thresh, minarea=5, conv=default_conv, deblend_nthresh=32,
                deblend_cont=0.005, clean=True, clean_param=1.0)
 
@@ -480,6 +481,10 @@ def extract(np.ndarray data not None, float thresh, int minarea=5,
         this is interpreted as an absolute threshold. If a noise array is
         given, this is interpreted as a relative threshold (the absolute
         threshold will be ``thresh * noise``).
+    noise : np.ndarray, optional
+        Noise array for specifying a pixel-by-pixel detection threshold.
+        Note that if convolution is active, both that data array and noise
+        array are convolved for the purposes of detection.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
     conv : np.ndarray or None, optional

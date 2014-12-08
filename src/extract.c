@@ -568,34 +568,22 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 
   preanalyse(0, objlist);
 
-  /*----- Check if the current strip contains the lower isophote
-    (it always should since the "current strip" is the entire image!) */
-  if ((int)obj.ymin < 0)
-    obj.flag |= SEP_OBJ_ISO_PB;
-
-  if (!(obj.flag & SEP_OBJ_OVERFLOW))
+  status = deblend(objlist, 0, &objlistout, deblend_nthresh, deblend_mincont,
+		   minarea);
+  if (status)
     {
-      status = deblend(objlist, 0, &objlistout, deblend_nthresh,
-		       deblend_mincont, minarea);
-      if (status == RETURN_OK)
-	{
-	  objlist2 = &objlistout;
-	}
-      else
-	{
-	  /* formerly, this wasn't a fatal error, so a flag was set for
-	     the object and we continued. I'm leaving the flag-setting here
-	     in case we want to change this to a non-fatal error in the
-	     future, but currently the flag setting is irrelevant. */
-	  objlist2 = objlist;
-	  for (i=0; i<objlist2->nobj; i++)
-	    objlist2->obj[i].flag |= SEP_OBJ_DOVERFLOW;
-	  goto exit;
-	}
+      /* formerly, this wasn't a fatal error, so a flag was set for
+       * the object and we continued. I'm leaving the flag-setting
+       * here in case we want to change this to a non-fatal error in
+       * the future, but currently the flag setting is irrelevant. */
+      objlist2 = objlist;
+      for (i=0; i<objlist2->nobj; i++)
+	objlist2->obj[i].flag |= SEP_OBJ_DOVERFLOW;
+      goto exit;
     }
   else
-    objlist2 = objlist;
-  
+    objlist2 = &objlistout;
+
   /* Analyze the deblended objects and add to the final list */
   for (i=0; i<objlist2->nobj; i++)
     {
@@ -845,8 +833,6 @@ int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
   objout->ycpeak = obj->ycpeak;
 
   objout->flag = obj->flag;
-  if (obj->singuflag)
-    objout->flag |= SEP_OBJ_SINGU;
   
   /* Allocate object's pixel list */
   QMALLOC(objout->pix, int, objout->npix, status);

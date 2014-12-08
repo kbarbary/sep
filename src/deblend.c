@@ -49,6 +49,8 @@ static short	     *son=NULL, *ok=NULL;
 Divide a list of isophotal detections in several parts (deblending).
 NOTE: Even if the object is not deblended, the output objlist threshold is
       recomputed if a variable threshold is used.
+
+This can return two error codes: DEBLEND_OVERFLOW or MEMORY_ALLOC_ERROR
 */
 int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    int deblend_nthresh, double deblend_mincont, int minarea)
@@ -164,9 +166,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		if (ok[k+1+xn*j] &&
 		    obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		  {
-		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED
-		      | ((SEP_OBJ_ISO_PB|SEP_OBJ_OVERFLOW)
-			 &debobjlist2.obj[0].flag);
+		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED;
 		    status = addobjdeep(j, &objlist[k+1], &debobjlist2);
 		    if (status != RETURN_OK)
 		      goto exit;

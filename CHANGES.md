@@ -3,9 +3,17 @@ Python module versions
 v0.2.0 (unreleased)
 ===================
 
-* Add `sep.aperell()` function.
+* **[API change]** Change `apercirc()` to `sum_circle()`.
+  (`apercirc()` still available as undocumented alias temporarily.)
 
-* Add `sep.kronrad()` function.
+* **[API change]** `theta` field in `extract()` output is now in
+  radians rather than degrees, for compatibility with new ellipse
+  aperture functions.
+
+* Add `sum_circann()`, `sum_ellipse()`, `sum_ellipann()`,
+  `kron_radius()`, `ellipse_coeffs()`, `ellipse_axes()` functions.
+
+* Exact mode aperture photometery in all functions, with `subpix=0`.
 
 * Enable variable thresholding in `sep.extract`. [#11]
 

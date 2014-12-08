@@ -26,24 +26,20 @@
 #define SEP_TFLOAT       42
 #define SEP_TDOUBLE      82
 
-/* object flags */
-#define SEP_OBJ_CROWDED    0x0001
-#define SEP_OBJ_MERGED     0x0002
-#define SEP_OBJ_SATUR      0x0004
-#define SEP_OBJ_TRUNC      0x0008
-#define SEP_APER_TRUNC     0x0010
-#define SEP_OBJ_ISO_PB     0x0020
-#define SEP_OBJ_DOVERFLOW  0x0040
-#define SEP_OBJ_OVERFLOW   0x0080
-#define SEP_OBJ_SINGU      0x0100
-#define SEP_APER_HASMASKED 0x0200
-#define SEP_APER_ALLMASKED 0x0400
-#define SEP_APER_NONPOSITIVE 0x0800
+/* object & aperture flags */
+#define SEP_OBJ_MERGED       0x0001  /* object is result of deblending */
+#define SEP_OBJ_TRUNC        0x0002  /* object truncated at image boundary */
+#define SEP_OBJ_DOVERFLOW    0x0004  /* not currently used, but could be */
+#define SEP_OBJ_SINGU        0x0008  /* x,y fully correlated */
+#define SEP_APER_TRUNC       0x0010
+#define SEP_APER_HASMASKED   0x0020
+#define SEP_APER_ALLMASKED   0x0040
+#define SEP_APER_NONPOSITIVE 0x0080
 
 /* input flags for aperture photometry */
-#define SEP_ERROR_IS_VAR   0x0001
-#define SEP_ERROR_IS_ARRAY 0x0002
-#define SEP_MASK_IGNORE    0x0004
+#define SEP_ERROR_IS_VAR     0x0001
+#define SEP_ERROR_IS_ARRAY   0x0002
+#define SEP_MASK_IGNORE      0x0004
 
 /*--------------------- global background estimation ------------------------*/
 

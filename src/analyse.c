@@ -242,10 +242,8 @@ void  analyse(int no, objliststruct *objlist, int robust)
       xm2 += 0.0833333;
       ym2 += 0.0833333;
       temp2 = xm2*ym2-xym*xym;
-      obj->singuflag = 1;
+      obj->flag |= SEP_OBJ_SINGU;
     }
-  else
-    obj->singuflag = 0;
   
   if ((fabs(temp=xm2-ym2)) > 0.0)
     theta = atan2(2.0 * xym, temp) / 2.0;
@@ -257,7 +255,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   pmx2+=temp;
   pmy2-=temp;
   
-  obj->dnpix = (obj->flag & SEP_OBJ_OVERFLOW)? obj->fdnpix:(LONG)dnpix;
+  obj->dnpix = (LONG)dnpix;
   obj->dflux = tv;
   obj->mx = xm+xmin;	/* add back xmin */
   obj->my = ym+ymin;	/* add back ymin */

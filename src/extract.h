@@ -98,7 +98,6 @@ typedef struct
 
   /* flags */
   short	   flag;			     /* extraction flags */
-  BYTE	   singuflag;			     /* flags for singularities */
 
   /* accessing individual pixels in plist*/
   int	   firstpix;			     /* ptr to first pixel */
