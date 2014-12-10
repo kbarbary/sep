@@ -81,8 +81,8 @@ def test_vs_sextractor():
     assert sep.hasmasked(flag).sum() == 0
 
     # Test "flux_auto"
-    kr, flag = sep.kron_radius(data, objs['x'], objs['y'], objs['cxx'],
-                               objs['cyy'], objs['cxy'], 6.0)
+    kr, flag = sep.kron_radius(data, objs['x'], objs['y'], objs['a'],
+                               objs['b'], objs['theta'], 6.0)
 
     flux, fluxerr, flag = sep.sum_ellipse(data, objs['x'], objs['y'],
                                           objs['a'], objs['b'],
@@ -93,7 +93,7 @@ def test_vs_sextractor():
     # and kron_radius is set to 0.0 in SExtractor, but 0.08 in sep.
     # Most of the other values are within 1e-4 except one which is only
     # within 0.01. This might be due to a change in SExtractor between
-    # v2.8.6 (used to generate truth catalog) and v2.18.11.
+    # v2.8.6 (used to generate "truth" catalog) and v2.18.11.
     kr[59] = 0.0
     flux[59] = 0.0
     fluxerr[59] = 0.0
@@ -132,13 +132,13 @@ def test_extract_noise_array():
     # off edge boundaries. As a result, the convolved noise map is not
     # all ones.
     objects = sep.extract(data, 1.5*bkg.globalrms, conv=None)
-    objects2 = sep.extract(data, 1.5*bkg.globalrms, noise=np.ones_like(data),
+    objects2 = sep.extract(data, 1.5*bkg.globalrms, err=np.ones_like(data),
                            conv=None)
     assert_equal(objects, objects2)  # we can test exact match here.
 
     # Less trivial test where thresh is realistic. Still a flat noise map.
     noise = bkg.globalrms * np.ones_like(data)
-    objects2 = sep.extract(data, 1.5, noise=noise, conv=None)
+    objects2 = sep.extract(data, 1.5, err=noise, conv=None)
     assert_equal(objects, objects2)
 
 
@@ -153,7 +153,10 @@ def test_byte_order_exception():
     assert 'byte order' in str(excinfo.value)
 
 
-def test_apercirc_dtypes():
+# -----------------------------------------------------------------------------
+# aperture tests
+
+def test_aperture_dtypes():
     naper = 100
     x = np.random.uniform(200., 800., naper)
     y = np.random.uniform(200., 800., naper)
@@ -168,15 +171,45 @@ def test_apercirc_dtypes():
         assert_allclose(fluxes[0], fluxes[i])
 
 
+def test_apertures_exact():
+    naper = 100
+    x = np.random.uniform(200., 800., naper)
+    y = np.random.uniform(200., 800., naper)
+    theta = np.random.uniform(-np.pi/2., np.pi/2.)
+    ratio = np.random.uniform(0.2, 1.0, naper)
+    r = 3.
+    for dt in IMAGE_DTYPES:
+        data = np.ones((1000, 1000), dtype=dt)
+        for r in [0.5, 1., 3.]:
+            flux, fluxerr, flag = sep.sum_circle(data, x, y, r, subpix=0)
+            assert_allclose(flux, np.pi*r**2)
+
+            rout = r*1.1
+            flux, fluxerr, flag = sep.sum_circann(data, x, y, r, rout,
+                                                  subpix=0)
+            assert_allclose(flux, np.pi*(rout**2 - r**2))
+
+            flux, fluxerr, flag = sep.sum_ellipse(data, x, y, 1., ratio,
+                                                  theta, r=r, subpix=0)
+            assert_allclose(flux, np.pi*ratio*r**2)
+
+            rout = r*1.1
+            flux, fluxerr, flag = sep.sum_ellipann(data, x, y, 1., ratio,
+                                                   theta, r, rout, subpix=0)
+            assert_allclose(flux, np.pi*ratio*(rout**2 - r**2))
+
+
+# -----------------------------------------------------------------------------
+
 def test_mask_ellipse():
     arr = np.zeros((20, 20), dtype=np.bool)
 
     # should mask 5 pixels:
-    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, r=1.001)
+    sep.mask_ellipse(arr, 10., 10., 1.0, 1.0, 0.0, r=1.001)
     assert arr.sum() == 5
 
     # should mask 13 pixels:
-    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, r=2.001)
+    sep.mask_ellipse(arr, 10., 10., 1.0, 1.0, 0.0, r=2.001)
     assert arr.sum() == 13
 
 

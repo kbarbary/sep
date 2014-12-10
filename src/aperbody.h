@@ -1,9 +1,7 @@
 int APER_NAME(void *data, void *error, void *mask,
 	      int dtype, int edtype, int mdtype, int w, int h,
 	      double maskthresh, double gain, short inflag,
-	      double x, double y,
-	      APER_ARGS,
-	      int subpix,
+	      double x, double y, APER_ARGS, int subpix,
 	      double *sum, double *sumerr, double *area, short *flag)
 {
   PIXTYPE pix, varpix;

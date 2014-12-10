@@ -502,7 +502,7 @@ default_conv = np.array([[1.0, 2.0, 1.0],
                          [2.0, 4.0, 2.0],
                          [1.0, 2.0, 1.0]], dtype=np.float32)
 
-def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
+def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
             int minarea=5,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
@@ -517,14 +517,12 @@ def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
     data : `~numpy.ndarray`
         Data array (2-d).
     thresh : float
-        Threshold pixel value for detection. If a noise array is not given,
-        this is interpreted as an absolute threshold. If a noise array is
-        given, this is interpreted as a relative threshold (the absolute
-        threshold will be ``thresh * noise``).
-    noise : `~numpy.ndarray`, optional
+        Threshold pixel value for detection. If an ``err`` array is not given,
+        this is interpreted as an absolute threshold. If ``err`` is
+        given, this is interpreted as a relative threshold: the absolute
+        threshold at pixel (j, i) will be ``thresh * err[j, i]``.
+    err : `~numpy.ndarray`, optional
         Noise array for specifying a pixel-by-pixel detection threshold.
-        Note that if convolution is active, both that data array and noise
-        array are convolved for the purposes of detection.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
     conv : `~numpy.ndarray` or None, optional
@@ -579,13 +577,13 @@ def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
     sep_dtype = _get_sep_dtype(data.dtype)
     buf = data.view(dtype=np.uint8)
 
-    if noise is None:
+    if err is None:
         noise_ptr = NULL
         noise_dtype = 0
     else:
-        noise_buf = noise.view(dtype=np.uint8)
+        noise_buf = err.view(dtype=np.uint8)
         noise_ptr = &noise_buf[0,0]
-        noise_dtype = _get_sep_dtype(noise.dtype)
+        noise_dtype = _get_sep_dtype(err.dtype)
 
     # Parse convolution input
     if conv is None:
@@ -949,9 +947,9 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
             ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
             maskthresh, gain_, inflag,
             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 0))[1],
-            (<double*>np.PyArray_MultiIter_DATA(it, 0))[2],
-            (<double*>np.PyArray_MultiIter_DATA(it, 0))[3],
+            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
             subpix,
             <double*>np.PyArray_MultiIter_DATA(it, 4),
             <double*>np.PyArray_MultiIter_DATA(it, 5),
@@ -964,8 +962,6 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     return sum, sumerr, flag
 
 
-#@cython.boundscheck(False)
-#@cython.wraparound(False)
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 var=None, err=None, gain=None, np.ndarray mask=None,
                 double maskthresh=0.0, bkgann=None, int subpix=5):
@@ -1281,9 +1277,8 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
-                 r=1.0, scale=None):
-    """mask_ellipse(arr, x, y, cxx=None, cyy=None, cxy=None, r=1.0)
+def mask_ellipse(np.ndarray arr not None, x, y, a, b, theta, r=1.0):
+    """mask_ellipse(arr, x, y, a, b, theta, r=1.0)
 
     Mask ellipse(s) in an array.
 
@@ -1296,7 +1291,7 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
         Input array to be masked. Array is updated in-place.
     x, y : array_like
         Center of ellipse(s).
-    cxx, cyy, cxy : array_like
+    a, b, theta : array_like
         Parameters defining the extent of the ellipe(s).
     r : array_like, optional
         Scale factor of ellipse(s). Default is 1.
@@ -1304,12 +1299,7 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
 
     cdef int w, h
     cdef np.uint8_t[:,:] buf
-
-    # TODO `scale` is deprecated
-    if scale is not None:
-        warn("scale keyword is deprecated and will be removed in a future "
-             "release. Use r keyword instead")
-        r = scale
+    cdef double cxx, cyy, cxy
 
     # only boolean arrays supported
     if not (arr.dtype.type is np.bool_ or arr.dtype.type is np.ubyte):
@@ -1323,46 +1313,46 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
-
-    if (cxx is not None and cyy is not None and cxy is not None):
-        cxx = np.require(cxx, dtype=dt)
-        cyy = np.require(cyy, dtype=dt)
-        cxy = np.require(cxy, dtype=dt)
-
-        it = np.broadcast(x, y, cxx, cyy, cxy, r)
-        while np.PyArray_MultiIter_NOTDONE(it):
-            sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
-                            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-                            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-                            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                            1)
-            np.PyArray_MultiIter_NEXT(it)
-
-    else:
-        raise ValueError("Must specify cxx, cyy and cxy keywords")
+    a = np.require(a, dtype=dt)
+    b = np.require(b, dtype=dt)
+    theta = np.require(theta, dtype=dt)
+    
+    it = np.broadcast(x, y, a, b, theta, r)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                           &cxx, &cyy, &cxy)
+        sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
+                        (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                        (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                        cxx, cyy, cxy,
+                        (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                        1)
+        np.PyArray_MultiIter_NEXT(it)
 
 
-def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
+def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
                 np.ndarray mask=None, double maskthresh=0.0):
-    """kron_radius(data, x, y, cxx, cyy, cxy, r, mask=None, maskthresh=0.0)
+    """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0)
 
-    Calculate Kron radius within an ellipse.
+    Calculate Kron "radius" within an ellipse.
 
     The Kron radius is given by 
 
     .. math::
 
-       \sum_i r_i I(r_i) / \sum_i r_i I(r_i)
+       \sum_i r_i I(r_i) / \sum_i I(r_i)
 
     where the sum is over all pixels in the aperture and the radius is given
-    by
+    in units of ``a`` and ``b``: ``r_i`` is the distance to the pixel relative
+    to the distnace to the ellipse specified by ``a``, ``b``, ``theta``.
+    Equivalently, after converting the ellipse parameters to their coefficient
+    representation, ``r_i`` is given by
 
     .. math::
 
-       r_i^2 = CXX(x_i - x)^2 + CYY(y_i - y)^2 + CXY(x_i - x)(y_i - y)
+       r_i^2 = cxx(x_i - x)^2 + cyy(y_i - y)^2 + cxx(x_i - x)(y_i - y)
 
     Parameters
     ----------
@@ -1372,8 +1362,8 @@ def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
     x, y : array_like
         Ellipse center(s).
 
-    cxx, cyy, cxy : array_like
-        Ellipse moments.
+    a, b, theta : array_like
+        Ellipse parameters.
 
     r : array_like
         "Radius" of ellipse over which to integrate. If the ellipse moments
@@ -1401,6 +1391,7 @@ def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
     cdef np.uint8_t[:,:] buf, mbuf
     cdef void *ptr
     cdef void *mptr
+    cdef double cxx, cyy, cxy
 
     mptr = NULL
     mdtype = 0
@@ -1415,9 +1406,9 @@ def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
     dt = np.dtype(np.double)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
-    cxx = np.require(cxx, dtype=dt)
-    cyy = np.require(cyy, dtype=dt)
-    cxy = np.require(cxy, dtype=dt)
+    a = np.require(a, dtype=dt)
+    b = np.require(b, dtype=dt)
+    theta = np.require(theta, dtype=dt)
     r = np.require(r, dtype=dt)
 
     if mask is not None:
@@ -1429,18 +1420,20 @@ def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
         mptr = <void*>&mbuf[0, 0]
 
     # allocate output arrays
-    shape = np.broadcast(x, y, cxx, cyy, cxy, r).shape
+    shape = np.broadcast(x, y, a, b, theta, r).shape
     kr = np.empty(shape, np.float)
     flag = np.empty(shape, np.short)
 
-    it = np.broadcast(x, y, cxx, cyy, cxy, r, kr, flag)
+    it = np.broadcast(x, y, a, b, theta, r, kr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
+        sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                           (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                           &cxx, &cyy, &cxy)
         sep_kron_radius(ptr, mptr, dtype, mdtype, w, h, maskthresh,
                         (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                         (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                        (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                        (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-                        (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                        cxx, cyy, cxy,
                         (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
                         <double*>np.PyArray_MultiIter_DATA(it, 6),
                         <short*>np.PyArray_MultiIter_DATA(it, 7))

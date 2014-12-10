@@ -16,6 +16,7 @@ numpy arrays (no FITS files, configuration files, etc).
 - circular and elliptical aperture photometry with local background estimation
 - optional mask and background noise in aperture photometry
 - subpixel and exact pixel overlap calculation modes in aperture photometry
+- Very fast.
 
 Usage Guide
 -----------
@@ -47,13 +48,13 @@ Reference/API
    sep.sum_circann
    sep.sum_ellipse
    sep.sum_ellipann
-   sep.kron_radius
 
 **Aperture utilities**
 
 .. autosummary::
    :toctree: api
 
+   sep.kron_radius
    sep.mask_ellipse
    sep.ellipse_axes
    sep.ellipse_coeffs

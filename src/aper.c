@@ -230,8 +230,8 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_NAME sep_sum_circann
 #define APER_ARGS double rin, double rout
 #define APER_DECL double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
-#define APER_CHECKS		    \
-  if (!(rin >= 0.0 && rout >= rin)) \
+#define APER_CHECKS				\
+  if (!(rin >= 0.0 && rout >= rin))		\
     return ILLEGAL_APER_PARAMS
 #define APER_INIT					\
   rin2 = rin*rin;					\

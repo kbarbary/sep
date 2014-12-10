@@ -80,11 +80,20 @@ Pixels in the background annulus are not subsampled and any masked
 pixels in the annulus are completely igored rather than corrected.
 The inner and outer radii can also be arrays.
 
+**Equivalent of MAG_AUTO or FLUX_AUTO in Source Extractor**
+
+This is a two-step process. First we calculate the Kron radius for each
+object::
+
+    kronrad, flag = sep.kron_radius(data, objs['x'], objs['y'], objs['a'],
+                                    objs['b'], objs['theta'], 6.0)
+
+
+
 **Mask image regions**
 
 Create a boolean array with elliptical regions set to True::
 
    mask = np.zeros(data.shape, dtype=np.bool)
-   sep.mask_ellipse(mask, objects['x'], objects['y'],
-                    cxx=objects['cxx'], cyy=objects['cyy'], cxy=objects['cxy'],
-                    r=3.)
+   sep.mask_ellipse(mask, objs['x'], objs['y'], obs['a'], objs['b'],
+                    objs['theta'], r=3.)
