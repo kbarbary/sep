@@ -510,8 +510,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
             double clean_param=1.0):
-    """extract(data, thresh, minarea=5, conv=default_conv, deblend_nthresh=32,
-               deblend_cont=0.005, clean=True, clean_param=1.0)
+    """extract(data, thresh, err=None, minarea=5, conv=default_conv,
+               deblend_nthresh=32, deblend_cont=0.005, clean=True,
+               clean_param=1.0)
 
     Extract sources from an image.
 
@@ -1285,8 +1286,17 @@ def mask_ellipse(np.ndarray arr not None, x, y, a, b, theta, r=1.0):
 
     Mask ellipse(s) in an array.
 
-    Set array elements to True or 1 if they fall within the given ellipse,
-    defined by ``cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = r^2``.
+    Set array elements to True (or 1) if they fall within the given
+    ellipse.  The ``r`` keyword can be used to scale the ellipse.
+    Equivalently, after converting ``a``, ``b``, ``theta`` to a
+    coefficient ellipse representation (``cxx``, ``cyy``, ``cxy``),
+    pixels that fulfill the condition
+
+    .. math::
+
+       cxx(x_i - x)^2 + cyy(y_i - y)^2 + cxx(x_i - x)(y_i - y) < r^2
+
+    will be masked.
 
     Parameters
     ----------
@@ -1349,7 +1359,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     where the sum is over all pixels in the aperture and the radius is given
     in units of ``a`` and ``b``: ``r_i`` is the distance to the pixel relative
-    to the distnace to the ellipse specified by ``a``, ``b``, ``theta``.
+    to the distance to the ellipse specified by ``a``, ``b``, ``theta``.
     Equivalently, after converting the ellipse parameters to their coefficient
     representation, ``r_i`` is given by
 
@@ -1369,10 +1379,10 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
         Ellipse parameters.
 
     r : array_like
-        "Radius" of ellipse over which to integrate. If the ellipse moments
-        are second moments of an object, this is the number of "isophotal
-        radii" in Source Extractor parlance. A Fixed value of 6 is used
-        in Source Extractor.
+        "Radius" of ellipse over which to integrate. If the ellipse
+        extent correponds to second moments of an object, this is the
+        number of "isophotal radii" in Source Extractor parlance. A
+        Fixed value of 6 is used in Source Extractor.
 
     mask : `numpy.ndarray`, optional
         An optional mask.
@@ -1388,6 +1398,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     flag : array_like
         Integer value indicating conditions about the aperture or how
         many masked pixels it contains.
+
     """
 
     cdef int w, h, mw, mh
@@ -1451,7 +1462,7 @@ def ellipse_coeffs(a, b, theta):
 
     Parameters
     ----------
-    a, b, theta : `~numpy.ndarray`
+    a, b, theta : array_like
         Ellipse(s) semi-major, semi-minor axes and position angle
         respectively.  Position angle is radians counter clockwise
         from positive x axis to major axis, and lies in range
@@ -1459,7 +1470,7 @@ def ellipse_coeffs(a, b, theta):
 
     Returns
     -------
-    cxx, cyy, cxy : array_like
+    cxx, cyy, cxy : `~numpy.ndarray`
         Describes the ellipse(s) ``cxx * x^2 + cyy * y^2 + cxy * xy = 1``
     """
 

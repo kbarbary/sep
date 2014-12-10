@@ -16,7 +16,7 @@ numpy arrays (no FITS files, configuration files, etc).
 - circular and elliptical aperture photometry with local background estimation
 - optional mask and background noise in aperture photometry
 - subpixel and exact pixel overlap calculation modes in aperture photometry
-- Very fast.
+- Extremely fast
 
 Usage Guide
 -----------
