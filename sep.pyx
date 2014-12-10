@@ -151,6 +151,9 @@ cdef extern from "sep.h":
                          double cxx, double cyy, double cxy, double r,
                          unsigned char val)
 
+    void sep_set_extract_pixstack(size_t val)
+    size_t sep_get_extract_pixstack()
+
     void sep_get_errmsg(int status, char *errtext)
     void sep_get_errdetail(char *errtext)
 
@@ -1545,7 +1548,18 @@ def ellipse_axes(cxx, cyy, cxy):
     return a, b, theta
 
 # -----------------------------------------------------------------------------
-# Utility functions for interpreting flags
+# Utility functions
+
+def set_extract_pixstack(size_t size):
+    """Set the size in pixels of the internal pixel buffer used in extract()"""
+    sep_set_extract_pixstack(size)
+
+def get_extract_pixstack():
+    """Get the size in pixels of the internal pixel buffer used in extract()"""
+    return sep_get_extract_pixstack()
+
+# -----------------------------------------------------------------------------
+# deprecated stuff
 
 def istruncated(np.ndarray flag not None):
     """True where 'aperture truncated' flag is set."""
@@ -1554,8 +1568,5 @@ def istruncated(np.ndarray flag not None):
 def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
     return (flag & APER_HASMASKED) != 0
-
-# -----------------------------------------------------------------------------
-# Backwards compatibility
 
 apercirc = sum_circle

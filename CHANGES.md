@@ -3,6 +3,10 @@ Python module versions
 v0.2.0 (unreleased)
 ===================
 
+* **[API change]** Change `mask_ellipse()` parameters from ellipse
+  coefficients to ellipse axes and position angle, to match aperture
+  functions.
+
 * **[API change]** Change `apercirc()` to `sum_circle()`.
   (`apercirc()` still available as undocumented alias temporarily.)
 
@@ -22,6 +26,9 @@ v0.2.0 (unreleased)
 
 * More detail in error messages coming from within the C library.
   More helpful error message for non-native byteorder arrays.
+
+* Add ability to change pixel stack size used in `extract()`, with
+  `set_extract_pixstack()` function
 
 v0.1.0 (11 August 2014)
 =======================

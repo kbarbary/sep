@@ -31,8 +31,6 @@
 #include "extract.h"
 
 #define DETECT_MAXAREA 0             /* replaces prefs.ext_maxarea */
-#define MEMORY_PIXSTACK_INIT 300000  /* number of pixels in stack */
-                                     /* (replaces prefs.mem_pixstack) */
 #define	WTHRESH_CONVFAC	1e-4         /* Factor to apply to weights when */
 			             /* thresholding filtered weight-maps */
 
@@ -40,6 +38,18 @@
 int plistexist_cdvalue, plistexist_thresh, plistexist_var;
 int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
 int plistsize;
+size_t extract_pixstack = 300000;
+
+/* get and set pixstack */
+void sep_set_extract_pixstack(size_t val)
+{
+  extract_pixstack = val;
+}
+
+size_t sep_get_extract_pixstack()
+{
+  return extract_pixstack;
+}
 
 int  sortit(infostruct *, objliststruct *, int,
 	    objliststruct *, int, double);
@@ -99,7 +109,8 @@ int sep_extract(void *image, void *noise,
   convert_noise = NULL;
   imageline = (BYTE *)image;
   noiseline = (BYTE *)noise;
-  mem_pixstack = MEMORY_PIXSTACK_INIT;
+
+  mem_pixstack = sep_get_extract_pixstack();
 
   /* seed the random number generator consistently on each call to get
      consistent results. rand() is used in deblending. */
@@ -296,15 +307,14 @@ int sep_extract(void *image, void *noise,
 	      /* Check if we are running out of free pixels in objlist.plist */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
-		  
 		  status = PIXSTACK_FULL;
 		  sprintf(errtext,
 			  "The limit of %d active object pixels over the "
 			  "detection threshold was reached. Check that "
-			  "the image is background subtracted or increase "
-			  "the detection threshold "
-			  "(limit reached at pixel %d at x=%d, y=%d).",
-			  (int)mem_pixstack, yl*w+xl, xl, yl);
+			  "the image is background subtracted and the "
+			  "detection threshold is not too low."
+			  " detection threshold.",
+			  (int)mem_pixstack);
 		  put_errdetail(errtext);
 		  goto exit;
 

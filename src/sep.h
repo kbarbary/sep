@@ -165,6 +165,10 @@ int sep_extract(void *image,          /* image array                         */
  * 
  */
 
+/* set and get the size of the pixel stack used in extract() */
+void sep_set_extract_pixstack(size_t val);
+size_t sep_get_extract_pixstack(void);
+
 void sep_freeobjarray(sepobj *objects, int nobj);
 /* free memory associated with an sepobj array, including pixel lists */
 
