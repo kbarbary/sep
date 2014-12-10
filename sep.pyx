@@ -25,12 +25,20 @@ DEF SEP_TINT = 31
 DEF SEP_TFLOAT = 42
 DEF SEP_TDOUBLE = 82
 
-# Flag values (both input and output)
+# input flag values (C macros)
 DEF SEP_ERROR_IS_VAR = 0x0001
 DEF SEP_ERROR_IS_ARRAY = 0x0002
 DEF SEP_MASK_IGNORE = 0x0004
-DEF SEP_APER_TRUNC = 0x0010
-DEF SEP_APER_HASMASKED = 0x0020
+
+# Output flag values accessible from python
+OBJ_MERGED = np.short(0x0001)
+OBJ_TRUNC = np.short(0x0002)
+OBJ_DOVERFLOW = np.short(0x0004)
+OBJ_SINGU = np.short(0x0008)
+APER_TRUNC = np.short(0x0010)
+APER_HASMASKED = np.short(0x0020)
+APER_ALLMASKED = np.short(0x0040)
+APER_NONPOSITIVE = np.short(0x0080)
 
 # macro defintion from sepcore.h
 # This is not part of the SEP API, but we pull it out because want to
@@ -279,16 +287,17 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask,
 # Background Estimation
 
 cdef class Background:
-    """Background(data, mask=None, maskthresh=0.0, bw=64, bh=64, fw=3, fh=3,
-                  fthresh=0.0)
+    """
+    Background(data, mask=None, maskthresh=0.0, bw=64, bh=64,
+               fw=3, fh=3, fthresh=0.0)
 
-    Estimate the global image background and noise.
+    Representation of spatially variable image background and noise.
 
     Parameters
     ----------
-    data : 2-d numpy.ndarray
+    data : 2-d `~numpy.ndarray`
         Data array.
-    mask : 2-d numpy.ndarray, optional
+    mask : 2-d `~numpy.ndarray`, optional
         Mask array, optional
     maskthresh : float, optional
         Mask threshold. This is the inclusive upper limit on the mask value
@@ -339,13 +348,22 @@ cdef class Background:
                               &self.ptr)
         _assert_ok(status)
 
+    # Note: all initialization work is done in __cinit__. This is just here
+    # for the docstring.
+    def __init__(self, np.ndarray data not None, np.ndarray mask=None,
+                 float maskthresh=0.0, int bw=64, int bh=64,
+                 int fw=3, int fh=3, float fthresh=0.0):
+        """Background(data, mask=None, maskthresh=0.0, bw=64, bh=64,
+                      fw=3, fh=3, fthresh=0.0)"""
+        pass
+
     property globalback:
-        """Average background level."""
+        """Global background level."""
         def __get__(self):
             return self.ptr.globalback
 
     property globalrms:
-        """Average background RMS"""
+        """Global background RMS."""
         def __get__(self):
             return self.ptr.globalrms
 
@@ -353,6 +371,17 @@ cdef class Background:
         """back(dtype=None)
 
         Create an array of the background.
+
+        Parameters
+        ----------
+        dtype : `~numpy.dtype`, optional
+             Data type of output array. Default is the dtype of the original
+             data.
+
+        Returns
+        -------
+        back : `~numpy.ndarray`
+            Array with same dimensions as original data.
         """
         cdef int sep_dtype
         cdef np.uint8_t[:, :] buf
@@ -374,6 +403,17 @@ cdef class Background:
         """rms(dtype=None)
 
         Create an array of the background rms.
+
+        Parameters
+        ----------
+        dtype : `~numpy.dtype`, optional
+             Data type of output array. Default is the dtype of the original
+             data.
+
+        Returns
+        -------
+        rms : `~numpy.ndarray`
+            Array with same dimensions as original data.
         """
         cdef int sep_dtype
         cdef np.uint8_t[:, :] buf
@@ -399,9 +439,9 @@ cdef class Background:
 
         Parameters
         ----------
-        data : 2-d numpy.ndarray
-            Shape must match that of the original image used to measure the
-            background.
+        data : `~numpy.ndarray`
+            Input array, which will be updated in-place. Shape must match
+            that of the original image used to measure the background. 
         """
 
         cdef int w, h, status, sep_dtype
@@ -474,20 +514,20 @@ def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
 
     Parameters
     ----------
-    data : np.ndarray
+    data : `~numpy.ndarray`
         Data array (2-d).
     thresh : float
         Threshold pixel value for detection. If a noise array is not given,
         this is interpreted as an absolute threshold. If a noise array is
         given, this is interpreted as a relative threshold (the absolute
         threshold will be ``thresh * noise``).
-    noise : np.ndarray, optional
+    noise : `~numpy.ndarray`, optional
         Noise array for specifying a pixel-by-pixel detection threshold.
         Note that if convolution is active, both that data array and noise
         array are convolved for the purposes of detection.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
-    conv : np.ndarray or None, optional
+    conv : `~numpy.ndarray` or None, optional
         Convolution kernel used for on-the-fly image convolution (used to
         enhance detection). Default is a 3x3 array:
         [[1,2,1], [2,4,2], [1,2,1]]. Set to ``None`` to skip
@@ -500,10 +540,6 @@ def extract(np.ndarray data not None, float thresh, np.ndarray noise=None,
         Perform cleaning? Default is True.
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
-    noise : np.ndarray, optional
-        Noise array for specifying a pixel-by-pixel detection threshold.
-        Note that if convolution is active, both that data array and noise
-        array are convolved for the purposes of detection.
 
     Returns
     -------
@@ -642,11 +678,11 @@ def sum_circle(np.ndarray data not None, x, y, r,
     """sum_circle(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
                   bkgann=None, gain=None, subpix=5)
 
-    Sum data in circular apertures.
+    Sum data in circular aperture(s).
 
     Parameters
     ----------
-    data : np.ndarray
+    data : `~numpy.ndarray`
         2-d array to be summed.
 
     x, y, r : array_like
@@ -836,7 +872,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     err, var : float or ndarray
         Error *or* variance (specify at most one).
 
-    mask : ndarray, optional
+    mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
         is greater than ``maskthresh``.
 
@@ -853,13 +889,13 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
     Returns
     -------
-    sum : ndarray
+    sum : `~numpy.ndarray`
         The sum of the data array within the aperture.
 
-    sumerr : ndarray
+    sumerr : `~numpy.ndarray`
         Error on the sum.
 
-    flags : ndarray
+    flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
     """
 
@@ -936,11 +972,11 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
                    maskthresh=0.0, bkgann=None, gain=None, subpix=5)
 
-    Sum data in elliptical apertures.
+    Sum data in elliptical aperture(s).
 
     Parameters
     ----------
-    data : np.ndarray
+    data : `~numpy.ndarray`
         2-d array to be summed.
 
     x, y : array_like
@@ -957,10 +993,10 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     r : array_like, optional
         Scaling factor for the ellipse. Default is 1.0.
 
-    err, var : float or ndarray
+    err, var : float or `~numpy.ndarray`
         Error *or* variance (specify at most one).
 
-    mask : ndarray, optional
+    mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
         is greater than ``maskthresh``.
 
@@ -984,13 +1020,13 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 
     Returns
     -------
-    sum : ndarray
+    sum : `~numpy.ndarray`
         The sum of the data array within the aperture.
 
-    sumerr : ndarray
+    sumerr : `~numpy.ndarray`
         Error on the sum.
 
-    flags : ndarray
+    flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
     """
 
@@ -1126,7 +1162,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
 
-    Sum data in elliptical annular apertures.
+    Sum data in elliptical annular aperture(s).
 
     Parameters
     ----------
@@ -1252,12 +1288,12 @@ def mask_ellipse(np.ndarray arr not None, x, y, cxx=None, cyy=None, cxy=None,
     Mask ellipse(s) in an array.
 
     Set array elements to True or 1 if they fall within the given ellipse,
-    defined by ``cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = scale^2``.
+    defined by ``cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) = r^2``.
 
     Parameters
     ----------
-    arr : np.ndarray
-        Input array to be masked. Array is altered.
+    arr : `~numpy.ndarray`
+        Input array to be masked. Array is updated in-place.
     x, y : array_like
         Center of ellipse(s).
     cxx, cyy, cxy : array_like
@@ -1413,7 +1449,23 @@ def kron_radius(np.ndarray data not None, x, y, cxx, cyy, cxy, r,
     return kr, flag 
 
 def ellipse_coeffs(a, b, theta):
-    """Convert from axes to coefficient ellipse representation."""
+    """ellipse_coeffs(a, b, theta)
+
+    Convert from ellipse axes and angle to coefficient representation.
+
+    Parameters
+    ----------
+    a, b, theta : `~numpy.ndarray`
+        Ellipse(s) semi-major, semi-minor axes and position angle
+        respectively.  Position angle is radians counter clockwise
+        from positive x axis to major axis, and lies in range
+        ``[-pi/2, pi/2]``
+
+    Returns
+    -------
+    cxx, cyy, cxy : array_like
+        Describes the ellipse(s) ``cxx * x^2 + cyy * y^2 + cxy * xy = 1``
+    """
 
     dt = np.dtype(np.double)
     a = np.require(a, dtype=dt)
@@ -1438,7 +1490,29 @@ def ellipse_coeffs(a, b, theta):
     return cxx, cyy, cxy
 
 def ellipse_axes(cxx, cyy, cxy):
-    """Convert from axes to coefficient ellipse representation."""
+    """ellipse_axes(cxx, cyy, cxy)
+
+    Convert from coefficient ellipse representation to ellipse axes and angle.
+
+    Parameters
+    ----------
+    cxx, cyy, cxy : array_like
+        Describes the ellipse(s) ``cxx * x**2 + cyy * y**2 + cxy * x * y = 1``
+
+    Returns
+    -------
+    a, b, theta : `~numpy.ndarray`
+        Ellipse(s) semi-major, semi-minor axes and position angle
+        respectively.  Position angle is radians counter clockwise
+        from positive x axis to major axis, and lies in range
+        ``(-pi/2, pi/2)``
+
+    Raises
+    ------
+    ValueError
+        If input parameters do not describe an ellipse.
+
+    """
 
     cdef int status
 
@@ -1482,11 +1556,11 @@ def ellipse_axes(cxx, cyy, cxy):
 
 def istruncated(np.ndarray flag not None):
     """True where 'aperture truncated' flag is set."""
-    return (flag & SEP_APER_TRUNC) != 0
+    return (flag & APER_TRUNC) != 0
 
 def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
-    return (flag & SEP_APER_HASMASKED) != 0
+    return (flag & APER_HASMASKED) != 0
 
 # -----------------------------------------------------------------------------
 # Backwards compatibility
