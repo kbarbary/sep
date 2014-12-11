@@ -870,6 +870,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
         element of the array. These inputs obey numpy broadcasting rules.
+        It is required that ``rout >= rin >= 0.0``.
 
     err, var : float or ndarray
         Error *or* variance (specify at most one).
@@ -943,9 +944,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     sumerr = np.empty(shape, dt)
     flag = np.empty(shape, np.short)
 
-    # broadcasting iterator over x, y, r
     it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
-
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_circann(
             ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
@@ -959,6 +958,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
             <double*>np.PyArray_MultiIter_DATA(it, 5),
             &area1,
             <short*>np.PyArray_MultiIter_DATA(it, 6))
+
         _assert_ok(status)
 
         np.PyArray_MultiIter_NEXT(it)
@@ -988,7 +988,10 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 
     a, b, theta : array_like
         Ellipse parameters. These inputs, along with ``x``, ``y``, and ``r``,
-        obey numpy broadcasting rules.
+        obey numpy broadcasting rules. ``a`` is the semi-major axis,
+        ``b`` is the semi-minor axis and ``theta`` is angle in radians between
+        the positive x axis and the major axis. It must be in the range
+        ``[-pi/2, pi/2]``. It is also required that ``a >= b >= 0.0``. 
 
     r : array_like, optional
         Scaling factor for the ellipse. Default is 1.0.
@@ -1178,7 +1181,11 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
     a, b, theta, rin, rout : array_like
         Elliptial annulus parameters. These inputs, along with ``x`` and ``y``,
-        obey numpy broadcasting rules.
+        obey numpy broadcasting rules. ``a`` is the semi-major axis,
+        ``b`` is the semi-minor axis and ``theta`` is angle in radians between
+        the positive x axis and the major axis. It must be in the range
+        ``[-pi/2, pi/2]``. It is also required that ``a >= b >= 0.0`` and
+        ``rout >= rin >= 0.0``
 
     err, var : float or `~numpy.ndarray`
         Error *or* variance (specify at most one).

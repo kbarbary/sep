@@ -96,6 +96,10 @@ static inline double circoverlap_core(double xmin, double ymin,
 static double circoverlap(double xmin, double ymin, double xmax, double ymax,
 			  double r)
 {
+  /* some subroutines demand that r > 0 */
+  if (r <= 0.)
+    return 0.;
+
   if (0. <= xmin)
     {
       if (0. <= ymin)

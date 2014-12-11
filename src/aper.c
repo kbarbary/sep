@@ -92,9 +92,9 @@ static void boxextent(double x, double y, double rx, double ry, int w, int h,
 		      short *flag)
 {
   *xmin = (int)(x - rx + 0.5);
-  *xmax = (int)(x + rx + 1.499999);
+  *xmax = (int)(x + rx + 1.4999999);
   *ymin = (int)(y - ry + 0.5);
-  *ymax = (int)(y + ry + 1.499999);
+  *ymax = (int)(y + ry + 1.4999999);
   if (*xmin < 0)
     {
       *xmin = 0;
