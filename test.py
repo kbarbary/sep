@@ -188,16 +188,21 @@ def test_extract_with_noise_array():
 # -----------------------------------------------------------------------------
 # aperture tests
 
+naper = 1000
+x = np.random.uniform(200., 800., naper)
+y = np.random.uniform(200., 800., naper)
+data_shape = (1000, 1000)
+
+
 def test_aperture_dtypes():
     """Ensure that all supported image dtypes work in sum_circle() and
     give the same answer"""
-    naper = 100
-    x = np.random.uniform(200., 800., naper)
-    y = np.random.uniform(200., 800., naper)
+
     r = 3.
+
     fluxes = []
     for dt in SUPPORTED_IMAGE_DTYPES:
-        data = np.ones((1000, 1000), dtype=dt)
+        data = np.ones(data_shape, dtype=dt)
         flux, fluxerr, flag = sep.sum_circle(data, x, y, r)
         fluxes.append(flux)
 
@@ -208,11 +213,7 @@ def test_aperture_dtypes():
 def test_apertures_all():
     """Test that aperture subpixel sampling works"""
 
-    naper = 100
-    np.random.seed(5)
-    data = np.random.rand(1000, 1000)
-    x = np.random.uniform(200., 800., naper)
-    y = np.random.uniform(200., 800., naper)
+    data = np.random.rand(*data_shape)
     r = 3.
     rtol=1.e-8
 
@@ -225,8 +226,8 @@ def test_apertures_all():
         assert_allclose(flux, flux_ref, rtol=rtol)
 
         # TODO: remove this constraint once bug in elliptical-exact is fixed.
-        if subpix == 0:
-            continue
+        #if subpix == 0:
+        #    continue
 
         flux, fluxerr, flag = sep.sum_ellipse(data, x, y, r, r, 0.,
                                               subpix=subpix)
@@ -240,14 +241,13 @@ def test_apertures_all():
 
 def test_apertures_exact():
     """Test area as measured by exact aperture modes on array of ones"""
-    naper = 100
-    x = np.random.uniform(200., 800., naper)
-    y = np.random.uniform(200., 800., naper)
-    theta = np.random.uniform(-np.pi/2., np.pi/2.)
+
+    theta = np.random.uniform(-np.pi/2., np.pi/2., naper)
     ratio = np.random.uniform(0.2, 1.0, naper)
     r = 3.
+
     for dt in SUPPORTED_IMAGE_DTYPES:
-        data = np.ones((1000, 1000), dtype=dt)
+        data = np.ones(data_shape, dtype=dt)
         for r in [0.5, 1., 3.]:
             flux, fluxerr, flag = sep.sum_circle(data, x, y, r, subpix=0)
             assert_allclose(flux, np.pi*r**2)
@@ -265,6 +265,36 @@ def test_apertures_exact():
             flux, fluxerr, flag = sep.sum_ellipann(data, x, y, 1., ratio,
                                                    theta, r, rout, subpix=0)
             assert_allclose(flux, np.pi*ratio*(rout**2 - r**2))
+
+
+def test_aperture_bkgann_overlapping():
+    """Test bkgann functionality in circular & elliptical apertures."""
+
+    # If bkgann overlaps aperture exactly, result should be zero
+    # (with subpix=1)
+    data = np.random.rand(*data_shape)
+    r = 5.
+    f, _, _ = sep.sum_circle(data, x, y, r, bkgann=(0., r), subpix=1)
+    assert_allclose(f, 0., rtol=0., atol=1.e-13)
+
+    f, _, _ = sep.sum_ellipse(data, x, y, 2., 1., np.pi/4., r=r,
+                              bkgann=(0., r), subpix=1)
+    assert_allclose(f, 0., rtol=0., atol=1.e-13)
+    
+
+def test_aperture_bkgann_ones():
+    """Test bkgann functionality with flat data"""
+
+    data = np.ones(data_shape)
+    r=5.
+    bkgann=(6., 8.)
+
+    # On flat data, result should be zero for any bkgann and subpix
+    f, _, _ = sep.sum_circle(data, x, y, r, bkgann=bkgann)
+    assert_allclose(f, 0., rtol=0., atol=1.e-13)
+   
+    f, _, _ = sep.sum_ellipse(data, x, y, 2., 1., np.pi/4., r, bkgann=bkgann)
+    assert_allclose(f, 0., rtol=0., atol=1.e-13)
 
 
 def test_mask_ellipse():
