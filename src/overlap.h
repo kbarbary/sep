@@ -465,6 +465,7 @@ static double triangle_unitcircle_overlap(double x1, double y1,
       pt2 = inter.p2;
       pt3 = circle_segment_single2(x1, y1, x2, y2);
       pt4 = circle_segment_single2(x1, y1, x3, y3);
+
       if (pt1.x > 1.)  /* indicates no intersection */
 	{
 	  if (in_triangle(0, 0, x1, y1, x2, y2, x3, y3) && 
@@ -481,8 +482,11 @@ static double triangle_unitcircle_overlap(double x1, double y1,
 	}
       else
 	{
-	  if (fabs(pt2.x - x2) < fabs(pt1.x - x2))
+	  /* ensure that pt1 is the point closest to (x2, y2) */
+	  if (((pt2.x-x2)*(pt2.x-x2) + (pt2.y-y2)*(pt2.y-y2)) <
+	      ((pt1.x-x2)*(pt1.x-x2) + (pt1.y-y2)*(pt1.y-y2)))
 	    swap_point(&pt1, &pt2);
+
 	  area = (area_triangle(x1, y1, pt3.x, pt3.y, pt1.x, pt1.y) +
 		  area_triangle(x1, y1, pt1.x, pt1.y, pt2.x, pt2.y) +
 		  area_triangle(x1, y1, pt2.x, pt2.y, pt4.x, pt4.y) +
