@@ -1,5 +1,12 @@
 include README.md
 include CHANGES.md
+include AUTHORS.md
 
-include src/*
+include sep.pyx
+include src/*.[c,h]
 include licenses/*
+include test.py
+
+recursive-include docs *
+prune docs/_build
+prune docs/api
