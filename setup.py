@@ -19,7 +19,7 @@ if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions)
 
-description = "Source extraction and photometry library"
+description = "Astronomical source extraction and photometry library"
 
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -31,7 +31,7 @@ classifiers = [
     "Intended Audience :: Science/Research"]
 
 setup(name="sep", 
-      version="0.2.dev",
+      version="0.2.0",
       description=description,
       long_description=description,
       license="LGPLv3+",

@@ -14,7 +14,7 @@ from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.2.dev"
+__version__ = "0.2.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -1288,7 +1288,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def mask_ellipse(np.ndarray arr not None, x, y, a, b, theta, r=1.0):
+def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None, r=1.0, **kwargs):
     """mask_ellipse(arr, x, y, a, b, theta, r=1.0)
 
     Mask ellipse(s) in an array.
@@ -1321,6 +1321,8 @@ def mask_ellipse(np.ndarray arr not None, x, y, a, b, theta, r=1.0):
     cdef np.uint8_t[:,:] buf
     cdef double cxx, cyy, cxy
 
+    dt = np.dtype(np.double)
+
     # only boolean arrays supported
     if not (arr.dtype.type is np.bool_ or arr.dtype.type is np.ubyte):
         raise ValueError("Array data type not supported: {0:s}"
@@ -1328,28 +1330,52 @@ def mask_ellipse(np.ndarray arr not None, x, y, a, b, theta, r=1.0):
     _check_array_get_dims(arr, &w, &h)
     buf = arr.view(dtype=np.uint8)
 
-    # See note in apercirc on requiring specific array type
-    dt = np.dtype(np.double)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
-    r = np.require(r, dtype=dt)
-    a = np.require(a, dtype=dt)
-    b = np.require(b, dtype=dt)
-    theta = np.require(theta, dtype=dt)
-    
-    it = np.broadcast(x, y, a, b, theta, r)
-    while np.PyArray_MultiIter_NOTDONE(it):
-        sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                           (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-                           (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                           &cxx, &cyy, &cxy)
-        sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
-                        (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-                        (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                        cxx, cyy, cxy,
-                        (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                        1)
-        np.PyArray_MultiIter_NEXT(it)
+
+    # New Behavior:
+    if (a is not None and b is not None and theta is not None):
+        r = np.require(r, dtype=dt)
+        a = np.require(a, dtype=dt)
+        b = np.require(b, dtype=dt)
+        theta = np.require(theta, dtype=dt)
+
+        it = np.broadcast(x, y, a, b, theta, r)
+        while np.PyArray_MultiIter_NOTDONE(it):
+            sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                               (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                               (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                               &cxx, &cyy, &cxy)
+            sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
+                            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                            cxx, cyy, cxy,
+                            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                            1)
+            np.PyArray_MultiIter_NEXT(it)
+
+    # deprecated behavior
+    elif ("cxx" in kwargs and "cyy" in kwargs and "cxy" in kwargs):
+        if "scale" in kwargs:
+            r = kwargs["scale"]
+        r = np.require(r, dtype=dt)
+        cxx_ = np.require(kwargs["cxx"], dtype=dt)
+        cyy_ = np.require(kwargs["cyy"], dtype=dt)
+        cxy_ = np.require(kwargs["cxy"], dtype=dt)
+
+        it = np.broadcast(x, y, cxx_, cyy_, cxy_, r)
+        while np.PyArray_MultiIter_NOTDONE(it):
+            sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
+                            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                            1)
+            np.PyArray_MultiIter_NEXT(it)
+    else:
+        raise ValueError("Must specify a, b and theta")
 
 
 def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,

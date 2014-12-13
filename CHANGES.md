@@ -1,18 +1,18 @@
 Python module versions
 
-v0.2.0 (unreleased)
-===================
+v0.2.0 (13 December 2014)
+=========================
 
-* **[API change]** Change `mask_ellipse()` parameters from ellipse
-  coefficients to ellipse axes and position angle, to match aperture
-  functions.
-
-* **[API change]** Change `apercirc()` to `sum_circle()`.
-  (`apercirc()` still available as undocumented alias temporarily.)
-
-* **[API change]** `theta` field in `extract()` output is now in
+* **[breaking change]** `theta` field in `extract()` output is now in
   radians rather than degrees, for compatibility with new ellipse
   aperture functions.
+
+* **[deprecation]** Change `mask_ellipse()` parameters from ellipse
+  coefficients to ellipse axes and position angle, to match aperture
+  functions. (Old behavior still works as well.)
+
+* **[deprecation]** Change `apercirc()` to `sum_circle()`, to match
+  new aperture functions. (Old name, `apercirc()`, still works.)
 
 * Add `sum_circann()`, `sum_ellipse()`, `sum_ellipann()`,
   `kron_radius()`, `ellipse_coeffs()`, `ellipse_axes()` functions.

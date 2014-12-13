@@ -312,6 +312,18 @@ def test_mask_ellipse():
     sep.mask_ellipse(arr, 10., 10., 1.0, 1.0, 0.0, r=2.001)
     assert arr.sum() == 13
 
+def test_mask_ellipse_dep():
+    """Deprecated version of mask_ellipse"""
+    arr = np.zeros((20, 20), dtype=np.bool)
+
+    # should mask 5 pixels:
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=1.001)
+    assert arr.sum() == 5
+
+    # should mask 13 pixels:
+    sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, scale=2.001)
+    assert arr.sum() == 13
+
 
 # -----------------------------------------------------------------------------
 # General behavior and utilities
