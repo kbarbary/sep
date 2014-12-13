@@ -193,7 +193,6 @@ x = np.random.uniform(200., 800., naper)
 y = np.random.uniform(200., 800., naper)
 data_shape = (1000, 1000)
 
-
 def test_aperture_dtypes():
     """Ensure that all supported image dtypes work in sum_circle() and
     give the same answer"""
@@ -210,6 +209,15 @@ def test_aperture_dtypes():
         assert_allclose(fluxes[0], fluxes[i])
 
 
+def test_apertures_small_ellipse_exact():
+    """Regression test for a bug that manifested primarily when x == y."""
+
+    data = np.ones(data_shape)
+    r = 0.3
+    rtol=1.e-10
+    flux, fluxerr, flag = sep.sum_ellipse(data, x, x, r, r, 0., subpix=0)
+    assert_allclose(flux, np.pi*r**2, rtol=rtol)
+
 def test_apertures_all():
     """Test that aperture subpixel sampling works"""
 
@@ -224,10 +232,6 @@ def test_apertures_all():
         flux, fluxerr, flag = sep.sum_circann(data, x, y, 0., r,
                                               subpix=subpix)
         assert_allclose(flux, flux_ref, rtol=rtol)
-
-        # TODO: remove this constraint once bug in elliptical-exact is fixed.
-        #if subpix == 0:
-        #    continue
 
         flux, fluxerr, flag = sep.sum_ellipse(data, x, y, r, r, 0.,
                                               subpix=subpix)
