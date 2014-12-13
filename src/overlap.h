@@ -5,7 +5,6 @@
  * Original cython version by Thomas Robitaille. Converted to C by Kyle
  * Barbary. */
 
-
 /* Return area of a circle arc between (x1, y1) and (x2, y2) with radius r */
 /* reference: http://mathworld.wolfram.com/CircularSegment.html */
 static inline double area_arc(double x1, double y1, double x2, double y2,
@@ -209,8 +208,8 @@ static inline void rotate(double *a, double *b, double *c)
 }
 
 /* Check if a point (x,y) is inside a triangle */
-static double in_triangle(double x, double y, double x1, double y1,
-			  double x2, double y2, double x3, double y3)
+static int in_triangle(double x, double y, double x1, double y1,
+		       double x2, double y2, double x3, double y3)
 {
   int c;
 
@@ -468,8 +467,14 @@ static double triangle_unitcircle_overlap(double x1, double y1,
 
       if (pt1.x > 1.)  /* indicates no intersection */
 	{
-	  if (in_triangle(0, 0, x1, y1, x2, y2, x3, y3) && 
-	      !in_triangle(0, 0, x1, y1, pt3.x, pt3.y, pt4.x, pt4.y))
+	  /* check if the pixel vertex (x1, y2) and the origin are on
+	   * different sides of the circle segment. If they are, the
+	   * circle segment spans more than pi radians.
+	   * We use the formula (y-y1) * (x2-x1) > (y2-y1) * (x-x1)
+	   * to determine if (x, y) is on the left of the directed
+	   * line segment from (x1, y1) to (x2, y2) */
+	  if (((0.-pt3.y) * (pt4.x-pt3.x) > (pt4.y-pt3.y) * (0.-pt3.x)) !=
+	      ((y1-pt3.y) * (pt4.x-pt3.x) > (pt4.y-pt3.y) * (x1-pt3.x)))
 	    {
 	      area = (area_triangle(x1, y1, pt3.x, pt3.y, pt4.x, pt4.y) +
 		      PI - area_arc(pt3.x, pt3.y, pt4.x, pt4.y, 1.));
