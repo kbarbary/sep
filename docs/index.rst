@@ -9,14 +9,19 @@ numpy arrays (no FITS files, configuration files, etc).
 
 **Some features:**
 
-- spatially variable background level and noise estimation
+- spatially variable background and noise estimation
 - optional mask in background estimation
 - source extraction, with on-the-fly convolution, and source deblending
 - variable detection threshold in source extraction
-- circular and elliptical aperture photometry with local background estimation
-- optional mask and background noise in aperture photometry
-- subpixel and exact pixel overlap calculation modes in aperture photometry
+- circular and elliptical aperture photometry
 - Extremely fast
+
+**Features not in Source Extractor:**
+
+- circular annulus and elliptical annulus photometry
+- Local background subtraction in shape consistent with aperture
+- exact pixel overlap mode in circular and elliptical apertures
+- ellipse masking
 
 Usage Guide
 -----------
