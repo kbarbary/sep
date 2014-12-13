@@ -5,23 +5,26 @@ SEP
 
 SEP makes available some of the algorithms in Source Extractor as
 stand-alone functions and classes. These operate directly on in-memory
-numpy arrays (no FITS files, configuration files, etc).
+numpy arrays (no FITS files, configuration files, etc). It's derived
+directly from (and tested against) the Source Extractor code base.
 
 **Some features:**
 
 - spatially variable background and noise estimation
-- optional mask in background estimation
-- source extraction, with on-the-fly convolution, and source deblending
-- variable detection threshold in source extraction
+- source extraction, with on-the-fly convolution and source deblending
 - circular and elliptical aperture photometry
-- Extremely fast
+- extremely fast: implemented in C with Python bindings via Cython
 
-**Features not in Source Extractor:**
+**Additional features not in Source Extractor:**
 
-- circular annulus and elliptical annulus photometry
+- circular annulus and elliptical annulus apertures
 - Local background subtraction in shape consistent with aperture
-- exact pixel overlap mode in circular and elliptical apertures
+- exact pixel overlap mode in all aperture photometry functions
 - ellipse masking
+
+**Install:** ``pip install sep``
+
+**Source code:** http://github.com/kbarbary/sep
 
 Usage Guide
 -----------
@@ -81,12 +84,3 @@ Flag                      Description
 To see if a given flag is set in ``flags``::
 
     is_merged = (flags & sep.OBJ_MERGED) != 0
-
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-

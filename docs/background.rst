@@ -1,6 +1,8 @@
 Background estimation
 =====================
 
+Given a numpy array ``data`` containing the image data,
+
 ::
 
    import sep
@@ -12,7 +14,7 @@ Background estimation
    # ... or with some optional parameters
    bkg = sep.Background(data, mask=mask, bw=64, bh=64, fw=3, fh=3)
     
-The above creates a Background object which you can then use in 
+This creates a `~sep.Background` object which you can then use in
 several ways::
 
    # Evaluate the spatially variable background:

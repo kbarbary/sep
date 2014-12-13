@@ -25,6 +25,7 @@ except:
     except:
         HAVE_FITS = False
 
+CONDENSED = True
 
 if HAVE_FITS:
     rawdata = getdata(join("data", "image.fits"))  # original is 256 x 256
@@ -102,11 +103,12 @@ for ntile in [4]:
 #------------------------------------------------------------------------------
 # Circular aperture photometry benchmarks
 
-print(blankline)
-line = "| **aperture photometry** |                 |"
-if HAVE_PHOTUTILS:
-    line += "                 |        |"
-print(line)
+if not CONDENSED:
+    print(blankline)
+    line = "| **aperture photometry** |                 |"
+    if HAVE_PHOTUTILS:
+        line += "                 |        |"
+    print(line)
 
 naper = 1000
 nloop = 1
@@ -114,10 +116,18 @@ data = np.ones((2000, 2000), dtype=np.float32)
 x = np.random.uniform(200., 1800., naper)
 y = np.random.uniform(200., 1800., naper)
 
-for r in [3., 5., 10., 20.]:
-    for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
+if CONDENSED:
+    r_list = [5.]
+    subpix_list = [(5, "subpixel", "subpix=5"), (0, "exact", "exact")]
+else:
+    r_list = [3., 5., 10., 20.]
+    subpix_list = [(1, "center", "subpix=1"), (5, "subpixel", "subpix=5"),
+                   (0, "exact", "exact")]
 
-        line = "| circles r={0:3d} subpix={1}  |".format(int(r), subpix)
+for r in r_list:
+    for subpix, method, label in subpix_list:
+
+        line = "| circles  r={0:2d}  {1:8s} |".format(int(r), label)
 
         t0 = time.time()
         flux, fluxerr, flag = sep.sum_circle(data, x, y, r, subpix=subpix)
@@ -136,16 +146,18 @@ for r in [3., 5., 10., 20.]:
 
         print(line)
 
-print(blankline)
+if not CONDENSED:
+    print(blankline)
+
 naper = 1000
 nloop = 1
 a = 1.
 b = 1.
 theta = np.pi/4.
 
-for r in [3., 5., 10., 20.]:
-    for subpix, method in [(1, "subpixel"), (5, "subpixel"), (0, "exact")]:
-        line = "| ellipses r={0:3d} subpix={1} |".format(int(r), subpix)
+for r in r_list:
+    for subpix, method, label in subpix_list:
+        line = "| ellipses r={0:2d}  {1:8s} |".format(int(r), label)
 
         t0 = time.time()
         flux, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta, r,

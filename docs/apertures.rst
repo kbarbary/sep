@@ -62,6 +62,17 @@ illustrative examples::
    flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 3.0,
                                         gain=1.0)
 
+The error is calculated as
+
+.. math::
+
+   \sigma_F^2 = \sum_i \sigma_i^2 + F/g
+
+where the sum is over pixels in the aperture, :math:`\sigma_i` is the
+noise in each pixel, :math:`F` is the sum in the aperture and
+:math:`g` is the gain. The last term is not added if ``gain`` is
+`None`.
+
 **Masking** 
 
 Apply a mask (same shape as data). Pixels where the mask is True are
@@ -73,40 +84,37 @@ Apply a mask (same shape as data). Pixels where the mask is True are
 **Local background subtraction**
 
 The `~sep.sum_circle` and `~sep.sum_ellipse` functions have options
-for performing local background subtraction in an annulus between 6
-and 8 pixel radius::
+for performing local background subtraction. For example, to subtract the background calculated in an annulus between 6 and 8 pixel radius::
 
    flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 3.0,
                                         mask=mask, bkgann=(6., 8.))
 
 Pixels in the background annulus are not subsampled and any masked
 pixels in the annulus are completely igored rather than corrected.
-The inner and outer radii can also be arrays.
+The inner and outer radii can also be arrays. The error in the background
+is included in the reported error.
 
 **Equivalent of FLUX_AUTO (e.g., MAG_AUTO) in Source Extractor**
 
 This is a two-step process. First we calculate the Kron radius for each
 object, then we perform elliptical aperture photometry within that radius::
 
-   kronrad, krflag = sep.kron_radius(data, objs['x'], objs['y'], objs['a'],
-                                     objs['b'], objs['theta'], 6.0)
-   flux, fluxerr, flag = sep.sum_ellipse(data, objs['x'], objs['y'],
-                                         objs['a'], objs['b'], objs['theta'],
-                                         2.5 * kronrad, subpix=1)
+   kronrad, krflag = sep.kron_radius(data, x, y, a, b, theta, 6.0)
+   flux, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta, 2.5*kronrad,
+                                         subpix=1)
    flag |= krflag  # combine flags into 'flag'
 
-Specifically this is the equilvalent of setting ``PHOT_AUTOPARAMS 2.5,
-0.0`` in Source Extractor (note the ``2.5`` in the argument to
-``sum_ellipse``). The second Source Extractor
-parameter is a minimum radius. To replicate Source Extractor behavior
-for non-zero values, one would put in logic to use circular aperture
-photometry if the kron radius is too small. For example::
+This specific example is the equilvalent of setting ``PHOT_AUTOPARAMS
+2.5, 0.0`` in Source Extractor (note the 2.5 in the argument to
+``sep.sum_ellipse``). The second Source Extractor parameter is a
+minimum diameter. To replicate Source Extractor behavior for non-zero
+values of the minimum diameter, one would put in logic to use circular
+aperture photometry if the Kron radius is too small. For example::
 
-   rmin = 1.75  # minimum diameter = 3.5
-   use_circle = kronrad * np.sqrt(obj['a'] * obj['b']) < rmin
-   cflux, cfluxerr, cflag = sep.sum_circle(data, objs['x'][use_circle],
-                                           objs['y'][use_circle], rmin,
-                                           subpix=1)
+   r_min = 1.75  # minimum diameter = 3.5
+   use_circle = kronrad * np.sqrt(a * b) < r_min
+   cflux, cfluxerr, cflag = sep.sum_circle(data, x[use_circle], y[use_circle],
+                                           r_min, subpix=1)
    flux[use_circle] = cflux
    fluxerr[use_circle] = cfluxerr
    flag[use_circle] = cflag
