@@ -67,6 +67,17 @@ Reference/API
    sep.ellipse_axes
    sep.ellipse_coeffs
 
+.. note::
+
+   The coordinate convention in SEP is that (0, 0) corresponds to the
+   center of the first element of the data array. This agrees with the
+   0-based indexing in Python and C.  However, note that
+   this differs from the FITS convention where the center of the first
+   element is at coordinates (1, 1). As Source Extractor deals with
+   FITS files, its outputs follow the FITS convention. Thus, the
+   coordinates from SEP will be offset from Source Extractor
+   coordinates by -1 in x and y.
+
 **Flags**
 
 ========================  ===========================================
