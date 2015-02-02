@@ -46,8 +46,8 @@ conda install -c https://conda.binstar.org/kbarbary sep
 
 **Install development version:**
 
-Bulding the development verion (from github) requires Cython.
-Build and install in the usual place:
+Bulding the development verion (from github) requires Cython (v0.16 or
+higher).  Build and install in the usual place:
 
 ```
 ./setup.py install

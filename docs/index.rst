@@ -22,9 +22,22 @@ directly from (and tested against) the Source Extractor code base.
 - exact pixel overlap mode in all aperture photometry functions
 - ellipse masking
 
-**Install:** ``pip install sep``
 
-**Source code:** http://github.com/kbarbary/sep
+Installation
+------------
+
+**Requirements:**
+
+- Tested on Python 2.6, 2.7, 3.3, 3.4
+- numpy
+
+**Install release version with pip:** ``pip install sep``
+
+**Install release version with conda (64-bit Linux only):**
+``conda install -c https://conda.binstar.org/kbarbary sep``
+
+**Development version / source code:** http://github.com/kbarbary/sep
+
 
 Usage Guide
 -----------
