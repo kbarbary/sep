@@ -303,6 +303,200 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #undef APER_COMPARE2
 #undef APER_COMPARE3
 
+
+/*****************************************************************************/
+/* growth curve */
+/*
+ * This is just different enough from the other aperture functions
+ * that it doesn't quite make sense to use aperbody.h.
+ * Evenly spaced array of circular apertures:
+ * r = [rmax/n, 2*rmax/n, 3*rmax/n, ..., rmax]
+ */
+
+int sum_circles(void *data, void *error, void *mask,
+		int dtype, int edtype, int mdtype, int w, int h,
+		double maskthresh, double gain, short inflag,
+		double x, double y, double rmax, int n, int subpix,
+		double *sum, double *sumerr, double *area, double *maskarea,
+		short *flag)
+{
+  PIXTYPE pix, varpix;
+  double dx, dy, dx1, dy2, offset, scale, scale2, tmp;
+  double tv, sigtv, totarea, maskarea, overlap, rpix2;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  long pos;
+  short errisarray, errisstd;
+  BYTE *datat, *errort, *maskt;
+  converter convert, econvert, mconvert;
+  double rpix, r_out, r_out2, d, prevbinmargin, nextbinmargin, step, stepdens;
+  int j;
+
+  /* input checks */
+  if (rmax < 0.0 || n < 1)
+    return ILLEGAL_APER_PARAMS;
+  if (subpix < 1)
+    return ILLEGAL_SUBPIX;
+
+  /* clear results arrays */
+  memset(sum, 0, (size_t)(n*sizeof(double)));
+  memset(sumerr, 0, (size_t)(n*sizeof(double)));
+  memset(area, 0, (size_t)(n*sizeof(double)));
+  memset(maskarea, 0, (size_t)(n*sizeof(double)));
+
+  /* initializations */
+  size = esize = msize = 0;
+  tv = sigtv = 0.0;
+  overlap = totarea = maskarea = 0.0;
+  datat = maskt = NULL;
+  errort = error;
+  *flag = 0;
+  varpix = 0.0;
+  scale = 1.0/subpix;
+  scale2 = scale*scale;
+  offset = 0.5*(scale-1.0);
+
+  r_out = rmax + 1.5; /* margin for interpolation */
+  r_out2 = r_out * r_out;
+  step = rmax/n;
+  stepdens = 1.0/step;
+  prevbinmargin = 0.7072;
+  nextbinmargin = step - 0.7072;
+  j = 0;
+  d = 0.;
+
+  /* get data converter(s) for input array(s) */
+  if ((status = get_converter(dtype, &convert, &size)))
+    return status;
+  if (error && (status = get_converter(edtype, &econvert, &esize)))
+    return status;
+  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+    return status;
+
+  /* get options */
+  errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    errisarray = 0; /* in case user set flag but error is NULL */
+  errisstd = !(inflag & SEP_ERROR_IS_VAR);
+
+  /* If error exists and is scalar, set the pixel variance now */
+  if (error && !errisarray)
+    {
+      varpix = econvert(errort);
+      if (errisstd)
+	varpix *= varpix;
+    }
+
+  /* get extent of box */
+  boxextent(x, y, r_out, r_out, w, h, &xmin, &xmax, &ymin, &ymax, flag);
+
+  /* loop over rows in the box */
+  for (iy=ymin; iy<ymax; iy++)
+    {
+      /* set pointers to the start of this row */
+      pos = (iy%h) * w + xmin;
+      datat = data + pos*size;
+      if (errisarray)
+	errort = error + pos*esize;
+      if (mask)
+	maskt = mask + pos*msize;
+
+      /* loop over pixels in this row */
+      for (ix=xmin; ix<xmax; ix++)
+	{
+	  dx = ix - x;
+	  dy = iy - y;
+	  rpix2 = dx*dx + dy*dy;
+	  if (rpix2 < r_out2)
+	    {
+	      /* get pixel values */
+	      pix = convert(datat);
+	      if (errisarray)
+		{
+		  varpix = econvert(errort);
+		  if (errisstd)
+		    varpix *= varpix;
+		}
+
+	      /* check if oversampling is needed (close to bin boundary?) */
+	      rpix = sqrt(rpix2);
+	      d = fmod(rpix, step);
+	      if (d < prevbinmargin || d > nextbinmargin)
+		{
+		  dx += offset;
+		  dy += offset;
+		  overlap = 0.0;
+		  for (sy=subpix; sy--; dy+=scale)
+		    {
+		      dx1 = dx;
+		      dy2 = dy*dy;
+		      for (sx=subpix; sx--; dx1+=scale)
+			{
+			  j = (int)(sqrt(dx1*dx1+dy2)*stepdens);
+			  if (j < n)
+			    {
+			      sum[j] += scale2*pix;
+			      overlap += scale2;
+			    }
+			}
+		    }
+		}
+	      else
+		/* pixel not close to bin boundary */
+		{
+		  j = (int)(rpix*stepdens);
+		  if (j < n)
+		    {
+		      sum[j] += pix;
+		      overlap = 1.0;
+		    }
+
+	      if (mask && (mconvert(maskt) > maskthresh))
+		{ 
+		  *flag |= SEP_APER_HASMASKED;
+		  maskarea += overlap;
+		}
+	      else
+		{
+		  tv += pix*overlap;
+		  sigtv += varpix*overlap;
+		}
+
+	      totarea += overlap;
+
+	    } /* closes "if pixel might be within aperture" */
+	  
+	  /* increment pointers by one element */
+	  datat += size;
+	  if (errisarray)
+	    errort += esize;
+	  maskt += msize;
+	}
+    }
+
+  /* correct for masked values */
+  if (mask)
+    {
+      if (inflag & SEP_MASK_IGNORE)
+	totarea -= maskarea;
+      else
+	{
+	  tv *= (tmp = totarea/(totarea-maskarea));
+	  sigtv *= tmp;
+	}
+    }
+
+  /* add poisson noise, only if gain > 0 */
+  if (gain > 0.0 && tv>0.0)
+    sigtv += tv/gain;
+
+  *sum = tv;
+  *sumerr = sqrt(sigtv);
+  *area = totarea;
+
+  return status;
+}
+
+
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
 int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
