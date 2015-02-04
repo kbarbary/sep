@@ -45,6 +45,9 @@ APER_NONPOSITIVE = np.short(0x0080)
 # explicitly detect memory errors so that we can raise MemoryError().
 DEF MEMORY_ALLOC_ERROR = 1
 
+# size of buffers to use in flux_radius
+DEF FLUX_RADIUS_BUFSIZE = 64
+
 # header definitions
 cdef extern from "sep.h":
 
@@ -134,6 +137,16 @@ cdef extern from "sep.h":
                          double theta, double rin, double rout, int subpix,
                          double *sum, double *sumerr, double *area,
                          short *flag)
+
+    int sep_sum_circannuli(void *data, void *error, void *mask,
+                           int dtype, int edtype, int mdtype, int w, int h,
+                           double maskthresh, double gain, short inflag,
+                           double x, double y, double rmax, int n, int subpix,
+                           double *sum, double *sumvar, double *area,
+                           double *maskarea, short *flag)
+
+    void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
+                 double *xout)
 
     int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
                         int w, int h, double maskthresh, double x, double y,
@@ -1180,7 +1193,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         element of the array. These inputs obey numpy broadcasting rules.
 
     a, b, theta, rin, rout : array_like
-        Elliptial annulus parameters. These inputs, along with ``x`` and ``y``,
+        Elliptical annulus parameters. These inputs, along with ``x`` and ``y``,
         obey numpy broadcasting rules. ``a`` is the semi-major axis,
         ``b`` is the semi-minor axis and ``theta`` is angle in radians between
         the positive x axis and the major axis. It must be in the range
@@ -1285,6 +1298,136 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
     return sum, sumerr, flag
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def flux_radius(np.ndarray data not None, x, y, r, frac,
+                np.ndarray mask=None, double maskthresh=0.0, int subpix=5):
+    """flux_radius(data, x, y, r, mask=None, maskthresh=0.0, subpix=5)
+
+    Return circular radius enclosing requested fraction of total flux.
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        2-d array to be summed.
+
+    x, y : array_like
+        Center coordinates and radius (radii) of aperture(s). 
+        ``x`` corresponds to the second ("fast") axis of the input array
+        and ``y`` corresponds to the first ("slow") axis.
+        ``x, y = (0.0, 0.0)`` corresponds to the center of the first
+        element of the array. These inputs obey numpy broadcasting rules.
+
+    r : array_like
+        Normalizing radius for each position.
+
+    frac : array_like
+        Requested fraction of light (in range 0 to 1).
+
+    mask : `~numpy.ndarray`, optional
+        Mask array. If supplied, a given pixel is masked if its value
+        is greater than ``maskthresh``.
+
+    maskthresh : float, optional
+        Threshold for a pixel to be masked. Default is ``0.0``.
+
+    gain : float, optional
+        Conversion factor between data array units and poisson counts,
+        used in calculating poisson noise in aperture sum. If ``None``
+        (default), do not add poisson noise.
+
+    subpix : int, optional
+        Subpixel sampling factor. Default is 5.
+
+    Returns
+    -------
+    radius : `~numpy.ndarray`
+        The sum of the data array within the aperture(s).
+
+    sumerr : `~numpy.ndarray`
+        Error on the sum.
+
+    flags : `~numpy.ndarray`
+        Integer giving flags. (0 if no flags set.)
+    """
+
+    cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
+    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
+    cdef float scalarerr
+    cdef short flag1, bkgflag
+    cdef short inflag
+    cdef size_t i
+    cdef int w, h, dtype, edtype, mdtype, status
+    cdef void *ptr
+    cdef void *eptr
+    cdef void *mptr
+    cdef np.short_t[:] flag
+    cdef np.double_t[:, :] radius
+    cdef np.broadcast it
+
+    dtype = 0
+    edtype = 0
+    mdtype = 0
+    w = 0
+    h = 0
+    ptr = NULL
+    eptr = NULL
+    mptr = NULL
+    scalarerr = 0.0
+    inflag = 0
+    _parse_arrays(data, None, None, mask,
+                  &dtype, &edtype, &mdtype, &w, &h,
+                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
+
+    gain_ = 0.0
+
+    # Require that inputs are float64 arrays with same shape. See note in
+    # circular aperture.
+    # Also require that frac is a contiguous array.
+    dt = np.dtype(np.double)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    r = np.require(r, dtype=dt)
+    inshape = x.shape
+    if (y.shape != inshape or r.shape != inshape):
+        raise ValueError("shape of x, y, and r must match")
+    frac = np.ascontiguousarray(frac, dtype=dt)
+    infracshape = frac.shape
+
+    # Convert input arrays to 1-d for correct looping and indexing.
+    x = np.ravel(x)
+    y = np.ravel(y)
+    r = np.ravel(r)
+    frac = np.ravel(frac)
+    
+    # Allocate ouput arrays. (We'll reshape these later to match the
+    # input shapes.)
+    flag = np.empty(x.shape, np.short)
+    radius = np.empty(x.shape + frac.shape, dt)
+
+    for i in range(len(x)):
+        status = 
+    it = np.broadcast(x, y, r, flag)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_sum_ellipann(
+            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
+            maskthresh, gain_, inflag,
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
+            subpix,
+            <double*>np.PyArray_MultiIter_DATA(it, 7),
+            <double*>np.PyArray_MultiIter_DATA(it, 8),
+            &area1,
+            <short*>np.PyArray_MultiIter_DATA(it, 9))
+        _assert_ok(status)
+        np.PyArray_MultiIter_NEXT(it)
+
+    return sum, sumerr, flag
 
 @cython.boundscheck(False)
 @cython.wraparound(False)

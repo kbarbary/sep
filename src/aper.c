@@ -305,31 +305,26 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 
 
 /*****************************************************************************/
-/* growth curve */
 /*
  * This is just different enough from the other aperture functions
  * that it doesn't quite make sense to use aperbody.h.
- * Evenly spaced array of circular apertures:
- * r = [rmax/n, 2*rmax/n, 3*rmax/n, ..., rmax]
  */
-
-int sum_circles(void *data, void *error, void *mask,
-		int dtype, int edtype, int mdtype, int w, int h,
-		double maskthresh, double gain, short inflag,
-		double x, double y, double rmax, int n, int subpix,
-		double *sum, double *sumerr, double *area, double *maskarea,
-		short *flag)
+int sep_sum_circannuli(void *data, void *error, void *mask,
+		       int dtype, int edtype, int mdtype, int w, int h,
+		       double maskthresh, double gain, short inflag,
+		       double x, double y, double rmax, int n, int subpix,
+		       double *sum, double *sumvar, double *area,
+		       double *maskarea, short *flag)
 {
   PIXTYPE pix, varpix;
-  double dx, dy, dx1, dy2, offset, scale, scale2, tmp;
-  double tv, sigtv, totarea, maskarea, overlap, rpix2;
+  double dx, dy, dx1, dy2, offset, scale, scale2, tmp, rpix2;
   int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
   short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
   converter convert, econvert, mconvert;
   double rpix, r_out, r_out2, d, prevbinmargin, nextbinmargin, step, stepdens;
-  int j;
+  int j, ismasked;
 
   /* input checks */
   if (rmax < 0.0 || n < 1)
@@ -339,14 +334,13 @@ int sum_circles(void *data, void *error, void *mask,
 
   /* clear results arrays */
   memset(sum, 0, (size_t)(n*sizeof(double)));
-  memset(sumerr, 0, (size_t)(n*sizeof(double)));
+  memset(sumvar, 0, (size_t)(n*sizeof(double)));
   memset(area, 0, (size_t)(n*sizeof(double)));
-  memset(maskarea, 0, (size_t)(n*sizeof(double)));
+  if (mask)
+    memset(maskarea, 0, (size_t)(n*sizeof(double)));
 
   /* initializations */
   size = esize = msize = 0;
-  tv = sigtv = 0.0;
-  overlap = totarea = maskarea = 0.0;
   datat = maskt = NULL;
   errort = error;
   *flag = 0;
@@ -363,6 +357,7 @@ int sum_circles(void *data, void *error, void *mask,
   nextbinmargin = step - 0.7072;
   j = 0;
   d = 0.;
+  ismasked = 0;
 
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(dtype, &convert, &size)))
@@ -416,6 +411,14 @@ int sum_circles(void *data, void *error, void *mask,
 		  if (errisstd)
 		    varpix *= varpix;
 		}
+	      if (mask)
+		if (mconvert(maskt) > maskthresh)
+		  { 
+		    *flag |= SEP_APER_HASMASKED;
+		    ismasked = 1;
+		  }
+		else
+		  ismasked = 0;
 
 	      /* check if oversampling is needed (close to bin boundary?) */
 	      rpix = sqrt(rpix2);
@@ -424,7 +427,6 @@ int sum_circles(void *data, void *error, void *mask,
 		{
 		  dx += offset;
 		  dy += offset;
-		  overlap = 0.0;
 		  for (sy=subpix; sy--; dy+=scale)
 		    {
 		      dx1 = dx;
@@ -434,8 +436,14 @@ int sum_circles(void *data, void *error, void *mask,
 			  j = (int)(sqrt(dx1*dx1+dy2)*stepdens);
 			  if (j < n)
 			    {
-			      sum[j] += scale2*pix;
-			      overlap += scale2;
+			      if (ismasked)
+				maskarea[j] += scale2;
+			      else
+				{
+				  sum[j] += scale2*pix;
+				  sumvar[j] += scale2*varpix;
+				}
+			      area[j] += scale2;
 			    }
 			}
 		    }
@@ -446,23 +454,16 @@ int sum_circles(void *data, void *error, void *mask,
 		  j = (int)(rpix*stepdens);
 		  if (j < n)
 		    {
-		      sum[j] += pix;
-		      overlap = 1.0;
+		      if (ismasked)
+			maskarea[j] += 1.0;
+		      else
+			{
+			  sum[j] += pix;
+			  sumvar[j] += varpix;
+			}
+		      area[j] += 1.0;
 		    }
-
-	      if (mask && (mconvert(maskt) > maskthresh))
-		{ 
-		  *flag |= SEP_APER_HASMASKED;
-		  maskarea += overlap;
 		}
-	      else
-		{
-		  tv += pix*overlap;
-		  sigtv += varpix*overlap;
-		}
-
-	      totarea += overlap;
-
 	    } /* closes "if pixel might be within aperture" */
 	  
 	  /* increment pointers by one element */
@@ -473,29 +474,79 @@ int sum_circles(void *data, void *error, void *mask,
 	}
     }
 
+
   /* correct for masked values */
   if (mask)
     {
       if (inflag & SEP_MASK_IGNORE)
-	totarea -= maskarea;
+	for (j=n; j--;)
+	  area[j] -= maskarea[j];
       else
 	{
-	  tv *= (tmp = totarea/(totarea-maskarea));
-	  sigtv *= tmp;
+	  for (j=n; j--;)
+	    {
+	      tmp = area[j] == maskarea[j]? 0.0: area[j]/(area[j]-maskarea[j]);
+	      sum[j] *= tmp;
+	      sumvar[j] *= tmp;
+	    }
 	}
     }
 
   /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
+  if (gain > 0.0)
+    for (j=n; j--;)
+      if (sum[j] > 0.0)
+	sumvar[j] += sum[j]/gain;
 
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
+  /* integrate circular annuli */
+  /*
+  for (j=1; j<n; j++)
+    {
+      sum[j] += sum[j-1];
+      sumerr[j] += sumerr[j-1];
+    }
+  */
 
   return status;
 }
 
+
+/* for use in determining flux_radius */
+void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
+	     double *xout)
+{
+  double sum, cumsum, step;
+  int i, j;
+  
+  sum = 0.0;
+  cumsum = 0.0;
+  step = xmax/n;
+
+  /* sum up y array */
+  for (j=0; j<n; j++)
+    sum += y[j];
+
+  /* loop over desired fractions */
+  for (j=0; j<nfrac; j++)
+    {
+      /* increment i until cumsum is just bigger than desired frac */
+      tv = frac[j] * sum;
+      cumsum = 0.0;
+      for (i=0; i<n && cumsum < tv; i++)
+	cumsum += y[i];
+
+      /* interpolate between i and i-1 */
+      if (i)
+	xout[j] = step * (i + 1 + (tv - cumsum)/y[i]);
+      else
+	xout[j] = step * (y[0] == 0.0? 0.0: tv/y[0]); 
+
+      if (xout[j] > xmax)
+	xout[j] = xmax;
+    }
+
+  return;
+}
 
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */

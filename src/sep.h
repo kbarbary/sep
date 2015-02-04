@@ -229,6 +229,43 @@ int sep_sum_ellipann(void *data, void *error, void *mask,
 		     double rin, double rout, int subpix,
 		     double *sum, double *sumerr, double *area, short *flag);
 
+
+int sep_sum_circannuli(void *data, void *error, void *mask,
+		       int dtype, int edtype, int mdtype, int w, int h,
+		       double maskthresh, double gain, short inflag,
+		       double x, double y, double rmax, int n, int subpix,
+		       double *sum, double *sumvar, double *area,
+		       double *maskarea, short *flag)
+/* sum an array of circular annuli more efficiently (but with no exact mode).
+ *
+ * Notable parameters:
+ * 
+ * rmax : Input radii are  [rmax/n, 2*rmax/n, 3*rmax/n, ..., rmax].
+ * n : Length of input and output arrays.
+ * sum : Preallocated array of length n holding sums in annuli. sum[0]
+ *       corrresponds to r=[0, rmax/n], sum[n-1] to outermost annulus.
+ * sumvar : Preallocated array of length n holding variance on sums.
+ * area : Preallocated array of length n holding area summed in each annulus.
+ * maskarea : Preallocated array of length n holding masked area in each
+              annulus (if mask not NULL).
+ * flag : output flag (non-array).
+ */
+
+
+void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
+	     double *xout);
+/* Calculate percent point function (inverse cumulative distribution function)
+ * using linear interpolation.
+ *
+ * xmax : input x array is [xmax/n, 2*xmax/n, 3*xmax/n, ..., xmax]
+ * y : input y array
+ * n : length of y array
+ * frac : array of desired fractions at which to evalute ppf [0 < frac < 1].
+ * nfrac : length of frac 
+ * xout : preallocated array of length nfrac to hold output.
+ */
+
+
 int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
 		    int w, int h, double maskthresh, double x, double y,
 		    double cxx, double cyy, double cxy, double r,
