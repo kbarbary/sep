@@ -230,12 +230,12 @@ int sep_sum_ellipann(void *data, void *error, void *mask,
 		     double *sum, double *sumerr, double *area, short *flag);
 
 
-int sep_sum_circannuli(void *data, void *error, void *mask,
-		       int dtype, int edtype, int mdtype, int w, int h,
-		       double maskthresh, double gain, short inflag,
-		       double x, double y, double rmax, int n, int subpix,
-		       double *sum, double *sumvar, double *area,
-		       double *maskarea, short *flag)
+int sep_sum_circann_multi(void *data, void *error, void *mask,
+			  int dtype, int edtype, int mdtype, int w, int h,
+			  double maskthresh, double gain, short inflag,
+			  double x, double y, double rmax, int n, int subpix,
+			  double *sum, double *sumvar, double *area,
+			  double *maskarea, short *flag);
 /* sum an array of circular annuli more efficiently (but with no exact mode).
  *
  * Notable parameters:
@@ -265,6 +265,19 @@ void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
  * xout : preallocated array of length nfrac to hold output.
  */
 
+int sep_flux_radius(void *data, void *error, void *mask,
+		    int dtype, int edtype, int mdtype, int w, int h,
+		    double maskthresh, double gain, short inflag,
+		    double x, double y, double rmax, int subpix,
+		    double *fluxfrac, int n, double *r, short *flag);
+/* Calculate the radii enclosing the requested fraction of flux relative
+ * to radius rmax. 
+ *
+ * fluxfrac : array of requested fractions.
+ * n : length of fluxfrac
+ * r : result array of length n.
+ * flag : scalar flag
+ */
 
 int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
 		    int w, int h, double maskthresh, double x, double y,

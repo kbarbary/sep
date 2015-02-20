@@ -45,9 +45,6 @@ APER_NONPOSITIVE = np.short(0x0080)
 # explicitly detect memory errors so that we can raise MemoryError().
 DEF MEMORY_ALLOC_ERROR = 1
 
-# size of buffers to use in flux_radius
-DEF FLUX_RADIUS_BUFSIZE = 64
-
 # header definitions
 cdef extern from "sep.h":
 
@@ -138,15 +135,11 @@ cdef extern from "sep.h":
                          double *sum, double *sumerr, double *area,
                          short *flag)
 
-    int sep_sum_circannuli(void *data, void *error, void *mask,
-                           int dtype, int edtype, int mdtype, int w, int h,
-                           double maskthresh, double gain, short inflag,
-                           double x, double y, double rmax, int n, int subpix,
-                           double *sum, double *sumvar, double *area,
-                           double *maskarea, short *flag)
-
-    void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
-                 double *xout)
+    int sep_flux_radius(void *data, void *error, void *mask,
+                        int dtype, int edtype, int mdtype, int w, int h,
+                        double maskthresh, double gain, short inflag,
+                        double x, double y, double rmax, int subpix,
+                        double *fluxfrac, int n, double *r, short *flag)
 
     int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
                         int w, int h, double maskthresh, double x, double y,
@@ -1302,7 +1295,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 @cython.wraparound(False)
 def flux_radius(np.ndarray data not None, x, y, r, frac,
                 np.ndarray mask=None, double maskthresh=0.0, int subpix=5):
-    """flux_radius(data, x, y, r, mask=None, maskthresh=0.0, subpix=5)
+    """flux_radius(data, x, y, r, frac, mask=None, maskthresh=0.0, subpix=5)
 
     Return circular radius enclosing requested fraction of total flux.
 
@@ -1344,9 +1337,6 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
     radius : `~numpy.ndarray`
         The sum of the data array within the aperture(s).
 
-    sumerr : `~numpy.ndarray`
-        Error on the sum.
-
     flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
     """
@@ -1357,13 +1347,16 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
     cdef short flag1, bkgflag
     cdef short inflag
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status
+    cdef int w, h, dtype, edtype, mdtype, status, fracn
     cdef void *ptr
     cdef void *eptr
     cdef void *mptr
-    cdef np.short_t[:] flag
-    cdef np.double_t[:, :] radius
-    cdef np.broadcast it
+    cdef short[:] flag
+    cdef double[:, :] radius
+    cdef double[:] fractmp
+    cdef double[:] xtmp
+    cdef double[:] ytmp
+    cdef double[:] rtmp
 
     dtype = 0
     edtype = 0
@@ -1388,50 +1381,41 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
+    frac = np.require(frac, dtype=dt)
     inshape = x.shape
+    infracshape = frac.shape
     if (y.shape != inshape or r.shape != inshape):
         raise ValueError("shape of x, y, and r must match")
-    frac = np.ascontiguousarray(frac, dtype=dt)
-    infracshape = frac.shape
 
     # Convert input arrays to 1-d for correct looping and indexing.
-    x = np.ravel(x)
-    y = np.ravel(y)
-    r = np.ravel(r)
-    frac = np.ravel(frac)
-    
+    xtmp = np.ravel(x)
+    ytmp = np.ravel(y)
+    rtmp = np.ravel(r)
+    fractmp = np.ravel(np.ascontiguousarray(frac))
+    fracn = len(fractmp)
+
     # Allocate ouput arrays. (We'll reshape these later to match the
     # input shapes.)
-    flag = np.empty(x.shape, np.short)
-    radius = np.empty(x.shape + frac.shape, dt)
+    flag = np.empty(len(xtmp), np.short)
+    radius = np.empty((len(xtmp), len(fractmp)), dt)
 
-    for i in range(len(x)):
-        status = 
-    it = np.broadcast(x, y, r, flag)
-    while np.PyArray_MultiIter_NOTDONE(it):
-        status = sep_sum_ellipann(
-            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-            maskthresh, gain_, inflag,
-            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-            (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
-            subpix,
-            <double*>np.PyArray_MultiIter_DATA(it, 7),
-            <double*>np.PyArray_MultiIter_DATA(it, 8),
-            &area1,
-            <short*>np.PyArray_MultiIter_DATA(it, 9))
+    for i in range(len(xtmp)):
+        status = sep_flux_radius(ptr, eptr, mptr,
+                                 dtype, edtype, mdtype, w, h,
+                                 maskthresh, gain_, inflag,
+                                 xtmp[i], ytmp[i], rtmp[i], subpix,
+                                 &fractmp[0], fracn, &radius[i, 0],
+                                 &flag[i])
         _assert_ok(status)
-        np.PyArray_MultiIter_NEXT(it)
 
-    return sum, sumerr, flag
+    return (np.asarray(radius).reshape(inshape + infracshape),
+            np.asarray(flag).reshape(inshape))
+
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None, r=1.0, **kwargs):
+def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
+                 r=1.0, **kwargs):
     """mask_ellipse(arr, x, y, a, b, theta, r=1.0)
 
     Mask ellipse(s) in an array.

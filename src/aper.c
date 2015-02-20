@@ -20,8 +20,6 @@
 *
 *%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
 
-/* Note: was photom.c in SExtractor. */
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +27,8 @@
 #include "sep.h"
 #include "sepcore.h"
 #include "overlap.h"
+
+#define FLUX_RADIUS_BUFSIZE 64
 
 /****************************************************************************/
 /* conversions between ellipse representations */
@@ -309,12 +309,12 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * This is just different enough from the other aperture functions
  * that it doesn't quite make sense to use aperbody.h.
  */
-int sep_sum_circannuli(void *data, void *error, void *mask,
-		       int dtype, int edtype, int mdtype, int w, int h,
-		       double maskthresh, double gain, short inflag,
-		       double x, double y, double rmax, int n, int subpix,
-		       double *sum, double *sumvar, double *area,
-		       double *maskarea, short *flag)
+int sep_sum_circann_multi(void *data, void *error, void *mask,
+			  int dtype, int edtype, int mdtype, int w, int h,
+			  double maskthresh, double gain, short inflag,
+			  double x, double y, double rmax, int n, int subpix,
+			  double *sum, double *sumvar, double *area,
+			  double *maskarea, short *flag)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp, rpix2;
@@ -412,13 +412,15 @@ int sep_sum_circannuli(void *data, void *error, void *mask,
 		    varpix *= varpix;
 		}
 	      if (mask)
-		if (mconvert(maskt) > maskthresh)
-		  { 
-		    *flag |= SEP_APER_HASMASKED;
-		    ismasked = 1;
-		  }
-		else
-		  ismasked = 0;
+		{
+		  if (mconvert(maskt) > maskthresh)
+		    { 
+		      *flag |= SEP_APER_HASMASKED;
+		      ismasked = 1;
+		    }
+		  else
+		    ismasked = 0;
+		}
 
 	      /* check if oversampling is needed (close to bin boundary?) */
 	      rpix = sqrt(rpix2);
@@ -515,7 +517,7 @@ int sep_sum_circannuli(void *data, void *error, void *mask,
 void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
 	     double *xout)
 {
-  double sum, cumsum, step;
+  double sum, cumsum, targsum, step;
   int i, j;
   
   sum = 0.0;
@@ -529,23 +531,51 @@ void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
   /* loop over desired fractions */
   for (j=0; j<nfrac; j++)
     {
-      /* increment i until cumsum is just bigger than desired frac */
-      tv = frac[j] * sum;
+      /* increment i until cumsum is >= to desired sum */
+      targsum = frac[j] * sum;
       cumsum = 0.0;
-      for (i=0; i<n && cumsum < tv; i++)
-	cumsum += y[i];
+      i = 0;
+      while (i < n && cumsum < targsum)
+	{
+	  cumsum += y[i];
+	  i++;
+	}
 
-      /* interpolate between i and i-1 */
-      if (i)
-	xout[j] = step * (i + 1 + (tv - cumsum)/y[i]);
-      else
-	xout[j] = step * (y[0] == 0.0? 0.0: tv/y[0]); 
-
-      if (xout[j] > xmax)
+      if (i == 0)
+	xout[j] = 0.0;
+      else if (i == n)
 	xout[j] = xmax;
+      else
+	xout[j] = step * (i + (targsum-cumsum)/y[i-1]);
     }
 
   return;
+}
+
+int sep_flux_radius(void *data, void *error, void *mask,
+		    int dtype, int edtype, int mdtype, int w, int h,
+		    double maskthresh, double gain, short inflag,
+		    double x, double y, double rmax, int subpix,
+		    double *fluxfrac, int n, double *r, short *flag)
+{
+  int status;
+  double sumbuf[FLUX_RADIUS_BUFSIZE] = {0.};
+  double sumvarbuf[FLUX_RADIUS_BUFSIZE];
+  double areabuf[FLUX_RADIUS_BUFSIZE];
+  double maskareabuf[FLUX_RADIUS_BUFSIZE];
+
+  /* measure FLUX_RADIUS_BUFSIZE annuli out to rmax. */
+  status = sep_sum_circann_multi(data, error, mask,
+				 dtype, edtype, mdtype, w, h,
+				 maskthresh, gain, inflag, x, y, rmax,
+				 FLUX_RADIUS_BUFSIZE, subpix,
+				 sumbuf, sumvarbuf, areabuf, maskareabuf,
+				 flag);
+
+  /* Use ppf to get the radii corresponding to the requested flux fracs */
+  sep_ppf(rmax, sumbuf, FLUX_RADIUS_BUFSIZE, fluxfrac, n, r);
+
+  return status;
 }
 
 /*****************************************************************************/
