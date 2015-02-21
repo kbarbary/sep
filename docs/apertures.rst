@@ -119,6 +119,30 @@ aperture photometry if the Kron radius is too small. For example::
    fluxerr[use_circle] = cfluxerr
    flag[use_circle] = cflag
 
+**Equivalent of FLUX_RADIUS in Source Extractor**
+
+In Source Extractor, the FLUX_RADIUS parameter gives the radius of a
+circle enclosing a desired fraction of the total flux. For example,
+with the setting ``PHOT_FLUXFRAC 0.5``, FLUX_RADIUS will give the
+radius of a circle containing half the "total flux" of the object. For
+the definition of "total flux", Source Extractor uses its measurement
+of FLUX_AUTO, which is taken through an elliptical aperture (see
+above). Thus, with the setting ``PHOT_FLUXFRAC 1.0``, you would find
+the circle containing the same flux as whatever ellipse Source
+Extractor used for ``FLUX_AUTO``.
+
+Given a previous calculation of ``flux`` as above, calculate the
+radius for a flux fraction of 0.5::
+
+    r, flag = sep.flux_radius(data, objs['x'], objs['y'], 6.*objs['a'], 0.5,
+                              normflux=flux, subpix=5)
+
+And for multiple flux fractions::
+
+    r, flag = sep.flux_radius(data, objs['x'], objs['y'], 6.*objs['a'],
+                              [0.5, 0.6], normflux=flux, subpix=5)
+
+
 **Mask image regions**
 
 Create a boolean array with elliptical regions set to True::

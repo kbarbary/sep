@@ -14,7 +14,7 @@ from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -1294,11 +1294,12 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def flux_radius(np.ndarray data not None, x, y, r, frac, normflux=None,
+def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
                 np.ndarray mask=None, double maskthresh=0.0, int subpix=5):
-    """flux_radius(data, x, y, r, frac, mask=None, maskthresh=0.0, subpix=5)
+    """flux_radius(data, x, y, rmax, frac, normflux=None, mask=None,
+                   maskthresh=0.0, subpix=5)
 
-    Return circular radius enclosing requested fraction of total flux.
+    Return radius of a circle enclosing requested fraction of total flux.
 
     Parameters
     ----------
@@ -1310,17 +1311,19 @@ def flux_radius(np.ndarray data not None, x, y, r, frac, normflux=None,
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
-        element of the array. These inputs obey numpy broadcasting rules.
+        element of the array. Shapes must match.
 
-    r : array_like
-        Normalizing radius for each position.
+    rmax : array_like
+        Maximum radius to analyze. Used as normalizing flux if ``normflux``
+        is None. Shape must match x and y.
 
     frac : array_like
-        Requested fraction of light (in range 0 to 1).
+        Requested fraction of light (in range 0 to 1). Can be scalar or array.
 
     normflux : array_like, optional
-        Normalizing flux for each position. If not given, the sum within ``r``
-        is used as the normalizing flux.
+        Normalizing flux for each position. If not given, the sum
+        within ``rmax`` is used as the normalizing flux. If given,
+        shape must match x, y and rmax.
 
     mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
@@ -1329,21 +1332,21 @@ def flux_radius(np.ndarray data not None, x, y, r, frac, normflux=None,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    gain : float, optional
-        Conversion factor between data array units and poisson counts,
-        used in calculating poisson noise in aperture sum. If ``None``
-        (default), do not add poisson noise.
-
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
     Returns
     -------
     radius : `~numpy.ndarray`
-        The sum of the data array within the aperture(s).
+        The sum of the data array within the aperture(s). Shape is
+        same as ``x``, except if ``frac`` is an array; then the
+        dimension of ``frac`` will be appended. For example, if ``x``
+        and ``frac`` are both 1-d arrays, the result will be a 2-d
+        array with the trailing dimension corresponding to ``frac``.
 
     flags : `~numpy.ndarray`
-        Integer giving flags. (0 if no flags set.)
+        Integer giving flags. Same shape as ``x``. (0 if no flags set.)
+
     """
 
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
@@ -1387,17 +1390,17 @@ def flux_radius(np.ndarray data not None, x, y, r, frac, normflux=None,
     dt = np.dtype(np.double)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
-    r = np.require(r, dtype=dt)
+    rmax = np.require(rmax, dtype=dt)
     frac = np.require(frac, dtype=dt)
     inshape = x.shape
     infracshape = frac.shape
-    if (y.shape != inshape or r.shape != inshape):
+    if (y.shape != inshape or rmax.shape != inshape):
         raise ValueError("shape of x, y, and r must match")
 
     # Convert input arrays to 1-d for correct looping and indexing.
     xtmp = np.ravel(x)
     ytmp = np.ravel(y)
-    rtmp = np.ravel(r)
+    rtmp = np.ravel(rmax)
     fractmp = np.ravel(np.ascontiguousarray(frac))
     fracn = len(fractmp)
 
