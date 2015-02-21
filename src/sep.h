@@ -252,32 +252,25 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
  */
 
 
-void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
-	     double *xout);
-/* Calculate percent point function (inverse cumulative distribution function)
- * using linear interpolation.
- *
- * xmax : input x array is [xmax/n, 2*xmax/n, 3*xmax/n, ..., xmax]
- * y : input y array
- * n : length of y array
- * frac : array of desired fractions at which to evalute ppf [0 < frac < 1].
- * nfrac : length of frac 
- * xout : preallocated array of length nfrac to hold output.
- */
-
 int sep_flux_radius(void *data, void *error, void *mask,
 		    int dtype, int edtype, int mdtype, int w, int h,
 		    double maskthresh, double gain, short inflag,
 		    double x, double y, double rmax, int subpix,
-		    double *fluxfrac, int n, double *r, short *flag);
+		    double *fluxtot, double *fluxfrac, int n,
+		    double *r, short *flag);
 /* Calculate the radii enclosing the requested fraction of flux relative
  * to radius rmax. 
  *
+ * (see previous functions for most arguments)
+ * rmax : maximum radius to analyze
+ * fluxtot : scale requested flux fractions to this. (If NULL, flux within
+             `rmax` is used.)
  * fluxfrac : array of requested fractions.
  * n : length of fluxfrac
- * r : result array of length n.
- * flag : scalar flag
+ * r : (output) result array of length n.
+ * flag : (output) scalar flag
  */
+
 
 int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
 		    int w, int h, double maskthresh, double x, double y,

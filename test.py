@@ -25,11 +25,13 @@ IMAGECAT_FNAME = os.path.join("data", "image.cat")
 IMAGECAT_DTYPE = [('number', np.int64),
                   ('x', np.float64),
                   ('y', np.float64),
+                  ('a', np.float64),
                   ('flux_aper', np.float64),
                   ('fluxerr_aper', np.float64),
                   ('kron_radius', np.float64),
                   ('flux_auto', np.float64),
                   ('fluxerr_auto', np.float64),
+                  ('flux_radius', np.float64, (3,)),
                   ('flags', np.int64)]
 SUPPORTED_IMAGE_DTYPES = [np.float64, np.float32, np.int32]
 
@@ -122,6 +124,12 @@ def test_vs_sextractor():
     assert_allclose(cxx, objs['cxx'], rtol=1.e-4)
     assert_allclose(cyy, objs['cyy'], rtol=1.e-4)
     assert_allclose(cxy, objs['cxy'], rtol=1.e-4)
+
+    # test flux_radius
+    fr, flags = sep.flux_radius(data, objs['x'], objs['y'], 6.*refobjs['a'],
+                                [0.1, 0.5, 0.6], normflux=refobjs['flux_auto'],
+                                subpix=5)
+    assert_allclose(fr, refobjs["flux_radius"], rtol=0.04, atol=0.01)
 
 
 # -----------------------------------------------------------------------------
@@ -311,6 +319,17 @@ def test_mask_ellipse():
     # should mask 13 pixels:
     sep.mask_ellipse(arr, 10., 10., 1.0, 1.0, 0.0, r=2.001)
     assert arr.sum() == 13
+
+
+def test_flux_radius():
+    data = np.ones(data_shape)
+    fluxfrac = [0.2**2, 0.3**2, 0.7**2, 1.]
+    true_r = [2., 3., 7., 10.]
+    r, _ = sep.flux_radius(data, x, y, 10.*np.ones_like(x),
+                           [0.2**2, 0.3**2, 0.7**2, 1.], subpix=5)
+    for i in range(len(fluxfrac)):
+        assert_allclose(r[:, i], true_r[i], rtol=0.01)
+
 
 def test_mask_ellipse_dep():
     """Deprecated version of mask_ellipse"""

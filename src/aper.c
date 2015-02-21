@@ -500,65 +500,46 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
       if (sum[j] > 0.0)
 	sumvar[j] += sum[j]/gain;
 
-  /* integrate circular annuli */
-  /*
-  for (j=1; j<n; j++)
-    {
-      sum[j] += sum[j-1];
-      sumerr[j] += sumerr[j-1];
-    }
-  */
-
   return status;
 }
 
 
-/* for use in determining flux_radius */
-void sep_ppf(double xmax, double *y, int n, double *frac, int nfrac,
-	     double *xout)
+/* for use in flux_radius */
+static double inverse(double xmax, double *y, int n, double ytarg)
 {
-  double sum, cumsum, targsum, step;
-  int i, j;
-  
-  sum = 0.0;
-  cumsum = 0.0;
+  double step;
+  int i;
+
   step = xmax/n;
+  i = 0;
 
-  /* sum up y array */
-  for (j=0; j<n; j++)
-    sum += y[j];
-
-  /* loop over desired fractions */
-  for (j=0; j<nfrac; j++)
+  /* increment i until y[i] is >= to ytarg */
+  while (i < n && y[i] < ytarg)
+    i++;
+  
+  if (i == 0)
     {
-      /* increment i until cumsum is >= to desired sum */
-      targsum = frac[j] * sum;
-      cumsum = 0.0;
-      i = 0;
-      while (i < n && cumsum < targsum)
-	{
-	  cumsum += y[i];
-	  i++;
-	}
-
-      if (i == 0)
-	xout[j] = 0.0;
-      else if (i == n)
-	xout[j] = xmax;
-      else
-	xout[j] = step * (i + (targsum-cumsum)/y[i-1]);
+      if (ytarg <= 0. || y[0] == 0.)
+	return 0.;
+      return step * ytarg/y[0];
     }
+  if (i == n)
+    return xmax;
 
-  return;
+  /* note that y[i-1] corresponds to x=step*i. */
+  return step * (i + (ytarg - y[i-1])/(y[i] - y[i-1]));
 }
 
 int sep_flux_radius(void *data, void *error, void *mask,
 		    int dtype, int edtype, int mdtype, int w, int h,
 		    double maskthresh, double gain, short inflag,
 		    double x, double y, double rmax, int subpix,
-		    double *fluxfrac, int n, double *r, short *flag)
+		    double *fluxtot, double *fluxfrac, int n, double *r,
+		    short *flag)
 {
   int status;
+  int i;
+  double f;
   double sumbuf[FLUX_RADIUS_BUFSIZE] = {0.};
   double sumvarbuf[FLUX_RADIUS_BUFSIZE];
   double areabuf[FLUX_RADIUS_BUFSIZE];
@@ -572,8 +553,16 @@ int sep_flux_radius(void *data, void *error, void *mask,
 				 sumbuf, sumvarbuf, areabuf, maskareabuf,
 				 flag);
 
-  /* Use ppf to get the radii corresponding to the requested flux fracs */
-  sep_ppf(rmax, sumbuf, FLUX_RADIUS_BUFSIZE, fluxfrac, n, r);
+  /* sum up sumbuf array */
+  for (i=1; i<FLUX_RADIUS_BUFSIZE; i++)
+    sumbuf[i] += sumbuf[i-1];
+
+  /* if given, use "total flux", else, use sum within rmax. */
+  f = fluxtot? *fluxtot : sumbuf[FLUX_RADIUS_BUFSIZE-1];
+
+  /* Use inverse to get the radii corresponding to the requested flux fracs */
+  for (i=0; i<n; i++)
+    r[i] = inverse(rmax, sumbuf, FLUX_RADIUS_BUFSIZE, fluxfrac[i] * f);
 
   return status;
 }

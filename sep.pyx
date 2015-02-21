@@ -139,7 +139,8 @@ cdef extern from "sep.h":
                         int dtype, int edtype, int mdtype, int w, int h,
                         double maskthresh, double gain, short inflag,
                         double x, double y, double rmax, int subpix,
-                        double *fluxfrac, int n, double *r, short *flag)
+                        double *fluxtot, double *fluxfrac, int n,
+                        double *r, short *flag)
 
     int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
                         int w, int h, double maskthresh, double x, double y,
@@ -1293,7 +1294,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def flux_radius(np.ndarray data not None, x, y, r, frac,
+def flux_radius(np.ndarray data not None, x, y, r, frac, normflux=None,
                 np.ndarray mask=None, double maskthresh=0.0, int subpix=5):
     """flux_radius(data, x, y, r, frac, mask=None, maskthresh=0.0, subpix=5)
 
@@ -1316,6 +1317,10 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
 
     frac : array_like
         Requested fraction of light (in range 0 to 1).
+
+    normflux : array_like, optional
+        Normalizing flux for each position. If not given, the sum within ``r``
+        is used as the normalizing flux.
 
     mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
@@ -1357,6 +1362,8 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
     cdef double[:] xtmp
     cdef double[:] ytmp
     cdef double[:] rtmp
+    cdef double[:] normfluxbuf
+    cdef double *normfluxptr
 
     dtype = 0
     edtype = 0
@@ -1394,18 +1401,29 @@ def flux_radius(np.ndarray data not None, x, y, r, frac,
     fractmp = np.ravel(np.ascontiguousarray(frac))
     fracn = len(fractmp)
 
+    # optional `normflux` input.
+    normfluxptr = NULL
+    if normflux is not None:
+        normflux = np.require(normflux, dtype=dt)
+        if normflux.shape != inshape:
+            raise ValueError("shape of normflux must match shape of "
+                             "x, y and r")
+        normfluxbuf = np.ravel(normflux)
+        normfluxptr = &normfluxbuf[0]
+
     # Allocate ouput arrays. (We'll reshape these later to match the
     # input shapes.)
     flag = np.empty(len(xtmp), np.short)
     radius = np.empty((len(xtmp), len(fractmp)), dt)
 
     for i in range(len(xtmp)):
-        status = sep_flux_radius(ptr, eptr, mptr,
-                                 dtype, edtype, mdtype, w, h,
-                                 maskthresh, gain_, inflag,
-                                 xtmp[i], ytmp[i], rtmp[i], subpix,
-                                 &fractmp[0], fracn, &radius[i, 0],
-                                 &flag[i])
+        if normfluxptr != NULL:
+            normfluxptr = &normfluxbuf[i]
+        status = sep_flux_radius(ptr, eptr, mptr, dtype, edtype,
+                                 mdtype, w, h, maskthresh, gain_,
+                                 inflag, xtmp[i], ytmp[i], rtmp[i],
+                                 subpix, normfluxptr, &fractmp[0],
+                                 fracn, &radius[i, 0], &flag[i])
         _assert_ok(status)
 
     return (np.asarray(radius).reshape(inshape + infracshape),
