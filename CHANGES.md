@@ -1,5 +1,10 @@
 Python module versions
 
+v0.3.0 (unreleased)
+===================
+
+* add ``sep.flux_radius()`` function.
+
 v0.2.0 (13 December 2014)
 =========================
 

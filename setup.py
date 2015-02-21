@@ -31,7 +31,7 @@ classifiers = [
     "Intended Audience :: Science/Research"]
 
 setup(name="sep", 
-      version="0.2.0",
+      version="0.3-dev",
       description=description,
       long_description=description,
       license="LGPLv3+",
