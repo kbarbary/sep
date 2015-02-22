@@ -94,7 +94,8 @@ pixels in the annulus are completely igored rather than corrected.
 The inner and outer radii can also be arrays. The error in the background
 is included in the reported error.
 
-**Equivalent of FLUX_AUTO (e.g., MAG_AUTO) in Source Extractor**
+Equivalent of FLUX_AUTO (e.g., MAG_AUTO) in Source Extractor
+------------------------------------------------------------
 
 This is a two-step process. First we calculate the Kron radius for each
 object, then we perform elliptical aperture photometry within that radius::
@@ -119,7 +120,8 @@ aperture photometry if the Kron radius is too small. For example::
    fluxerr[use_circle] = cfluxerr
    flag[use_circle] = cflag
 
-**Equivalent of FLUX_RADIUS in Source Extractor**
+Equivalent of FLUX_RADIUS in Source Extractor
+---------------------------------------------
 
 In Source Extractor, the FLUX_RADIUS parameter gives the radius of a
 circle enclosing a desired fraction of the total flux. For example,
@@ -143,7 +145,8 @@ And for multiple flux fractions::
                               [0.5, 0.6], normflux=flux, subpix=5)
 
 
-**Mask image regions**
+Masking image regions
+---------------------
 
 Create a boolean array with elliptical regions set to True::
 
