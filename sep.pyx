@@ -14,7 +14,7 @@ from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.3-dev"
+__version__ = "0.3.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
