@@ -1001,7 +1001,11 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         ``[-pi/2, pi/2]``. It is also required that ``a >= b >= 0.0``. 
 
     r : array_like, optional
-        Scaling factor for the ellipse. Default is 1.0.
+        Scaling factor for the semi-minor and semi-major axes. The
+        actual ellipse used will have semi-major axis ``a * r`` and
+        semi-minor axis ``b * r``. Setting this parameter to a value
+        other than 1.0 is exactly equivalent to scaling both ``a`` and
+        ``b`` by the same value. Default is 1.0.
 
     err, var : float or `~numpy.ndarray`
         Error *or* variance (specify at most one).
@@ -1038,6 +1042,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 
     flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
+
     """
 
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
