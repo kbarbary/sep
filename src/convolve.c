@@ -38,19 +38,19 @@
 
 #define CONVOLVE_FN convolve_flt
 #define CONVOLVE_TYPE float
-#include "convbody.h"
+#include "convbody.c.inc"
 #undef CONVOLVE_FN
 #undef CONVOLVE_TYPE
 
 #define CONVOLVE_FN convolve_dbl
 #define CONVOLVE_TYPE double
-#include "convbody.h"
+#include "convbody.c.inc"
 #undef CONVOLVE_FN
 #undef CONVOLVE_TYPE
 
 #define CONVOLVE_FN convolve_int
 #define CONVOLVE_TYPE int
-#include "convbody.h"
+#include "convbody.c.inc"
 #undef CONVOLVE_FN
 #undef CONVOLVE_TYPE
 

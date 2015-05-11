@@ -172,7 +172,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 rpix2 < r_out2
 #define APER_COMPARE2 rpix2 > r_in2
 #define APER_COMPARE3 rpix2 < r2
-#include "aperbody.h"
+#include "aperbody.c.inc"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -210,7 +210,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 rpix2 < r_out2
 #define APER_COMPARE2 rpix2 > r_in2
 #define APER_COMPARE3 rpix2 < r2
-#include "aperbody.h"
+#include "aperbody.c.inc"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -247,7 +247,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
 #define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
 #define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
-#include "aperbody.h"
+#include "aperbody.c.inc"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -289,7 +289,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
 #define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
 #define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
-#include "aperbody.h"
+#include "aperbody.c.inc"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -307,7 +307,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 /*****************************************************************************/
 /*
  * This is just different enough from the other aperture functions
- * that it doesn't quite make sense to use aperbody.h.
+ * that it doesn't quite make sense to use aperbody.c.inc.
  */
 int sep_sum_circann_multi(void *data, void *error, void *mask,
 			  int dtype, int edtype, int mdtype, int w, int h,
@@ -683,3 +683,10 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
 	}
     }
 }
+
+/*****************************************************************************/
+/*
+ * As with `sep_sum_circann_multi`, this is different enough from the other
+ * aperture functions that it doesn't quite make sense to use aperbody.c.inc.
+ */
+
