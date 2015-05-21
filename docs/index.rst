@@ -109,3 +109,24 @@ Flag                      Description
 To see if a given flag is set in ``flags``::
 
     is_merged = (flags & sep.OBJ_MERGED) != 0
+
+Citation
+--------
+
+If you use SEP in a publication, please cite the DOI
+`10.5281/zenodo.15669 <http://dx.doi.org/10.5281/zenodo.15669>`_. The
+link provides a variety of citation styles and BibTeX export. For example::
+
+    @misc{kyle_barbary_2015_15669,
+      author       = {Kyle Barbary and
+                      Kyle Boone and
+                      Christoph Deil},
+      title        = {sep: v0.3.0},
+      month        = feb,
+      year         = 2015,
+      doi          = {10.5281/zenodo.15669},
+      url          = {http://dx.doi.org/10.5281/zenodo.15669}
+    }
+
+
+You may also wish to cite the original SourceExtractor paper (Bertin 1996).
