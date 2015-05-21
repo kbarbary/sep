@@ -112,6 +112,15 @@ license for the library as a whole is therefore LGPLv3. The license
 for each file is explicitly stated at the top of each file and the
 full text of the licenses can be found in `licenses`.
 
+Citation
+--------
+
+If you use SEP in a publication, please cite the following DOI. The link provides a variety of citation styles and BibTeX export.
+
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.15669.svg)](http://dx.doi.org/10.5281/zenodo.15669)
+
+You may also wish to cite the original SourceExtractor paper (Bertin 1996).
+
 FAQ
 ---
 
@@ -170,6 +179,6 @@ Source Extractor: the SEP code was forked from v2.18.11, yet it is tested
 against the results of v2.8.6. This indicates that the algorithms have
 not changed in SExtractor over the last few years.
 
-**Is it "sep" or "ess eee pee"?**
+**Is it "sep" or "ess eee pea"?**
 
 I don't really care, just use it. :)
