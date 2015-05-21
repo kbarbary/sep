@@ -30,6 +30,11 @@
 
 #define FLUX_RADIUS_BUFSIZE 64
 
+#define WINPOS_NITERMAX 16      /* Maximum number of steps */
+#define WINPOS_NSIG     4       /* Measurement radius */
+#define WINPOS_STEPMIN  0.0001  /* Minimum change in position for continuing */
+#define WINPOS_FAC      2.0     /* Centroid offset factor (2 for a Gaussian) */
+
 /****************************************************************************/
 /* conversions between ellipse representations */
 
@@ -88,8 +93,8 @@ void sep_ellipse_coeffs(double a, double b, double theta,
  * Ensures that box is within image bound and sets a flag if it is not.
  */
 static void boxextent(double x, double y, double rx, double ry, int w, int h,
-		      int *xmin, int *xmax, int *ymin, int *ymax,
-		      short *flag)
+                      int *xmin, int *xmax, int *ymin, int *ymax,
+                      short *flag)
 {
   *xmin = (int)(x - rx + 0.5);
   *xmax = (int)(x + rx + 1.4999999);
@@ -119,10 +124,10 @@ static void boxextent(double x, double y, double rx, double ry, int w, int h,
 
 
 static void boxextent_ellipse(double x, double y,
-			      double cxx, double cyy, double cxy, double r,
-			      int w, int h,
-			      int *xmin, int *xmax, int *ymin, int *ymax,
-			      short *flag)
+                              double cxx, double cyy, double cxy, double r,
+                              int w, int h,
+                              int *xmin, int *xmax, int *ymin, int *ymax,
+                              short *flag)
 {
   double dxlim, dylim;
 
@@ -144,7 +149,7 @@ static void oversamp_ann_circle(double r, double *r_in2, double *r_out2)
 
 /* determine oversampled "annulus" for an ellipse */
 static void oversamp_ann_ellipse(double r, double b, double *r_in2,
-				 double *r_out2)
+                                 double *r_out2)
 {
    *r_in2 = r - 0.7072/b;
    *r_in2 = (*r_in2 > 0.0) ? (*r_in2)*(*r_in2) : 0.0;
@@ -158,13 +163,13 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_NAME sep_sum_circle
 #define APER_ARGS double r
 #define APER_DECL double r2, r_in2, r_out2
-#define APER_CHECKS				\
-  if (r < 0.0)					\
+#define APER_CHECKS                             \
+  if (r < 0.0)                                  \
     return ILLEGAL_APER_PARAMS
-#define APER_INIT				\
-  r2 = r*r;					\
+#define APER_INIT                               \
+  r2 = r*r;                                     \
   oversamp_ann_circle(r, &r_in2, &r_out2)
-#define APER_BOXEXTENT boxextent(x, y, r, r, w, h,			\
+#define APER_BOXEXTENT boxextent(x, y, r, r, w, h,                      \
                                  &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r)
 #define APER_RPIX2 dx*dx + dy*dy
@@ -192,18 +197,18 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_NAME sep_sum_ellipse
 #define APER_ARGS double a, double b, double theta, double r
 #define APER_DECL double cxx, cyy, cxy, r2, r_in2, r_out2
-#define APER_CHECKS							\
-  if (!(r >= 0.0 && b >= 0.0 && a >= b &&				\
-	theta >= -PI/2. && theta <= PI/2.))				\
+#define APER_CHECKS                                                     \
+  if (!(r >= 0.0 && b >= 0.0 && a >= b &&                               \
+        theta >= -PI/2. && theta <= PI/2.))                             \
     return ILLEGAL_APER_PARAMS
-#define APER_INIT						\
-  r2 = r*r;							\
-  oversamp_ann_ellipse(r, b, &r_in2, &r_out2);			\
-  sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy);		\
-  a *= r;	       						\
+#define APER_INIT                                               \
+  r2 = r*r;                                                     \
+  oversamp_ann_ellipse(r, b, &r_in2, &r_out2);                  \
+  sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy);            \
+  a *= r;                                                       \
   b *= r
 #define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h, \
-		                         &xmin, &xmax, &ymin, &ymax, flag)
+                                         &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a, b, theta)
 #define APER_RPIX2 cxx*dx*dx + cyy*dy*dy + cxy*dx*dy
 #define APER_RPIX2_SUBPIX cxx*dx1*dx1 + cyy*dy2 + cxy*dx1*dy
@@ -230,18 +235,18 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_NAME sep_sum_circann
 #define APER_ARGS double rin, double rout
 #define APER_DECL double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
-#define APER_CHECKS				\
-  if (!(rin >= 0.0 && rout >= rin))		\
+#define APER_CHECKS                             \
+  if (!(rin >= 0.0 && rout >= rin))             \
     return ILLEGAL_APER_PARAMS
-#define APER_INIT					\
-  rin2 = rin*rin;					\
-  oversamp_ann_circle(rin, &rin_in2, &rin_out2);	\
-  rout2 = rout*rout;					\
+#define APER_INIT                                       \
+  rin2 = rin*rin;                                       \
+  oversamp_ann_circle(rin, &rin_in2, &rin_out2);        \
+  rout2 = rout*rout;                                    \
   oversamp_ann_circle(rout, &rout_in2, &rout_out2)
 #define APER_BOXEXTENT boxextent(x, y, rout, rout, w, h, \
-				 &xmin, &xmax, &ymin, &ymax, flag)
+                                 &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT (circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rout) - \
-		    circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rin))
+                    circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rin))
 #define APER_RPIX2 dx*dx + dy*dy
 #define APER_RPIX2_SUBPIX dx1*dx1 + dy2
 #define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
@@ -266,22 +271,22 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 
 #define APER_NAME sep_sum_ellipann
 #define APER_ARGS double a, double b, double theta, double rin, double rout
-#define APER_DECL						\
-  double cxx, cyy, cxy;						\
+#define APER_DECL                                               \
+  double cxx, cyy, cxy;                                         \
   double rin2, rin_in2, rin_out2, rout2, rout_in2, rout_out2
-#define APER_CHECKS					    \
+#define APER_CHECKS                                         \
   if (!(rin >= 0.0 && rout >= rin && b >= 0.0 && a >= b &&  \
-	theta >= -PI/2. && theta <= PI/2.))		    \
+        theta >= -PI/2. && theta <= PI/2.))                 \
     return ILLEGAL_APER_PARAMS
-#define APER_INIT						\
-  rin2 = rin*rin;						\
-  oversamp_ann_ellipse(rin, b, &rin_in2, &rin_out2);		\
-  rout2 = rout*rout;						\
-  oversamp_ann_ellipse(rout, b, &rout_in2, &rout_out2);		\
+#define APER_INIT                                               \
+  rin2 = rin*rin;                                               \
+  oversamp_ann_ellipse(rin, b, &rin_in2, &rin_out2);            \
+  rout2 = rout*rout;                                            \
+  oversamp_ann_ellipse(rout, b, &rout_in2, &rout_out2);         \
   sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy)
 #define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, rout, w, h, \
-		                         &xmin, &xmax, &ymin, &ymax, flag)
-#define APER_EXACT							\
+                                         &xmin, &xmax, &ymin, &ymax, flag)
+#define APER_EXACT                                                      \
   (ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a*rout, b*rout, theta) - \
    ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a*rin, b*rin, theta))
 #define APER_RPIX2 cxx*dx*dx + cyy*dy*dy + cxy*dx*dy
@@ -310,11 +315,11 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * that it doesn't quite make sense to use aperbody.c.inc.
  */
 int sep_sum_circann_multi(void *data, void *error, void *mask,
-			  int dtype, int edtype, int mdtype, int w, int h,
-			  double maskthresh, double gain, short inflag,
-			  double x, double y, double rmax, int n, int subpix,
-			  double *sum, double *sumvar, double *area,
-			  double *maskarea, short *flag)
+                          int dtype, int edtype, int mdtype, int w, int h,
+                          double maskthresh, double gain, short inflag,
+                          double x, double y, double rmax, int n, int subpix,
+                          double *sum, double *sumvar, double *area,
+                          double *maskarea, short *flag)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp, rpix2;
@@ -378,7 +383,7 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
     {
       varpix = econvert(errort);
       if (errisstd)
-	varpix *= varpix;
+        varpix *= varpix;
     }
 
   /* get extent of box */
@@ -391,89 +396,89 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
       pos = (iy%h) * w + xmin;
       datat = data + pos*size;
       if (errisarray)
-	errort = error + pos*esize;
+        errort = error + pos*esize;
       if (mask)
-	maskt = mask + pos*msize;
+        maskt = mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  rpix2 = dx*dx + dy*dy;
-	  if (rpix2 < r_out2)
-	    {
-	      /* get pixel values */
-	      pix = convert(datat);
-	      if (errisarray)
-		{
-		  varpix = econvert(errort);
-		  if (errisstd)
-		    varpix *= varpix;
-		}
-	      if (mask)
-		{
-		  if (mconvert(maskt) > maskthresh)
-		    { 
-		      *flag |= SEP_APER_HASMASKED;
-		      ismasked = 1;
-		    }
-		  else
-		    ismasked = 0;
-		}
+        {
+          dx = ix - x;
+          dy = iy - y;
+          rpix2 = dx*dx + dy*dy;
+          if (rpix2 < r_out2)
+            {
+              /* get pixel values */
+              pix = convert(datat);
+              if (errisarray)
+                {
+                  varpix = econvert(errort);
+                  if (errisstd)
+                    varpix *= varpix;
+                }
+              if (mask)
+                {
+                  if (mconvert(maskt) > maskthresh)
+                    {
+                      *flag |= SEP_APER_HASMASKED;
+                      ismasked = 1;
+                    }
+                  else
+                    ismasked = 0;
+                }
 
-	      /* check if oversampling is needed (close to bin boundary?) */
-	      rpix = sqrt(rpix2);
-	      d = fmod(rpix, step);
-	      if (d < prevbinmargin || d > nextbinmargin)
-		{
-		  dx += offset;
-		  dy += offset;
-		  for (sy=subpix; sy--; dy+=scale)
-		    {
-		      dx1 = dx;
-		      dy2 = dy*dy;
-		      for (sx=subpix; sx--; dx1+=scale)
-			{
-			  j = (int)(sqrt(dx1*dx1+dy2)*stepdens);
-			  if (j < n)
-			    {
-			      if (ismasked)
-				maskarea[j] += scale2;
-			      else
-				{
-				  sum[j] += scale2*pix;
-				  sumvar[j] += scale2*varpix;
-				}
-			      area[j] += scale2;
-			    }
-			}
-		    }
-		}
-	      else
-		/* pixel not close to bin boundary */
-		{
-		  j = (int)(rpix*stepdens);
-		  if (j < n)
-		    {
-		      if (ismasked)
-			maskarea[j] += 1.0;
-		      else
-			{
-			  sum[j] += pix;
-			  sumvar[j] += varpix;
-			}
-		      area[j] += 1.0;
-		    }
-		}
-	    } /* closes "if pixel might be within aperture" */
-	  
-	  /* increment pointers by one element */
-	  datat += size;
-	  if (errisarray)
-	    errort += esize;
-	  maskt += msize;
-	}
+              /* check if oversampling is needed (close to bin boundary?) */
+              rpix = sqrt(rpix2);
+              d = fmod(rpix, step);
+              if (d < prevbinmargin || d > nextbinmargin)
+                {
+                  dx += offset;
+                  dy += offset;
+                  for (sy=subpix; sy--; dy+=scale)
+                    {
+                      dx1 = dx;
+                      dy2 = dy*dy;
+                      for (sx=subpix; sx--; dx1+=scale)
+                        {
+                          j = (int)(sqrt(dx1*dx1+dy2)*stepdens);
+                          if (j < n)
+                            {
+                              if (ismasked)
+                                maskarea[j] += scale2;
+                              else
+                                {
+                                  sum[j] += scale2*pix;
+                                  sumvar[j] += scale2*varpix;
+                                }
+                              area[j] += scale2;
+                            }
+                        }
+                    }
+                }
+              else
+                /* pixel not close to bin boundary */
+                {
+                  j = (int)(rpix*stepdens);
+                  if (j < n)
+                    {
+                      if (ismasked)
+                        maskarea[j] += 1.0;
+                      else
+                        {
+                          sum[j] += pix;
+                          sumvar[j] += varpix;
+                        }
+                      area[j] += 1.0;
+                    }
+                }
+            } /* closes "if pixel might be within aperture" */
+
+          /* increment pointers by one element */
+          datat += size;
+          if (errisarray)
+            errort += esize;
+          maskt += msize;
+        }
     }
 
 
@@ -481,24 +486,24 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
   if (mask)
     {
       if (inflag & SEP_MASK_IGNORE)
-	for (j=n; j--;)
-	  area[j] -= maskarea[j];
+        for (j=n; j--;)
+          area[j] -= maskarea[j];
       else
-	{
-	  for (j=n; j--;)
-	    {
-	      tmp = area[j] == maskarea[j]? 0.0: area[j]/(area[j]-maskarea[j]);
-	      sum[j] *= tmp;
-	      sumvar[j] *= tmp;
-	    }
-	}
+        {
+          for (j=n; j--;)
+            {
+              tmp = area[j] == maskarea[j]? 0.0: area[j]/(area[j]-maskarea[j]);
+              sum[j] *= tmp;
+              sumvar[j] *= tmp;
+            }
+        }
     }
 
   /* add poisson noise, only if gain > 0 */
   if (gain > 0.0)
     for (j=n; j--;)
       if (sum[j] > 0.0)
-	sumvar[j] += sum[j]/gain;
+        sumvar[j] += sum[j]/gain;
 
   return status;
 }
@@ -516,11 +521,11 @@ static double inverse(double xmax, double *y, int n, double ytarg)
   /* increment i until y[i] is >= to ytarg */
   while (i < n && y[i] < ytarg)
     i++;
-  
+
   if (i == 0)
     {
       if (ytarg <= 0. || y[0] == 0.)
-	return 0.;
+        return 0.;
       return step * ytarg/y[0];
     }
   if (i == n)
@@ -531,11 +536,11 @@ static double inverse(double xmax, double *y, int n, double ytarg)
 }
 
 int sep_flux_radius(void *data, void *error, void *mask,
-		    int dtype, int edtype, int mdtype, int w, int h,
-		    double maskthresh, double gain, short inflag,
-		    double x, double y, double rmax, int subpix,
-		    double *fluxtot, double *fluxfrac, int n, double *r,
-		    short *flag)
+                    int dtype, int edtype, int mdtype, int w, int h,
+                    double maskthresh, double gain, short inflag,
+                    double x, double y, double rmax, int subpix,
+                    double *fluxtot, double *fluxfrac, int n, double *r,
+                    short *flag)
 {
   int status;
   int i;
@@ -547,11 +552,11 @@ int sep_flux_radius(void *data, void *error, void *mask,
 
   /* measure FLUX_RADIUS_BUFSIZE annuli out to rmax. */
   status = sep_sum_circann_multi(data, error, mask,
-				 dtype, edtype, mdtype, w, h,
-				 maskthresh, gain, inflag, x, y, rmax,
-				 FLUX_RADIUS_BUFSIZE, subpix,
-				 sumbuf, sumvarbuf, areabuf, maskareabuf,
-				 flag);
+                                 dtype, edtype, mdtype, w, h,
+                                 maskthresh, gain, inflag, x, y, rmax,
+                                 FLUX_RADIUS_BUFSIZE, subpix,
+                                 sumbuf, sumvarbuf, areabuf, maskareabuf,
+                                 flag);
 
   /* sum up sumbuf array */
   for (i=1; i<FLUX_RADIUS_BUFSIZE; i++)
@@ -570,9 +575,9 @@ int sep_flux_radius(void *data, void *error, void *mask,
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
 int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
-		    int w, int h, double maskthresh, double x, double y,
-		    double cxx, double cyy, double cxy, double r,
-		    double *kronrad, short *flag)
+                    int w, int h, double maskthresh, double x, double y,
+                    double cxx, double cyy, double cxy, double r,
+                    double *kronrad, short *flag)
 {
   float pix;
   double r1, v1, r2, area, rpix2, dx, dy;
@@ -597,7 +602,7 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
 
   /* get extent of ellipse in x and y */
   boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
-		    &xmin, &xmax, &ymin, &ymax, flag);
+                    &xmin, &xmax, &ymin, &ymax, flag);
 
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
@@ -606,33 +611,33 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
       pos = (iy%h) * w + xmin;
       datat = data + pos*size;
       if (mask)
-	maskt = mask + pos*msize;
-      
+        maskt = mask + pos*msize;
+
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
-	{
-	  dx = ix - x;
-	  dy = iy - y;
-	  rpix2 = cxx*dx*dx + cyy*dy*dy + cxy*dx*dy;
-	  if (rpix2 <= r2)
-	    {
-	      pix = convert(datat);
-	      if ((pix < -BIG) || (mask && mconvert(maskt) > maskthresh))
-		{
-		  *flag |= SEP_APER_HASMASKED;
-		}
-	      else
-		{
-		  r1 += sqrt(rpix2)*pix;
-		  v1 += pix;
-		  area++;
-		}
-	    }
+        {
+          dx = ix - x;
+          dy = iy - y;
+          rpix2 = cxx*dx*dx + cyy*dy*dy + cxy*dx*dy;
+          if (rpix2 <= r2)
+            {
+              pix = convert(datat);
+              if ((pix < -BIG) || (mask && mconvert(maskt) > maskthresh))
+                {
+                  *flag |= SEP_APER_HASMASKED;
+                }
+              else
+                {
+                  r1 += sqrt(rpix2)*pix;
+                  v1 += pix;
+                  area++;
+                }
+            }
 
-	  /* increment pointers by one element */
-	  datat += size;
-	  maskt += msize;
-	}
+          /* increment pointers by one element */
+          datat += size;
+          maskt += msize;
+        }
     }
 
   if (area == 0)
@@ -656,8 +661,8 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
 
 /* set array values within an ellipse (uc = unsigned char array) */
 void sep_set_ellipse(unsigned char *arr, int w, int h,
-		     double x, double y, double cxx, double cyy, double cxy,
-		     double r, unsigned char val)
+                     double x, double y, double cxx, double cyy, double cxy,
+                     double r, unsigned char val)
 {
   unsigned char *arrt;
   int xmin, xmax, ymin, ymax, xi, yi;
@@ -668,7 +673,7 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
   r2 = r*r;
 
   boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
-		    &xmin, &xmax, &ymin, &ymax, &flag);
+                    &xmin, &xmax, &ymin, &ymax, &flag);
 
   for (yi=ymin; yi<ymax; yi++)
     {
@@ -676,11 +681,11 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
       dy = yi - y;
       dy2 = dy*dy;
       for (xi=xmin; xi<xmax; xi++, arrt++)
-	{
-	  dx = xi - x;
-	  if ((cxx*dx*dx + cyy*dy2 + cxy*dx*dy) <= r2)
-	    *arrt = val;
-	}
+        {
+          dx = xi - x;
+          if ((cxx*dx*dx + cyy*dy2 + cxy*dx*dy) <= r2)
+            *arrt = val;
+        }
     }
 }
 
@@ -688,5 +693,235 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
 /*
  * As with `sep_sum_circann_multi`, this is different enough from the other
  * aperture functions that it doesn't quite make sense to use aperbody.c.inc.
+ *
+ * To reproduce SExtractor:
+ * - use sig = obj.hl_radius * 2/2.35.
+ * - use obj.posx/posy for initial position
  */
 
+int sep_windowed(void *data, void *error, void *mask,
+                 int dtype, int edtype, int mdtype, int w, int h,
+                 double maskthresh, double gain, short inflag,
+                 double x, double y, double sig, int subpix,
+                 double *sum, double *sumerr, double *area, short *flag)
+{
+  PIXTYPE pix, varpix;
+  double dx, dy, dx1, dy2, offset, scale, scale2, tmp, dxpos, dypos, weight;
+  double maskdxpos, maskdypos;
+  double r, tv, twv, sigtv, totarea, maskweight, overlap, rpix2, invtwosig2;
+  double wpix;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  long pos;
+  short errisarray, errisstd;
+  BYTE *datat, *errort, *maskt;
+  converter convert, econvert, mconvert;
+  double r2, r_in2, r_out2;
+
+  /* input checks */
+  if (sig < 0.0)
+    return ILLEGAL_APER_PARAMS;
+  if (subpix < 0)
+    return ILLEGAL_SUBPIX;
+
+  /* initializations */
+  size = esize = msize = 0;
+  tv = sigtv = 0.0;
+  overlap = totarea = maskweight = 0.0;
+  datat = maskt = NULL;
+  errort = error;
+  *flag = 0;
+  varpix = 0.0;
+  scale = 1.0/subpix;
+  scale2 = scale*scale;
+  offset = 0.5*(scale-1.0);
+  invtwosig2 = 1.0/(2.0*sig*sig);
+
+  /* Integration radius */
+  r = WINPOS_NSIG*sig;
+
+  /* calculate oversampled annulus */
+  r2 = r*r;
+  oversamp_ann_circle(r, &r_in2, &r_out2);
+
+  /* get data converter(s) for input array(s) */
+  if ((status = get_converter(dtype, &convert, &size)))
+    return status;
+  if (error && (status = get_converter(edtype, &econvert, &esize)))
+    return status;
+  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+    return status;
+
+  /* get options */
+  errisarray = inflag & SEP_ERROR_IS_ARRAY;
+  if (!error)
+    errisarray = 0; /* in case user set flag but error is NULL */
+  errisstd = !(inflag & SEP_ERROR_IS_VAR);
+
+  /* If error exists and is scalar, set the pixel variance now */
+  if (error && !errisarray)
+    {
+      varpix = econvert(errort);
+      if (errisstd)
+        varpix *= varpix;
+    }
+
+  /* iteration loop */
+  for (i=0; i<WINPOS_NITERMAX; i++)
+    {
+
+      /* get extent of box */
+      boxextent(x, y, r, r, w, h,
+                &xmin, &xmax, &ymin, &ymax, flag);
+
+      /* TODO: initialize values */
+      //mx2ph
+      //my2ph
+      // esum, emxy, emx2, emy2, mx2, my2, mxy
+      tv = twv = sigtv = 0.0;
+      overlap = totarea = maskarea = maskweight = 0.0;
+      dxpos = dypos = 0.0;
+      maskdxpos = maskdypos = 0.0;
+
+      /* loop over rows in the box */
+      for (iy=ymin; iy<ymax; iy++)
+        {
+          /* set pointers to the start of this row */
+          pos = (iy%h) * w + xmin;
+          datat = data + pos*size;
+          if (errisarray)
+            errort = error + pos*esize;
+          if (mask)
+            maskt = mask + pos*msize;
+
+          /* loop over pixels in this row */
+          for (ix=xmin; ix<xmax; ix++)
+            {
+              dx = ix - x;
+              dy = iy - y;
+              rpix2 = dx*dx + dy*dy;
+              if (rpix2 < r_out2)
+                {
+                  if (rpix2 > r_in2)  /* might be partially in aperture */
+                    {
+                      if (subpix == 0)
+                        overlap = circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r);
+                      else
+                        {
+                          dx += offset;
+                          dy += offset;
+                          overlap = 0.0;
+                          for (sy=subpix; sy--; dy+=scale)
+                            {
+                              dx1 = dx;
+                              dy2 = dy*dy;
+                              for (sx=subpix; sx--; dx1+=scale)
+                                if (dx1*dx1 + dy2 < r2)
+                                  overlap += scale2;
+                            }
+                        }
+                    }
+                  else
+                    /* definitely fully in aperture */
+                    overlap = 1.0;
+
+                  /* get pixel value and variance value */
+                  pix = convert(datat);
+                  if (errisarray)
+                    {
+                      varpix = econvert(errort);
+                      if (errisstd)
+                        varpix *= varpix;
+                    }
+
+                  /* offset of this pixel from center */
+                  dx = ix - x; 
+                  dy = iy - y;
+
+                  /* weight pixel area by gaussian */
+                  weight = overlap * exp(-rpix2*invtwosig2);
+
+                  if (mask && (mconvert(maskt) > maskthresh))
+                    {
+                      *flag |= SEP_APER_HASMASKED;
+                      maskarea += overlap;
+
+                      /* keep track of total weight of masked pixels; we'll
+                         later multiply by average pixel value in aperture */
+                      maskweight += weight;
+                      maskdxpos += dx * weight;
+                      maskdypos += dy * weight;
+                    }
+                  else
+                    {
+                      tv += pix * overlap;
+                      wpix = weight * pix;
+                      twv += wpix;
+                      dxpos += wpix * dx;
+                      dypos += wpix * dy;
+                    }
+
+                  totarea += overlap;
+
+                  /* TODO: if (errflag)
+                     if (momentflag) */
+
+                } /* closes "if pixel might be within aperture" */
+
+              /* increment pointers by one element */
+              datat += size;
+              if (errisarray)
+                errort += esize;
+              maskt += msize;
+            } /* closes loop over x */
+        } /* closes loop over y */
+
+      /* correct for masked values */
+      if (mask)
+        {
+          if (inflag & SEP_MASK_IGNORE)
+            totarea -= maskarea;
+          else
+            {
+              tmp = tv/(totarea-maskarea); /* avg unmasked pixel value */
+              twv += tmp * maskweight;
+              dxpos += tmp * maskdxpos;
+              dypos += tmp * maskdypos;
+            }
+        }
+
+      /* update center */
+      if (twv>0.0)
+        {
+          x += (dxpos /= twv)*WINPOS_FAC;
+          y += (dypos /= twv)*WINPOS_FAC;
+        }
+      else
+        break;
+
+      /* Stop here if position does not change */
+      if (dxpos*dxpos+dypos*dypos < WINPOS_STEPMIN*WINPOS_STEPMIN)
+        break;
+
+    } /* closes loop over interations */
+
+  /* TODO: move this stuff inline:
+     /* add poisson noise, only if gain > 0 */
+  if (gain > 0.0 && tv>0.0)
+    sigtv += tv/gain;
+  
+
+  /* assign results */
+  *xout = x;
+  *yout = y;
+  *niter = i+1;
+
+  /* other results that could be included */
+  /* flux_win
+     fluxerr_win
+
+  *sum = tv;
+  *sumerr = sqrt(sigtv);
+  *area = totarea;
+
+  return status;
+}
