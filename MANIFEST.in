@@ -1,11 +1,11 @@
 include README.md
 include CHANGES.md
 include AUTHORS.md
+include licenses/*
 
 # do not include sep.pyx (see setup.py).
 include src/*.[c,h]
-include licenses/*
-include test.py
+include src/*.c.inc
 
 recursive-include docs *
 prune docs/_build
