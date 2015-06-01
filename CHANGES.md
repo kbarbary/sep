@@ -1,5 +1,9 @@
 Python module versions
 
+v0.5.0 (unreleased)
+===================
+
+
 v0.4.0 (1 June 2015)
 ====================
 
