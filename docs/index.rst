@@ -130,4 +130,5 @@ link provides a variety of citation styles and BibTeX export. For example::
     }
 
 
-You may also wish to cite the original SourceExtractor paper (Bertin 1996).
+You may also wish to cite the original SExtractor paper: `Bertin &
+Arnouts 1996 <http://adsabs.harvard.edu/abs/1996A%26AS..117..393B>`_.
