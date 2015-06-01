@@ -20,6 +20,7 @@ if USE_CYTHON:
     extensions = cythonize(extensions)
 
 description = "Astronomical source extraction and photometry library"
+long_description = "http://sep.readthedocs.org"
 
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -31,9 +32,9 @@ classifiers = [
     "Intended Audience :: Science/Research"]
 
 setup(name="sep", 
-      version="0.3.0",
+      version="0.4.0",
       description=description,
-      long_description=description,
+      long_description=long_description,
       license="LGPLv3+",
       classifiers=classifiers,
       url="https://github.com/kbarbary/sep",

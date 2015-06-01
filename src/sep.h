@@ -291,6 +291,27 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
  *                        kronrad = 0.
  */
 
+
+int sep_windowed(void *data, void *error, void *mask,
+                 int dtype, int edtype, int mdtype, int w, int h,
+                 double maskthresh, double gain, short inflag,
+                 double x, double y, double sig, int subpix,
+                 double *xout, double *yout, int *niter, short *flag,
+                 double* extrastats);
+/* Calculate "windowed" position parameters.
+ *
+ * This is an iterative procedure.
+ *
+ * x, y       : initial center
+ * sig        : sigma of Gaussian to use for weighting. The integration
+ *              radius is 4 * sig.
+ * subpix     : Subpixels to use in aperture-pixel overlap.
+ *              SExtractor uses 11. 0 is supported for exact overlap.
+ * xout, yout : output center.
+ * niter      : number of iterations used.
+ */
+
+
 void sep_set_ellipse(unsigned char *arr, int w, int h,
 		     double x, double y, double cxx, double cyy, double cxy,
 		     double r, unsigned char val);

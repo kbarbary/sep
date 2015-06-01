@@ -697,20 +697,25 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
  * To reproduce SExtractor:
  * - use sig = obj.hl_radius * 2/2.35.
  * - use obj.posx/posy for initial position
+ *
+ * NOTE: currently, the error and gain inputs are not used and the extrastats 
+ * output is not used. In the future they might be used to compute more
+ * windowed stats.
  */
 
 int sep_windowed(void *data, void *error, void *mask,
                  int dtype, int edtype, int mdtype, int w, int h,
                  double maskthresh, double gain, short inflag,
                  double x, double y, double sig, int subpix,
-                 double *sum, double *sumerr, double *area, short *flag)
+                 double *xout, double *yout, int *niter, short *flag,
+                 double* extrastats)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp, dxpos, dypos, weight;
-  double maskdxpos, maskdypos;
-  double r, tv, twv, sigtv, totarea, maskweight, overlap, rpix2, invtwosig2;
+  double maskarea, maskweight, maskdxpos, maskdypos;
+  double r, tv, twv, sigtv, totarea, overlap, rpix2, invtwosig2;
   double wpix;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  int i, ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
   long pos;
   short errisarray, errisstd;
   BYTE *datat, *errort, *maskt;
@@ -804,7 +809,8 @@ int sep_windowed(void *data, void *error, void *mask,
                   if (rpix2 > r_in2)  /* might be partially in aperture */
                     {
                       if (subpix == 0)
-                        overlap = circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r);
+                        overlap = circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5,
+                                              r);
                       else
                         {
                           dx += offset;
@@ -837,33 +843,27 @@ int sep_windowed(void *data, void *error, void *mask,
                   dx = ix - x; 
                   dy = iy - y;
 
-                  /* weight pixel area by gaussian */
-                  weight = overlap * exp(-rpix2*invtwosig2);
+                  /* weight by gaussian */
+                  weight = exp(-rpix2*invtwosig2);
 
                   if (mask && (mconvert(maskt) > maskthresh))
                     {
                       *flag |= SEP_APER_HASMASKED;
                       maskarea += overlap;
-
-                      /* keep track of total weight of masked pixels; we'll
-                         later multiply by average pixel value in aperture */
-                      maskweight += weight;
-                      maskdxpos += dx * weight;
-                      maskdypos += dy * weight;
+                      maskweight += overlap * weight;
+                      maskdxpos += overlap * weight * dx;
+                      maskdypos += overlap * weight * dy;
                     }
                   else
                     {
                       tv += pix * overlap;
-                      wpix = weight * pix;
+                      wpix = pix * overlap * weight;
                       twv += wpix;
                       dxpos += wpix * dx;
                       dypos += wpix * dy;
                     }
 
                   totarea += overlap;
-
-                  /* TODO: if (errflag)
-                     if (momentflag) */
 
                 } /* closes "if pixel might be within aperture" */
 
@@ -875,9 +875,22 @@ int sep_windowed(void *data, void *error, void *mask,
             } /* closes loop over x */
         } /* closes loop over y */
 
-      /* correct for masked values */
+      /* we're done looping over pixels for this iteration.
+       * Our summary statistics are:
+       *
+       * tv : total value
+       * twv : total weighted value
+       * dxpos : weighted dx
+       * dypos : weighted dy
+       */
+
+      /* Correct for masked values: This effectively makes it as if
+       * the masked pixels had the value of the average unmasked value
+       * in the aperture.
+       */
       if (mask)
         {
+          /* this option will probably not yield accurate values */
           if (inflag & SEP_MASK_IGNORE)
             totarea -= maskarea;
           else
@@ -892,8 +905,8 @@ int sep_windowed(void *data, void *error, void *mask,
       /* update center */
       if (twv>0.0)
         {
-          x += (dxpos /= twv)*WINPOS_FAC;
-          y += (dypos /= twv)*WINPOS_FAC;
+          x += (dxpos /= twv) * WINPOS_FAC;
+          y += (dypos /= twv) * WINPOS_FAC;
         }
       else
         break;
@@ -904,24 +917,10 @@ int sep_windowed(void *data, void *error, void *mask,
 
     } /* closes loop over interations */
 
-  /* TODO: move this stuff inline:
-     /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
-  
-
-  /* assign results */
+  /* assign output results */
   *xout = x;
   *yout = y;
   *niter = i+1;
-
-  /* other results that could be included */
-  /* flux_win
-     fluxerr_win
-
-  *sum = tv;
-  *sumerr = sqrt(sigtv);
-  *area = totarea;
 
   return status;
 }

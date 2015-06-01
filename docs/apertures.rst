@@ -145,6 +145,22 @@ And for multiple flux fractions::
                               [0.5, 0.6], normflux=flux, subpix=5)
 
 
+Equivalent of XWIN_IMAGE, YWIN_IMAGE in Source Extractor
+--------------------------------------------------------
+
+Source Extractor's XWIN_IMAGE, YWIN_IMAGE parameters can be used for
+more accurate object centroids than the default X_IMAGE, Y_IMAGE.
+Here, the ``winpos`` function provides this behavior.  To match Source
+Extractor exactly, the right ``sig`` parameter (giving a description
+of the effective width) must be used for each object.  Source
+Extractor uses ``2.  / 2.35 * (half-light radius)`` where the
+half-light radius is calculated using ``flux_radius`` with a fraction
+of 0.5 and a normalizing flux of ``FLUX_AUTO``. The equivalent here is::
+
+    sig = 2. / 2.35 * r  # r from sep.flux_radius() above, with fluxfrac = 0.5
+    xwin, ywin, flag = sep.winpos(data, objs['x'], objs['y'], sig)
+
+
 Masking image regions
 ---------------------
 

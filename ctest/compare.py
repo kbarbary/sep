@@ -38,6 +38,6 @@ if __name__ == '__main__':
     for i in range(len(ref)):
         assert abs(ref[i][1] - sep[i][1] - 1.) < 1.e-3  # x coordinate
         assert abs(ref[i][2] - sep[i][2] - 1.) < 1.e-3  # y coordinate
-        assert fracdiff(ref[i][4], sep[i][3]) < 2.e-4  # flux
+        assert fracdiff(ref[i][6], sep[i][3]) < 2.e-4  # flux
 
     print "compare passed"

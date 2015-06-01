@@ -147,6 +147,13 @@ cdef extern from "sep.h":
                         double cxx, double cyy, double cxy, double r,
                         double *kronrad, short *flag)
 
+    int sep_windowed(void *data, void *error, void *mask,
+                     int dtype, int edtype, int mdtype, int w, int h,
+                     double maskthresh, double gain, short inflag,
+                     double x, double y, double sig, int subpix,
+                     double *xout, double *yout, int *niter, short *flag,
+                     double* extrastats)
+
     int sep_ellipse_axes(double cxx, double cyy, double cxy,
                          double *a, double *b, double *theta)
 
@@ -1640,6 +1647,114 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
         np.PyArray_MultiIter_NEXT(it)
 
     return kr, flag 
+
+def winpos(np.ndarray data not None, xinit, yinit, sig,
+           np.ndarray mask=None, double maskthresh=0.0, int subpix=11):
+    """winpos(data, xinit, yinit, sig, mask=None, maskthresh=0.0, subpix=11)
+
+    Calculate more accurate object centroids using 'windowed' algorithm.
+
+    Starting from the supplied initial center position, an iterative
+    algorithm is used to determine a better object centroid. On each
+    iteration, the centroid is calculated using all pixels within a
+    circular aperture of ``4*sig`` from the current position,
+    weighting pixel positions by their flux and the amplitude of a 2-d
+    Gaussian with sigma ``sig``. Iteration stops when the change in
+    position falls under some threshold or a maximum number of
+    iterations is reached. This is equivalent to ``XWIN_IMAGE`` and
+    ``YWIN_IMAGE`` parameters in Source Extractor (for the correct choice
+    of sigma for each object).
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        Data array.
+
+    xinit, yinit : array_like
+        Initial center(s).
+
+    sig : array_like
+        Gaussian sigma used for weighting pixels. Pixels within a circular
+        aperture of radius 4*sig are included.
+
+    mask : `numpy.ndarray`, optional
+        An optional mask.
+
+    maskthresh : float, optional
+        Pixels with mask > maskthresh will be ignored.
+
+    subpix : int
+        Subpixel sampling used to determine pixel overlap with
+        aperture.  11 is used in Source Extractor. For exact overlap
+        calculation, use 0.
+
+    Returns
+    -------
+    x, y : np.ndarray
+        New x and y position(s).
+
+    flag : np.ndarray
+        Flags.
+
+    """
+
+    cdef int w, h, mw, mh, status
+    cdef np.uint8_t[:,:] buf, mbuf
+    cdef void *ptr
+    cdef void *mptr
+    cdef double cxx, cyy, cxy
+    cdef int niter
+
+    niter = 0  # not currently used or returned.
+
+    mptr = NULL
+    mdtype = 0
+
+    # Get main image info
+    _check_array_get_dims(data, &w, &h)
+    dtype = _get_sep_dtype(data.dtype)
+    buf = data.view(dtype=np.uint8)
+    ptr = <void*>&buf[0, 0]
+
+    # See note in apercirc on requiring specific array type
+    dt = np.dtype(np.double)
+    xinit = np.require(xinit, dtype=dt)
+    yinit = np.require(yinit, dtype=dt)
+    sig = np.require(sig, dtype=dt)
+
+    if mask is not None:
+        _check_array_get_dims(mask, &mw, &mh)
+        if mw != w or mh != h:
+            raise ValueError("size of mask array must match data")
+        mdtype = _get_sep_dtype(mask.dtype)
+        mbuf = mask.view(dtype=np.uint8)
+        mptr = <void*>&mbuf[0, 0]
+
+    # allocate output arrays
+    shape = np.broadcast(xinit, yinit, sig).shape
+    x = np.empty(shape, np.float)
+    y = np.empty(shape, np.float)
+    flag = np.empty(shape, np.short)
+
+    it = np.broadcast(xinit, yinit, sig, x, y, flag)
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_windowed(ptr, NULL, mptr, dtype, 0, mdtype, w, h,
+                              maskthresh, 0., 0,
+                              (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                              (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                              (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                              subpix,
+                              <double*>np.PyArray_MultiIter_DATA(it, 3),
+                              <double*>np.PyArray_MultiIter_DATA(it, 4),
+                              &niter,
+                              <short*>np.PyArray_MultiIter_DATA(it, 5),
+                              NULL)
+        _assert_ok(status);
+        np.PyArray_MultiIter_NEXT(it)
+
+    return x, y, flag 
+
+
 
 def ellipse_coeffs(a, b, theta):
     """ellipse_coeffs(a, b, theta)

@@ -25,6 +25,8 @@ IMAGECAT_FNAME = os.path.join("data", "image.cat")
 IMAGECAT_DTYPE = [('number', np.int64),
                   ('x', np.float64),
                   ('y', np.float64),
+                  ('xwin', np.float64),
+                  ('ywin', np.float64),
                   ('a', np.float64),
                   ('flux_aper', np.float64),
                   ('fluxerr_aper', np.float64),
@@ -131,6 +133,11 @@ def test_vs_sextractor():
                                 subpix=5)
     assert_allclose(fr, refobjs["flux_radius"], rtol=0.04, atol=0.01)
 
+    # test winpos
+    sig = 2. / 2.35 * fr[:, 1]  # flux_radius = 0.5
+    xwin, ywin, flag = sep.winpos(data, objs['x'], objs['y'], sig)
+    assert_allclose(xwin, refobjs["xwin"] - 1., rtol=0., atol=0.0025)
+    assert_allclose(ywin, refobjs["ywin"] - 1., rtol=0., atol=0.0025)
 
 # -----------------------------------------------------------------------------
 # Background

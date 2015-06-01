@@ -77,6 +77,7 @@ Reference/API
 
    sep.kron_radius
    sep.flux_radius
+   sep.winpos
    sep.mask_ellipse
    sep.ellipse_axes
    sep.ellipse_coeffs

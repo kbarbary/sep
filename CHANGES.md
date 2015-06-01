@@ -1,9 +1,14 @@
 Python module versions
 
+v0.4.0 (1 June 2015)
+====================
+
+* New ``sep.winpos()`` function.
+
 v0.3.0 (23 February 2015)
 =========================
 
-* add ``sep.flux_radius()`` function.
+* New ``sep.flux_radius()`` function.
 
 v0.2.0 (13 December 2014)
 =========================
