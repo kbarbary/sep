@@ -87,7 +87,8 @@ int sep_extract(void *image, void *noise,
   int               *start, *end, *survives;
   pixstatus         *psstack;
   BYTE              *imageline, *noiseline;
-  convolver         convolve_im, convolve_noise;
+  convolver         convolve_im;
+  matched_filter    matched_filter_fn;
   array_converter   convert_im, convert_noise;
   char              errtext[512];
 
@@ -104,7 +105,7 @@ int sep_extract(void *image, void *noise,
   convn = 0;
   sum = 0.0;
   convolve_im = NULL;
-  convolve_noise = NULL;
+  matched_filter_fn = NULL;
   convert_im = NULL;
   convert_noise = NULL;
   imageline = (BYTE *)image;
@@ -203,16 +204,18 @@ int sep_extract(void *image, void *noise,
 	convnorm[i] = conv[i] / sum;
 
       /* get the right convolve function for the image & noise data types */
-      status = get_convolver(dtype, &convolve_im);
-      if (status != RETURN_OK)
-	goto exit;
       if (noise)
 	{
-	  status = get_convolver(ndtype, &convolve_noise);
+	  status = get_matched_filter(dtype, ndtype, &matched_filter_fn);
 	  if (status != RETURN_OK)
 	    goto exit;
 	}
-
+      else
+        {
+          status = get_convolver(dtype, &convolve_im);
+          if (status != RETURN_OK)
+            goto exit;
+        }
     }
 
   /*----- MAIN LOOP ------ */
@@ -248,14 +251,16 @@ int sep_extract(void *image, void *noise,
 	  /* filter the lines */
 	  if (conv)
 	    {
-	      convolve_im(image, w, h, yl, convnorm, convw, convh, cdscan);
 	      if (noise)
-		
-		/*debug: don't convolve noise*/
-		memcpy(cdwscan, wscan, (size_t)w*sizeof(PIXTYPE));
-		/*convolve_noise(noise, w, h, yl, convnorm, convw, convh,
-		  cdwscan); */
-	    }
+                {
+                  matched_filter_fn(image, noise, w, h, yl, convnorm, convw,
+                                    convh, cdscan, cdwscan);
+                }
+              else
+                {
+	          convolve_im(image, w, h, yl, convnorm, convw, convh, cdscan);
+                }
+            }
 	  else
 	    {
 	      cdscan = scan;
@@ -277,7 +282,9 @@ int sep_extract(void *image, void *noise,
 
 	  curpixinfo.flag = trunflag;
 	  if (noise)
-	    thresh = relthresh * ((xl==w || yl==h)? 0.0: cdwscan[xl]);
+            {
+	      thresh = relthresh * ((xl==w || yl==h)? 0.0: cdwscan[xl]);
+            }
 	  luflag = cdnewsymbol > thresh? 1: 0;  /* is pixel above thresh? */
 
 	  if (luflag)
