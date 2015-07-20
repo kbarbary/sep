@@ -140,3 +140,8 @@ int addobjdeep(int, objliststruct *, objliststruct *);
 typedef void (*convolver)(void *image, int w, int h, int y,
 			  float *conv, int convw, int convh, PIXTYPE *buf);
 int get_convolver(int dtype, convolver *f);
+
+typedef void (*matched_filter)(void *image, void *noise, int w, int h, int y,
+                               float *conv, int convw, int convh,
+                               PIXTYPE *num_buf, PIXTYPE *denom_buf);
+int get_matched_filter(int dtype, int ndtype, matched_filter *f);
