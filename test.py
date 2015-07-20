@@ -199,6 +199,46 @@ def test_extract_with_noise_array():
     objects2 = sep.extract(data, 1.5, err=noise, conv=None)
     assert_equal(objects, objects2)
 
+def test_extract_with_noise_convolution():
+    """Test extraction when there is both noise and convolution.
+
+    This will use the matched filter implementation, and will handle bad pixels
+    and edge effects gracefully.
+    """
+
+    # Start with an empty image where we label the noise as 1 sigma everywhere.
+    image = np.zeros((20, 20))
+    error = np.ones((20, 20))
+
+    # Add some noise representing bad pixels. We do not want to detect these.
+    image[17, 3] = 100.
+    error[17, 3] = 100.
+    image[10, 0] = 100.
+    error[10, 0] = 100.
+    image[17, 17] = 100.
+    error[17, 17] = 100.
+
+    # Add some real point sources that we should find.
+    image[3, 17] = 10.
+
+    image[6, 6] = 2.0
+    image[7, 6] = 1.0
+    image[5, 6] = 1.0
+    image[6, 5] = 1.0
+    image[6, 7] = 1.0
+
+    objects = sep.extract(image, 2.0, minarea=1, err=error)
+    objects.sort(order=['x', 'y'])
+
+    # Check that we recovered the two correct objects and not the others.
+    assert len(objects) == 2
+
+    assert_approx_equal(objects[0]['x'], 6.)
+    assert_approx_equal(objects[0]['y'], 6.)
+
+    assert_approx_equal(objects[1]['x'], 17.)
+    assert_approx_equal(objects[1]['y'], 3.)
+
 
 # -----------------------------------------------------------------------------
 # aperture tests
