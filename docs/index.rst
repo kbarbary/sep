@@ -48,6 +48,7 @@ Usage Guide
    background
    detection
    apertures
+   matchedfilter
 
 Reference/API
 -------------
