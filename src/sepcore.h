@@ -28,6 +28,8 @@
 #define NON_ELLIPSE_PARAMS  5
 #define ILLEGAL_APER_PARAMS 6
 #define DEBLEND_OVERFLOW    7
+#define ILLEGAL_BUF_DIM     8
+#define LINE_NOT_IN_BUF     9
 
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
 #define	PI  3.1415926535898

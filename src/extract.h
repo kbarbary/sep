@@ -58,6 +58,23 @@ typedef struct
   PIXTYPE value;
 } pbliststruct;
 
+/* array buffer struct */
+typedef struct
+{
+  BYTE *dptr;         /* pointer to original data, can be any supported type */
+  int dtype;          /* data type of original data */
+  int dw, dh;         /* original data width, height */
+  PIXTYPE *bptr;      /* buffer pointer (self-managed memory) */
+  int bw, bh;         /* buffer width, height (bufw can be larger than w due */
+                      /* to padding). */
+  PIXTYPE *midline;   /* "middle" line in buffer (at index bh/2) */
+  PIXTYPE *lastline;  /* last line in buffer */
+  array_converter readline;  /* function to read a data line into buffer */
+  int elsize;         /* size in bytes of one element in original data */ 
+  int yoff;           /* line index in original data corresponding to bufptr */
+} arraybuffer;
+
+
 /* globals */
 extern int plistexist_cdvalue, plistexist_thresh, plistexist_var;
 extern int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
@@ -137,11 +154,8 @@ void mergeobjshallow(objstruct *, objstruct *);
 */
 int addobjdeep(int, objliststruct *, objliststruct *);
 
-typedef void (*convolver)(void *image, int w, int h, int y,
-			  float *conv, int convw, int convh, PIXTYPE *buf);
-int get_convolver(int dtype, convolver *f);
-
-typedef void (*matched_filter)(void *image, void *noise, int w, int h, int y,
-                               float *conv, int convw, int convh,
-                               PIXTYPE *num_buf, PIXTYPE *denom_buf);
-int get_matched_filter(int dtype, int ndtype, matched_filter *f);
+int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
+             PIXTYPE *out);
+int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
+                   float *conv, int convw, int convh,
+                   PIXTYPE *outnum, PIXTYPE *outdenom);

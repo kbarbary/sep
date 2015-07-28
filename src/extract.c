@@ -57,6 +57,84 @@ void plistinit(void *, void *);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
+int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
+                     int bufw, int bufh);
+void arraybuffer_readline(arraybuffer *buf);
+void arraybuffer_free(arraybuffer *buf);
+
+/********************* array buffer functions ********************************/
+
+/* initialize buffer */
+int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
+                     int bufw, int bufh)
+{
+  int status, yl;
+  status = RETURN_OK;
+
+  if (bufw < w)
+    return ILLEGAL_BUF_DIM;
+
+  /* data info */
+  buf->dptr = arr;
+  buf->dw = w;
+  buf->dh = h;
+
+  /* buffer array info */
+  buf->bptr = NULL;
+  QMALLOC(buf->bptr, PIXTYPE, bufw*bufh, status);
+  buf->bw = bufw;
+  buf->bh = bufh;
+
+  /* pointers to within buffer */
+  buf->midline = buf->bptr + bufw*(bufh/2);  /* ptr to middle buffer line */
+  buf->lastline = buf->bptr + bufw*(bufh-1);  /* ptr to last buffer line */
+
+  status = get_array_converter(dtype, &(buf->readline), &(buf->elsize));
+  if (status != RETURN_OK)
+    goto exit;
+
+  /* initialize yoff */
+  buf->yoff = -bufh;
+
+  /* read in lines until the first data line is one line above midline */
+  for (yl=0; yl < bufh - bufh/2 - 1; yl++)
+    arraybuffer_readline(buf);
+
+  return status;
+
+ exit:
+  free(buf->bptr);
+  buf->bptr = NULL;
+  return status;
+}
+
+/* read a line into the buffer at the top, shifting all lines down one */
+void arraybuffer_readline(arraybuffer *buf)
+{
+  PIXTYPE *line;
+  int y;
+
+  /* shift all lines down one */
+  for (line = buf->bptr; line < buf->lastline; line += buf->bw)
+    memcpy(line, line + buf->bw, sizeof(PIXTYPE) * buf->bw);
+
+  /* which image line now corresponds to the last line in buffer? */
+  buf->yoff++;
+  y = buf->yoff + buf->bh - 1;
+
+  if (y < buf->dh)
+    buf->readline(buf->dptr + buf->elsize * buf->dw * y, buf->dw,
+                  buf->lastline);
+
+  return;
+}
+
+void arraybuffer_free(arraybuffer *buf)
+{
+  free(buf->bptr);
+  buf->bptr = NULL;
+}
+
 /****************************** extract **************************************/
 int sep_extract(void *image, void *noise,
 		int dtype, int ndtype, short noise_flag, int w, int h,
@@ -65,6 +143,7 @@ int sep_extract(void *image, void *noise,
 		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
+  arraybuffer       imbuf, nbuf;
   infostruct        curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
@@ -72,7 +151,7 @@ int sep_extract(void *image, void *noise,
   int               nposize, oldnposize;
   int               co, i, j, luflag, pstop, xl, xl2, yl, cn;
   int               stacksize, convn, status;
-  int               elsize_im, elsize_noise;
+  int               bufh;
   short             trunflag;
   PIXTYPE           relthresh, cdnewsymbol;
   float             sum;
@@ -86,10 +165,6 @@ int sep_extract(void *image, void *noise,
   float             *convnorm;
   int               *start, *end, *survives;
   pixstatus         *psstack;
-  BYTE              *imageline, *noiseline;
-  convolver         convolve_im;
-  matched_filter    matched_filter_fn;
-  array_converter   convert_im, convert_noise;
   char              errtext[512];
 
   status = RETURN_OK;
@@ -104,12 +179,6 @@ int sep_extract(void *image, void *noise,
   finalobjlist = NULL; /* final return value */
   convn = 0;
   sum = 0.0;
-  convolve_im = NULL;
-  matched_filter_fn = NULL;
-  convert_im = NULL;
-  convert_noise = NULL;
-  imageline = (BYTE *)image;
-  noiseline = (BYTE *)noise;
 
   mem_pixstack = sep_get_extract_pixstack();
 
@@ -137,18 +206,28 @@ int sep_extract(void *image, void *noise,
   if ((status = allocdeblend(deblend_nthresh)) != RETURN_OK)
     goto exit;
 
-  /* allocate scan buffer(s) and get array converter function(s) */
-  QMALLOC(scan, PIXTYPE, stacksize, status);
-  status = get_array_converter(dtype, &convert_im, &elsize_im);
+  /* Initialize buffers for input array(s).
+   * The buffer size depends on whether or not convolution is active.
+   * If not convolving, the buffer size is just a single line. If convolving,
+   * the buffer height equals the height of the convolution kernel.
+   */
+  bufh = conv ? convh : 1;
+  status = arraybuffer_init(&imbuf, image, dtype, w, h, stacksize, bufh);
   if (status != RETURN_OK)
     goto exit;
   if (noise)
     {
-      QMALLOC(wscan, PIXTYPE, stacksize, status);
-      status = get_array_converter(ndtype, &convert_noise, &elsize_noise);
+      status = arraybuffer_init(&nbuf, noise, ndtype, w, h, stacksize, bufh);
       if (status != RETURN_OK)
-	goto exit;
+        goto exit;
     }
+
+  /* `scan` (or `wscan`) is always a pointer to the current line being
+   * processed. It might be the only line in the buffer, or it might be the 
+   * middle line. */
+  scan = imbuf.midline;
+  if (noise)
+    wscan = nbuf.midline;
 
   /* More initializations */
   initinfo.pixnb = 0;
@@ -193,7 +272,7 @@ int sep_extract(void *image, void *noise,
       /* allocate memory for convolved buffers */
       QMALLOC(cdscan, PIXTYPE, stacksize, status);
       if (noise)
-	QCALLOC(cdwscan, PIXTYPE, stacksize, status);
+        QMALLOC(cdwscan, PIXTYPE, stacksize, status);
 
       /* normalize the filter */
       convn = convw * convh;
@@ -202,20 +281,6 @@ int sep_extract(void *image, void *noise,
 	sum += fabs(conv[i]);
       for (i=0; i<convn; i++)
 	convnorm[i] = conv[i] / sum;
-
-      /* get the right convolve function for the image & noise data types */
-      if (noise)
-	{
-	  status = get_matched_filter(dtype, ndtype, &matched_filter_fn);
-	  if (status != RETURN_OK)
-	    goto exit;
-	}
-      else
-        {
-          status = get_convolver(dtype, &convolve_im);
-          if (status != RETURN_OK)
-            goto exit;
-        }
     }
 
   /*----- MAIN LOOP ------ */
@@ -243,23 +308,25 @@ int sep_extract(void *image, void *noise,
 
       else
 	{
-	  /* read the current (yl) line of input arrays into PIXTYPE buffers*/
-	  convert_im(imageline, w, scan);
-	  if (noise)
-	    convert_noise(noiseline, w, wscan);
+          arraybuffer_readline(&imbuf);
+          if (noise)
+            arraybuffer_readline(&nbuf);
 
 	  /* filter the lines */
 	  if (conv)
 	    {
 	      if (noise)
                 {
-                  matched_filter_fn(image, noise, w, h, yl, convnorm, convw,
-                                    convh, cdscan, cdwscan);
+                  status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
+                                          convh, cdscan, cdwscan);
                 }
               else
                 {
-	          convolve_im(image, w, h, yl, convnorm, convw, convh, cdscan);
+	          status = convolve(&imbuf, yl, convnorm, convw, convh,
+                                    cdscan);
                 }
+              if (status != RETURN_OK)
+                goto exit;
             }
 	  else
 	    {
@@ -319,8 +386,7 @@ int sep_extract(void *image, void *noise,
 			  "The limit of %d active object pixels over the "
 			  "detection threshold was reached. Check that "
 			  "the image is background subtracted and the "
-			  "detection threshold is not too low."
-			  " detection threshold.",
+			  "detection threshold is not too low.",
 			  (int)mem_pixstack);
 		  put_errdetail(errtext);
 		  goto exit;
@@ -483,11 +549,6 @@ int sep_extract(void *image, void *noise,
 
 	} /*------------ End of the loop over the x's -----------------------*/
 
-      /* increment array pointers */ 
-      imageline += w*elsize_im;
-      if (noise)
-	noiseline += w*elsize_noise;
-
     } /*---------------- End of the loop over the y's -----------------------*/
 
   /* convert `finalobjlist` to an array of `sepobj` structs */
@@ -538,8 +599,9 @@ int sep_extract(void *image, void *noise,
   free(psstack);
   free(start);
   free(end);
-  free(scan);
-  free(wscan);
+  arraybuffer_free(&imbuf);
+  if (noise)
+    arraybuffer_free(&nbuf);
   if (conv)
     free(convnorm);
 
