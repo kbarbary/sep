@@ -136,11 +136,10 @@ void arraybuffer_free(arraybuffer *buf)
 }
 
 /****************************** extract **************************************/
-int sep_extract(void *image, void *noise,
-		int dtype, int ndtype, short noise_flag, int w, int h,
+int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
 	        float thresh, int minarea, float *conv, int convw, int convh,
 		int deblend_nthresh, double deblend_cont,
-		int clean_flag, double clean_param,
+		int clean_flag, double clean_param, int use_matched_filter,
 		sepobj **objects, int *nobj)
 {
   arraybuffer       imbuf, nbuf;
@@ -161,7 +160,8 @@ int sep_extract(void *image, void *noise,
   objliststruct     *finalobjlist;
   pliststruct	    *pixel, *pixt;
   char              *marker;
-  PIXTYPE           *scan, *cdscan, *cdwscan, *wscan, *dumscan;
+  PIXTYPE           *scan, *cdscan, *wscan, *dumscan;
+  PIXTYPE           *sigscan, *workscan;
   float             *convnorm;
   int               *start, *end, *survives;
   pixstatus         *psstack;
@@ -170,7 +170,8 @@ int sep_extract(void *image, void *noise,
   status = RETURN_OK;
   pixel = NULL;
   convnorm = NULL;
-  scan = wscan = cdscan = cdwscan = dumscan = NULL;
+  scan = wscan = cdscan = dumscan = NULL;
+  sigscan = workscan = NULL;
   info = NULL;
   store = NULL;
   marker = NULL;
@@ -267,12 +268,20 @@ int sep_extract(void *image, void *noise,
     PLIST(pixt, nextpix) = i;
   PLIST(pixt, nextpix) = -1;
 
+  /* can only use a matched filter when convolving and when there is a noise
+   * array */
+  if (!(conv && noise))
+    use_matched_filter = 0;
+
   if (conv)
     {
       /* allocate memory for convolved buffers */
       QMALLOC(cdscan, PIXTYPE, stacksize, status);
-      if (noise)
-        QMALLOC(cdwscan, PIXTYPE, stacksize, status);
+      if (use_matched_filter)
+        {
+          QMALLOC(sigscan, PIXTYPE, stacksize, status);
+          QMALLOC(workscan, PIXTYPE, stacksize, status);
+        }
 
       /* normalize the filter */
       convn = convw * convh;
@@ -297,13 +306,8 @@ int sep_extract(void *image, void *noise,
 	    {
 	      free(cdscan);
 	      cdscan = NULL;
-	      if (noise)
-		{
-		  free(cdwscan);
-		  cdwscan = NULL;
-		}
 	    }
-	  cdwscan = cdscan = dumscan;
+	  cdscan = dumscan;
 	}
 
       else
@@ -315,27 +319,26 @@ int sep_extract(void *image, void *noise,
 	  /* filter the lines */
 	  if (conv)
 	    {
-	      if (noise)
-                {
-                  status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
-                                          convh, cdscan, cdwscan);
-                }
-              else
-                {
-	          status = convolve(&imbuf, yl, convnorm, convw, convh,
-                                    cdscan);
-                }
+              status = convolve(&imbuf, yl, convnorm, convw, convh, cdscan);
               if (status != RETURN_OK)
                 goto exit;
+
+	      if (use_matched_filter)
+                {
+                  status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
+                                          convh, workscan, sigscan);
+
+                  if (status != RETURN_OK)
+                    goto exit;
+                }
             }
 	  else
 	    {
 	      cdscan = scan;
-	      cdwscan = wscan;
 	    }	  
 	}
       
-      trunflag = (yl==0 || yl==h-1)? SEP_OBJ_TRUNC:0;
+      trunflag = (yl==0 || yl==h-1)? SEP_OBJ_TRUNC: 0;
       
       for (xl=0; xl<=w; xl++)
 	{
@@ -348,11 +351,15 @@ int sep_extract(void *image, void *noise,
 	  marker[xl] = 0;
 
 	  curpixinfo.flag = trunflag;
+
 	  if (noise)
-            {
-	      thresh = relthresh * ((xl==w || yl==h)? 0.0: cdwscan[xl]);
-            }
-	  luflag = cdnewsymbol > thresh? 1: 0;  /* is pixel above thresh? */
+            thresh = relthresh * ((xl==w || yl==h)? 0.0: wscan[xl]);
+
+          /* luflag: is pixel above thresh (Y/N)? */
+          if (use_matched_filter)
+            luflag = ((xl != w) && (sigscan[xl] > relthresh))? 1: 0;
+          else
+            luflag = cdnewsymbol > thresh? 1: 0;
 
 	  if (luflag)
 	    {
@@ -604,11 +611,15 @@ int sep_extract(void *image, void *noise,
     arraybuffer_free(&nbuf);
   if (conv)
     free(convnorm);
+  if (use_matched_filter)
+    {
+      free(sigscan);
+      free(workscan);
+    }
 
   if (status != RETURN_OK)
     {
       free(cdscan);   /* only need to free these in case of early exit */
-      free(cdwscan);
       *objects = NULL;
       *nobj = 0;
     }

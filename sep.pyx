@@ -91,7 +91,6 @@ cdef extern from "sep.h":
                     void *noise,
                     int dtype,
                     int ndtype,
-                    short noise_flag,
                     int w, int h,
                     float thresh,
                     int minarea,
@@ -101,6 +100,7 @@ cdef extern from "sep.h":
                     double deblend_cont,
                     int clean_flag,
                     double clean_param,
+                    int use_matched_filter,
                     sepobj **objects,
                     int *nobj)
 
@@ -523,7 +523,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
             int minarea=5,
             np.ndarray conv=default_conv, int deblend_nthresh=32,
             double deblend_cont=0.005, bint clean=True,
-            double clean_param=1.0):
+            double clean_param=1.0, bint use_matched_filter=False):
     """extract(data, thresh, err=None, minarea=5, conv=default_conv,
                deblend_nthresh=32, deblend_cont=0.005, clean=True,
                clean_param=1.0)
@@ -556,6 +556,12 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         Perform cleaning? Default is True.
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
+    use_matched_filter : bool, optional
+        When a convolution kernel *and* a noise array are supplied,
+        use a "matched filter", rather than standard convolution, to
+        determine if a given pixel is above the threshold. This can yield
+        better detection of faint sources in areas of rapidly varying noise
+        (such as found in coadded images made from semi-overlapping exposures).
 
     Returns
     -------
@@ -614,10 +620,10 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         convw = convflt.shape[1]
         convh = convflt.shape[0]
 
-    status = sep_extract(&buf[0,0], noise_ptr, sep_dtype, noise_dtype, 0, w, h,
+    status = sep_extract(&buf[0,0], noise_ptr, sep_dtype, noise_dtype, w, h,
                          thresh, minarea, convptr, convw, convh,
                          deblend_nthresh, deblend_cont, clean, clean_param,
-                         &objects, &nobj)
+                         use_matched_filter, &objects, &nobj)
     _assert_ok(status)
 
     # Allocate result record array and fill it

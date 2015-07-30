@@ -227,7 +227,7 @@ def test_extract_with_noise_convolution():
     image[6, 5] = 1.0
     image[6, 7] = 1.0
 
-    objects = sep.extract(image, 2.0, minarea=1, err=error)
+    objects = sep.extract(image, 2.0, minarea=1, err=error, use_matched_filter=True)
     objects.sort(order=['x', 'y'])
 
     # Check that we recovered the two correct objects and not the others.

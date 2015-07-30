@@ -101,29 +101,35 @@ int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
 
 /* Apply a matched filter to one line of an image with a given kernel.
  *
+ * Calculates
+ *
+ *        sum(conv_i * f_i / n_i^2) / sqrt(sum(conv_i^2 / n_i^2))
+ *
+ * at each pixel in the line, where the sums are over i (pixels in the
+ * convolution kernel).
+ *
  * imbuf : arraybuffer for data array
  * nbuf : arraybuffer for noise array
  * y : line to apply the matched filter to in an image
  * conv : convolution kernel
  * convw, convh : width and height of conv
- * outnum : output numerator line (`imbuf->dw` elements long)
- * outdenom : output denominator line (`imbuf->dw` elements long)
+ * work : work buffer (`imbuf->dw` elements long)
+ * out : output line (`imbuf->dw` elements long)
  *
  * imbuf and nbuf should have same data dimensions and be on the same line
  * (their `yoff` fields should be the same).
  */
 int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
                    float *conv, int convw, int convh,
-                   PIXTYPE *outnum, PIXTYPE *outdenom)
+                   PIXTYPE *work, PIXTYPE *out)
 {
   int convw2, convn, cx, cy, i, dcx, y0;
   PIXTYPE imval, nval;
   PIXTYPE *imline, *nline;    /* current line in input buffer */
-  PIXTYPE *outnumend, *outdenomend;  /* end of output buffer */
+  PIXTYPE *outend;            /* end of output buffer */
   PIXTYPE *src_im, *src_n, *dst_num, *dst_denom, *dst_num_end;
 
-  outnumend = outnum + imbuf->dw;
-  outdenomend = outdenom + imbuf->dw;
+  outend = out + imbuf->dw;
   convw2 = convw/2;
   y0 = y - convh/2;  /* start line in image */
 
@@ -149,8 +155,8 @@ int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
     return LINE_NOT_IN_BUF;  /* TODO new error status code */
 
   /* initialize output buffers to zero */
-  memset(outnum, 0, imbuf->dw*sizeof(PIXTYPE));
-  memset(outdenom, 0, imbuf->dw*sizeof(PIXTYPE));
+  memset(out, 0, imbuf->bw*sizeof(PIXTYPE));
+  memset(work, 0, imbuf->bw*sizeof(PIXTYPE));
 
   /* loop over pixels in the convolution kernel */
   convn = convw * convh;
@@ -168,17 +174,17 @@ int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
 	{
 	  src_im = imline + dcx;
           src_n = nline + dcx;
-	  dst_num = outnum;
-          dst_denom = outdenom;
-	  dst_num_end = outnumend - dcx;
+	  dst_num = out;
+          dst_denom = work;
+	  dst_num_end = outend - dcx;
 	}
       else
 	{
 	  src_im = imline;
           src_n = nline;
-	  dst_num = outnum - dcx;
-          dst_denom = outdenom - dcx;
-	  dst_num_end = outnumend;
+	  dst_num = out - dcx;
+          dst_denom = work - dcx;
+	  dst_num_end = outend;
 	}
 
       /* actually calculate values */
@@ -198,9 +204,10 @@ int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
         }
     }  /* close loop over convolution kernel */
 
-  /* take the square root of the denominator buffer */
-  for (dst_denom = outdenom; dst_denom < outdenomend; dst_denom++)
-      *dst_denom = sqrt(*dst_denom);
+  /* take the square root of the denominator (work) buffer and divide the
+   * numerator by it. */
+  for (dst_num=out, dst_denom=work; dst_num < outend; dst_num++, dst_denom++)
+      *dst_num = *dst_num / sqrt(*dst_denom);
 
   return RETURN_OK;
 }

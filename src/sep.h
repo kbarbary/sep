@@ -135,7 +135,6 @@ int sep_extract(void *image,          /* image array                         */
 		void *noise,          /* noise array (can be NULL)    [NULL] */
 		int dtype,            /* data type of image                  */
 		int ndtype,           /* data type of noise                  */
-		short noise_flag,     /* See detail below.                   */
 		int w, int h,         /* width, height of image & noise      */
 		float thresh,         /* detection threshold     [1.5*sigma] */
 		int minarea,          /* minimum area in pixels          [5] */
@@ -146,6 +145,7 @@ int sep_extract(void *image,          /* image array                         */
 		double deblend_cont,  /* min. deblending contrast    [0.005] */
 		int clean_flag,       /* perform cleaning?               [1] */
 		double clean_param,   /* clean parameter               [1.0] */
+                int use_matched_filter, /* use matched filter?           [0] */
 		sepobj **objects,     /* OUTPUT: object array                */
 		int *nobj);           /* OUTPUT: number of objects           */
 /* Extract sources from an image.
@@ -158,10 +158,8 @@ int sep_extract(void *image,          /* image array                         */
  * image and noise arrays, respectively.
  *
  * If `noise` is NULL, thresh is interpreted as an absolute threshold.
- *
  * If `noise` is not null, thresh is interpreted as a relative threshold
- * (the absolute threshold will be thresh*noise). `noise_flag` can be used
- * to alter this behavior.
+ * (the absolute threshold will be thresh*noise[i,j]).
  * 
  */
 
