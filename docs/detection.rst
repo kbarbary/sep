@@ -70,7 +70,7 @@ is to find the transformation :math:`T_i` which maximizes the signal-to-noise
 ratio :math:`SNR`.
 
 .. math::
-    SNR = \frac{(T^T S)^2}{E[(T^T N)^2]}
+    SNR^2 = \frac{(T^T S)^2}{E[(T^T N)^2]}
 
 We can expand the denominator as:
 
@@ -87,8 +87,8 @@ and :math:`k`. Now using the Cauchy-Schwarz inequality on the numerator:
 since :math:`C^T = C`. The signal-to-noise ratio is therefore bounded by:
 
 .. math::
-    &SNR \le \frac{(T^T C T)(S^T C^{-1} S)}{(T^T C T)} \\
-    &SNR \le S^T C^{-1} S
+    &SNR^2 \le \frac{(T^T C T)(S^T C^{-1} S)}{(T^T C T)} \\
+    &SNR^2 \le S^T C^{-1} S
 
 Choosing :math:`T = \alpha C^{-1} S` where :math:`\alpha` is an arbitrary
 normalization constant, we get equality. Hence this choise of :math:`T` is the
