@@ -65,14 +65,12 @@ void arraybuffer_free(arraybuffer *buf);
 /********************* array buffer functions ********************************/
 
 /* initialize buffer */
+/* bufw must be less than or equal to w */
 int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
                      int bufw, int bufh)
 {
   int status, yl;
   status = RETURN_OK;
-
-  if (bufw < w)
-    return ILLEGAL_BUF_DIM;
 
   /* data info */
   buf->dptr = arr;
