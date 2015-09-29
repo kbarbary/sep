@@ -1,3 +1,14 @@
+/*
+	Adding (void *) pointers is a GNU C extension, not part of standard C. 
+	When compiling on Windows with MS Visual C compiler need to cast the
+	(void *) to something the size of one byte.
+*/
+#if defined(_MSC_VER)
+	#define MSVC_VOID_CAST (char *)
+#else
+  	#define MSVC_VOID_CAST
+#endif
+
 int APER_NAME(void *data, void *error, void *mask,
 	      int dtype, int edtype, int mdtype, int w, int h,
 	      double maskthresh, double gain, short inflag,
@@ -63,11 +74,11 @@ int APER_NAME(void *data, void *error, void *mask,
     {
       /* set pointers to the start of this row */
       pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
+      datat = MSVC_VOID_CAST data + pos*size;
       if (errisarray)
-	errort = error + pos*esize;
+	errort = MSVC_VOID_CAST error + pos*esize;
       if (mask)
-	maskt = mask + pos*msize;
+	maskt = MSVC_VOID_CAST mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
