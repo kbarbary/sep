@@ -26,15 +26,10 @@ directly from (and tested against) the Source Extractor code base.
 Installation
 ------------
 
-**Requirements:**
+SEP supports both Python 3 and Legacy Python (Python 2) and requires
+only numpy. To install::
 
-- Tested on Python 2.6, 2.7, 3.3, 3.4
-- numpy
-
-**Install release version with pip:** ``pip install sep``
-
-**Install release version with conda (64-bit Linux only):**
-``conda install -c https://conda.binstar.org/kbarbary sep``
+    pip install --no-deps sep
 
 **Development version / source code:** http://github.com/kbarbary/sep
 
@@ -111,8 +106,11 @@ To see if a given flag is set in ``flags``::
 
     is_merged = (flags & sep.OBJ_MERGED) != 0
 
-Citation
---------
+License and Citation
+--------------------
+
+The license for SEP is the Lesser GNU Public License (LGPL), granted
+with the permission from the original author of Source Extractor.
 
 If you use SEP in a publication, please cite the DOI
 `10.5281/zenodo.15669 <http://dx.doi.org/10.5281/zenodo.15669>`_. The
