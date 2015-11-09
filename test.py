@@ -309,9 +309,16 @@ def test_aperture_bkgann_ones():
     bkgann=(6., 8.)
 
     # On flat data, result should be zero for any bkgann and subpix
-    f, _, _ = sep.sum_circle(data, x, y, r, bkgann=bkgann)
+    f, fe, _ = sep.sum_circle(data, x, y, r, bkgann=bkgann, gain=1.)
     assert_allclose(f, 0., rtol=0., atol=1.e-13)
-   
+
+    # for all ones data and no error array, error should be close to
+    # sqrt(Npix_aper + Npix_ann * (Npix_aper**2 / Npix_ann**2))
+    aper_area = np.pi * r**2
+    bkg_area = np.pi * (bkgann[1]**2 - bkgann[0]**2)
+    expected_error = np.sqrt(aper_area + bkg_area * (aper_area/bkg_area)**2)
+    assert_allclose(fe, expected_error, rtol=0.1)
+
     f, _, _ = sep.sum_ellipse(data, x, y, 2., 1., np.pi/4., r, bkgann=bkgann)
     assert_allclose(f, 0., rtol=0., atol=1.e-13)
 
