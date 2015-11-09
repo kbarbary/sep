@@ -4,6 +4,12 @@ v0.5.0 (unreleased)
 ===================
 
 
+v0.4.1 (10 November 2015)
+=========================
+
+Bugfix release, fixing error estimate in ``sep.sum_circle`` and
+``sep.sum_ellipse`` when ``bkgann`` keyword argument is given.
+
 v0.4.0 (1 June 2015)
 ====================
 

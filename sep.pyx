@@ -8,6 +8,7 @@ This module is a wrapper of the SEP C library.
 import numpy as np
 cimport numpy as np
 from libc cimport limits
+from libc.math cimport sqrt
 cimport cython
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from warnings import warn
@@ -860,7 +861,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
 
             flux1 -= bkgflux / bkgarea * area1
             bkgfluxerr = bkgfluxerr / bkgarea * area1
-            fluxerr1 = fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr
+            fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0] = flux1
             (<double*>np.PyArray_MultiIter_DATA(it, 6))[0] = fluxerr1
             (<short*>np.PyArray_MultiIter_DATA(it, 7))[0] = flag1
@@ -1170,7 +1171,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 
             flux1 -= bkgflux / bkgarea * area1
             bkgfluxerr = bkgfluxerr / bkgarea * area1
-            fluxerr1 = fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr
+            fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
 
             (<double*>np.PyArray_MultiIter_DATA(it, 8))[0] = flux1
             (<double*>np.PyArray_MultiIter_DATA(it, 9))[0] = fluxerr1
