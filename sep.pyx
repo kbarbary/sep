@@ -527,7 +527,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
             double clean_param=1.0, bint use_matched_filter=False):
     """extract(data, thresh, err=None, minarea=5, conv=default_conv,
                deblend_nthresh=32, deblend_cont=0.005, clean=True,
-               clean_param=1.0)
+               clean_param=1.0, use_matched_filter=False)
 
     Extract sources from an image.
 
@@ -566,7 +566,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
 
     Returns
     -------
-    objects : np.ndarray
+    objects : `~numpy.ndarray`
         Extracted object parameters (structured array). Available fields are:
 
         * ``thresh`` (float) Threshold at object location.

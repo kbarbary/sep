@@ -22,34 +22,90 @@ structured array.
    more likely, an exception will be raised due to exceeding the
    internal memory constraints of the function.
 
-**Using a matched filter/convolution for object detection**
+Using a matched filter (convolution)
+------------------------------------
 
-SEP supports using a matched filter for object detection. The derivation of the
-matched filter formula can be found at the end of this page. The matched filter
-gives the optimal signal-to-noise for a single point source. For object
+For source detection, SEP supports using a matched filter, which can
+give the optimal detection signal-to-noise for objects with some known
+shape. This is controlled using the ``conv`` keyword in
+`sep.extract`. For example::
+
+    conv_kernel = np.array([[1., 2., 3., 2., 1.],
+                            [2., 3., 5., 3., 2.],
+                            [3., 5., 8., 5., 3.],
+                            [2., 3., 5., 3., 2.],
+                            [1., 2., 3., 2., 1.]])
+    objects = sep.extract(data, thresh, conv=conv_kernel)
+
+By default (if ``conv`` is not specified) a default 3 by 3 kernel is used. To
+disable filtering entirely, specify ``conv=None``. 
+
+What array should be used for ``conv``? It should be approximately the
+shape of the objects you are trying to detect. For example, to
+optimize for the detection of point sources, ``conv`` should be set to
+shape of the point spread function (PSF) in the data. For galaxy
+detection, a larger kernel could be used. In practice, anything that
+is roughly the shape of the desired object works well since the main
+goal is to negate the effects of background noise, and a reasonable
+estimate is good enough.
+
+
+For object
 detection, we assume that for each output pixel the data consists of a single
 point source at the location of that output pixel. We then apply the matched
-filter algorithm for each output pixel individually. In Source Extractor, the
-matched filter is implemented in the case where there is no noise, or equal
-noise across all pixels. The matched filter then simplifies to a convolution of
-the data with the PSF. In SEP, we support this same behavior in `~sep.extract`
-when no error array is specified and a convolution kernel is passed.
+filter algorithm for each output pixel individually. For the full derivation of the matched filter formula, see the last section in this page.
 
-SEP also supports having independent errors on each of the input pixels in
-`~sep.extract`, which will run the matched filter algorithm with a diagonal
-covariance matrix. This feature is not available in Source Extractor. Some
-benefits of this method are that flagged bad pixels are ignored, detector
-sensitivity can be taken into account, and edge effects are handled gracefully.
-See the SEP tests for examples of situations where you might want to use the
-matched filter with a noise array.
 
-Ideally, the convolution kernel should be set to shape of the PSF in the data
-when detecting stars. For galaxy detection, a larger kernel could be used. In
-practice, anything that is roughly the shape of the desired object works well
-since the main goal is to negate the effects of the background, and a
-reasonable estimate is good enough.
+**Correct treatment in the presence of variable noise**
 
-**Derivation of the matched filter formula**
+In Source Extractor, the matched filter is implemented assuming there
+is equal noise across all pixels in the convolution kernel. The
+matched filter then simplifies to a convolution of the data with the
+PSF. In `sep.extract`, this is also the default behavior.
+
+However, SEP also supports a full matched filter implementation with
+correctly treated independent errors on each of the input pixels. Some
+benefits of this method are that flagged bad pixels are ignored,
+detector sensitivity can be taken into account, and edge effects are
+handled gracefully. For example, suppose we have an image with noise
+that is higher in one region than another::
+
+    n = 16
+    X, Y = np.meshgrid(np.arange(n), np.arange(n))
+    mask = Y > X
+    error = np.ones((n, n))
+    error[mask] = 4.0
+    data = error * np.random.normal(size=(n, n))
+
+    # add source to middle of data
+    source = 3.0 * np.array([[1., 2., 1.],
+                             [2., 4., 2.],
+                             [1., 2., 1.]])
+    m = n // 2 - 1
+    data[m:m+3, m:m+3] += source
+
+    plt.imshow(data, interpolation='nearest', origin='lower', cmap='bone')
+
+.. image:: matched_filter_example.png
+   :width: 500px
+
+The default behavior of SEP matches that of Source Extractor, and it will
+not detect the object:
+
+    >>> objects = sep.extract(data, 3.0, err=error)
+    >>> len(objects)
+    0
+
+Setting ``use_matched_filter=True`` correctly deweights the noisier pixels
+around the source and detects the object:
+
+    >>> objects = sep.extract(data, 3.0, err=error, use_matched_filter=True)
+    >>> len(objects)
+    1
+
+
+Derivation of the matched filter formula
+----------------------------------------
 
 Assume that we have an image containing a single point source. This produces a
 signal with PSF :math:`S_i` and noise :math:`N_i` at each pixel indexed by
