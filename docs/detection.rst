@@ -32,7 +32,7 @@ point source at the location of that output pixel. We then apply the matched
 filter algorithm for each output pixel individually. In Source Extractor, the
 matched filter is implemented in the case where there is no noise, or equal
 noise across all pixels. The matched filter then simplifies to a convolution of
-the data with the PSF. In SEP, we support this same behaviour in `~sep.extract`
+the data with the PSF. In SEP, we support this same behavior in `~sep.extract`
 when no error array is specified and a convolution kernel is passed.
 
 SEP also supports having independent errors on each of the input pixels in
