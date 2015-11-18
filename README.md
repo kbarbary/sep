@@ -33,14 +33,8 @@ Python
 
 **Install release version:**
 
-With pip:
 ```
 pip install sep
-```
-
-With conda (currently 64-bit linux only):
-```
-conda install -c https://conda.binstar.org/kbarbary sep
 ```
 
 **Install development version:**
@@ -56,6 +50,7 @@ higher).  Build and install in the usual place:
 directory.  Requires the `pytest` package. Some tests require a FITS
 reader (either fitsio or astropy) and will be skipped if neither is
 present.
+
 
 C Library
 ---------
@@ -178,6 +173,35 @@ way. However, the algorithms implemented so far in SEP are stable in
 Source Extractor: the SEP code was forked from v2.18.11, yet it is tested
 against the results of v2.8.6. This indicates that the algorithms have
 not changed in SExtractor over the last few years.
+
+**In the Python interface, why do I have to byteswap data when using
+astropy.io.fits?**
+
+This occurs because FITS files have big-endian `byte order
+<http://en.wikipedia.org/wiki/Endianness>`_, whereas most widely used
+CPUs have little-endian byte order. In order for the CPU to operate on
+the data, it must be byte swapped at *some point*. Some FITS readers
+such as `fitsio <http://github.com/esheldon/fitsio>`_ do the byte swap
+immediately when reading the data from disk to memory, returning numpy
+arrays in native (little-endian) byte order. However, astropy.io.fits
+does not (for reasons having to do with memory mapping). Most of the
+time you never notice this because when you do any numpy operations on
+such arrays, numpy uses an intermediate buffer to byteswap the array
+behind the scenes and returns the result as a native byte order
+array. Internally, SEP is not using numpy operations; it's just
+getting a pointer to the data in the array and passing it to C
+code. As the C code does not include functionality to do buffered byte
+swapping, the input array must already be in native byte order.
+
+It would be possible to add buffered byteswapping capability to the
+SEP code, but it would increase code complexity. A simpler alternative
+would be make a byteswapped copy of the entire input array, whenever
+necessary. However, this would significantly increase memory use, and
+would have to be done repeatedly in multiple SEP functions:
+Background, extract, sum_circle, etc. Each would make a copy of the
+entire data array. Given these considerations, it seems best to just
+explicitly tell the user to do the byteswap operation themselves so
+they could just do it once.
 
 **Is it "sep" or "ess eee pea"?**
 

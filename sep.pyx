@@ -181,8 +181,8 @@ cdef int _get_sep_dtype(dtype) except -1:
         raise ValueError(
             "Input array with dtype '{0}' has non-native byte order. "
             "Only native byte order arrays are supported. "
-            "Arrays can be converted to native byte order in-place "
-            "with 'a = a.byteswap(True).newbyteorder()'".format(dtype))
+            "To change the byte order of the array 'data', do "
+            "'data = data.byteswap().newbyteorder()'".format(dtype))
     t = dtype.type
     if t is np.single:
         return SEP_TFLOAT

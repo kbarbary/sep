@@ -106,6 +106,29 @@ To see if a given flag is set in ``flags``::
 
     is_merged = (flags & sep.OBJ_MERGED) != 0
 
+**Note regarding array byte order**
+
+If you are using SEP to analyze data read from FITS files with
+`astropy.io.fits <http://astropy.readthedocs.org/en/stable/io/fits/>`_,
+you may see an error message such as::
+
+    ValueError: Input array with dtype '>f4' has non-native byte order.
+    Only native byte order arrays are supported. To change the byte
+    order of the array 'data', do 'data = data.byteswap().newbyteorder()'
+
+This occurs because astropy.io.fits always returns big-endian byte
+order arrays, even on little-endian machines. (For more on this, see
+`this FAQ <https://github.com/kbarbary/sep#faq>`_.)
+
+It is usually easiest to do this operation once, directly after
+reading the array from the FITS file. You can even perform the byte
+swap in-place by doing ::
+
+    >>> data = data.byteswap(inplace=True).newbyteorder()
+
+If you do this in-place operation, ensure that there are no other
+references to ``data``, as they will be rendered nonsensical.
+
 License and Citation
 --------------------
 
