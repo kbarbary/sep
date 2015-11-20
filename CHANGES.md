@@ -3,6 +3,13 @@ Python module versions
 v0.5.0 (unreleased)
 ===================
 
+* `sep.extract()` now uses a more correct matched filter algorithm in the
+  presence of a noise array, rather than simple convolution. The `conv`
+  keyword has been changed to `filter_kernel` to reflect this, and a
+  `filter_type` keyword has been added to allow selecting the old behavior
+  of simple convolution.
+* Special methods added to allow `data - bkg` and `np.array(bkg)` where
+  `bkg` is a sep.Background object.
 
 v0.4.1 (10 November 2015)
 =========================

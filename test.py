@@ -172,6 +172,21 @@ def test_masked_background():
     assert_allclose(sky.back(), 0.1 * np.ones((6, 6)))
 
 
+def test_background_special():
+    """Test special methods of Background"""
+
+    bkg = sep.Background(image_data, bw=64, bh=64, fw=3, fh=3)
+
+    # test __array__ method
+    assert np.all(np.array(bkg) == bkg.back())
+
+    # test __rsub__ method
+    d1 = image_data - bkg
+
+    d2 = np.copy(image_data)
+    bkg.subfrom(d2)
+    assert np.all(d1 == d2)
+
 # -----------------------------------------------------------------------------
 # Extract
 

@@ -5,6 +5,7 @@ Given a numpy array ``data`` containing the image data,
 
 ::
 
+   import numpy as np
    import sep
 
    # Measure a spatially variable background of some image data
@@ -19,11 +20,16 @@ several ways::
 
    # Evaluate the spatially variable background:
    back = bkg.back()  # creates an array, same shape and type as data
+   np.array(bkg)  # equivalent to the above
 
    # Evaluate the spatially variable RMS of the background:
    rms = bkg.rms()  # creates an array, same shape and type as data
 
+   # Subtract the background from the data
+   bkg_subtraced_data = data - bkg
+
    # Directly subtract the background from the data in place
+   # (modifies the data array)
    bkg.subfrom(data)
 
    bkg.globalback  # Global "average" background level

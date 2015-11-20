@@ -459,6 +459,8 @@ cdef class Background:
 
         Subtract the background from an existing array.
 
+        Like ``data = data - bkg``, but avoids making a copy of the data.
+
         Parameters
         ----------
         data : `~numpy.ndarray`
@@ -482,6 +484,14 @@ cdef class Background:
 
         status = sep_subbackarray(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
+
+    def __array__(self, dtype=None):
+        return self.back(dtype=dtype)
+
+    def __rsub__(self, np.ndarray data not None):
+        data = np.copy(data)
+        self.subfrom(data)
+        return data
 
     def __dealloc__(self):
         if self.ptr is not NULL:
@@ -1895,11 +1905,20 @@ def ellipse_axes(cxx, cyy, cxy):
 # Utility functions
 
 def set_extract_pixstack(size_t size):
-    """Set the size in pixels of the internal pixel buffer used in extract()"""
+    """set_extract_pixstack(size)
+
+    Set the size in pixels of the internal pixel buffer used in extract().
+
+    The current value can be retrieved with get_extract_pixstack. The
+    initial default is 300000.
+    """
     sep_set_extract_pixstack(size)
 
 def get_extract_pixstack():
-    """Get the size in pixels of the internal pixel buffer used in extract()"""
+    """get_extract_pixstack()
+
+    Get the size in pixels of the internal pixel buffer used in extract().
+    """
     return sep_get_extract_pixstack()
 
 # -----------------------------------------------------------------------------
