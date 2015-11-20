@@ -31,6 +31,10 @@ DEF SEP_ERROR_IS_VAR = 0x0001
 DEF SEP_ERROR_IS_ARRAY = 0x0002
 DEF SEP_MASK_IGNORE = 0x0004
 
+# filter types for sep_extract
+DEF SEP_FILTER_CONV = 0
+DEF SEP_FILTER_MATCHED = 1
+
 # Output flag values accessible from python
 OBJ_MERGED = np.short(0x0001)
 OBJ_TRUNC = np.short(0x0002)
@@ -97,11 +101,11 @@ cdef extern from "sep.h":
                     int minarea,
                     float *conv,
                     int convw, int convh,
+                    int filter_type,
                     int deblend_nthresh,
                     double deblend_cont,
                     int clean_flag,
                     double clean_param,
-                    int use_matched_filter,
                     sepobj **objects,
                     int *nobj)
 
@@ -516,18 +520,18 @@ cdef packed struct Object:
     np.int_t ypeak
     np.int_t flag
 
-default_conv = np.array([[1.0, 2.0, 1.0],
-                         [2.0, 4.0, 2.0],
-                         [1.0, 2.0, 1.0]], dtype=np.float32)
+default_kernel = np.array([[1.0, 2.0, 1.0],
+                           [2.0, 4.0, 2.0],
+                           [1.0, 2.0, 1.0]], dtype=np.float32)
 
 def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
-            int minarea=5,
-            np.ndarray conv=default_conv, int deblend_nthresh=32,
-            double deblend_cont=0.005, bint clean=True,
-            double clean_param=1.0, bint use_matched_filter=False):
-    """extract(data, thresh, err=None, minarea=5, conv=default_conv,
-               deblend_nthresh=32, deblend_cont=0.005, clean=True,
-               clean_param=1.0, use_matched_filter=False)
+            int minarea=5, np.ndarray filter_kernel=default_kernel,
+            filter_type='matched', int deblend_nthresh=32,
+            double deblend_cont=0.005, bint clean=True, double clean_param=1.0,
+            np.ndarray conv=default_kernel):
+    """extract(data, thresh, err=None, minarea=5, filter_kernel=default_kernel,
+               filter_type='matched', deblend_nthresh=32, deblend_cont=0.005,
+               clean=True, clean_param=1.0)
 
     Extract sources from an image.
 
@@ -544,11 +548,21 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         Noise array for specifying a pixel-by-pixel detection threshold.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
-    conv : `~numpy.ndarray` or None, optional
-        Convolution kernel used for on-the-fly image convolution (used to
+    filter_kernel : `~numpy.ndarray` or None, optional
+        Filter kernel used for on-the-fly filtering (used to
         enhance detection). Default is a 3x3 array:
         [[1,2,1], [2,4,2], [1,2,1]]. Set to ``None`` to skip
         convolution.
+    filter_type : {'matched', 'conv'}, optional
+        Filter treatment. This affects filtering behavior when a noise
+        array is supplied. ``'matched'`` (default) accounts for
+        pixel-to-pixel noise in the filter kernel. ``'conv'`` is
+        simple convolution of the data array, ignoring pixel-to-pixel
+        noise across the kernel.  ``'matched'`` should yield better
+        detection of faint sources in areas of rapidly varying noise
+        (such as found in coadded images made from semi-overlapping
+        exposures).  The two options are equivalent when noise is
+        constant.
     deblend_nthresh : int, optional
         Number of thresholds used for object deblending. Default is 32.
     deblend_cont : float, optional
@@ -557,12 +571,6 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         Perform cleaning? Default is True.
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
-    use_matched_filter : bool, optional
-        When a convolution kernel *and* a noise array are supplied,
-        use a "matched filter", rather than standard convolution, to
-        determine if a given pixel is above the threshold. This can yield
-        better detection of faint sources in areas of rapidly varying noise
-        (such as found in coadded images made from semi-overlapping exposures).
 
     Returns
     -------
@@ -588,13 +596,14 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
 
     """
 
-    cdef int w, h, convw, convh, status, sep_dtype, nobj, i
+    cdef int w, h, kernelw, kernelh, status, sep_dtype, nobj, i,
+    cdef int filter_typecode
     cdef np.uint8_t[:, :] buf
     cdef np.uint8_t[:, :] noise_buf
     cdef sepobj *objects
     cdef np.ndarray[Object] result
-    cdef float[:, :] convflt
-    cdef float *convptr
+    cdef float[:, :] kernelflt
+    cdef float *kernelptr
     cdef np.uint8_t *noise_ptr
     cdef int noise_dtype
 
@@ -610,21 +619,37 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         noise_ptr = &noise_buf[0,0]
         noise_dtype = _get_sep_dtype(err.dtype)
 
-    # Parse convolution input
-    if conv is None:
-        convptr = NULL
-        convw = 0
-        convh = 0
+    # 'conv' has been renamed to filter_kernel. If the user has set it
+    # explicitly, issue a warning. Don't use DeprecationWarning: no one will
+    # ever see it.
+    if conv is not default_kernel:
+        warn("The 'conv' keyword argument is deprecated. Use the "
+             "'filter_kernel' keyword argument instead.")
+        if filter_kernel is default_kernel:
+            filter_kernel = conv
+
+    # Parse filter input
+    if filter_kernel is None:
+        kernelptr = NULL
+        kernelw = 0
+        kernelh = 0
     else:
-        convflt = conv.astype(np.float32)
-        convptr = &convflt[0, 0]
-        convw = convflt.shape[1]
-        convh = convflt.shape[0]
+        kernelflt = filter_kernel.astype(np.float32)
+        kernelptr = &kernelflt[0, 0]
+        kernelw = kernelflt.shape[1]
+        kernelh = kernelflt.shape[0]
+
+    if filter_type == 'matched':
+        filter_typecode = SEP_FILTER_MATCHED
+    elif filter_type == 'conv':
+        filter_typecode = SEP_FILTER_CONV
+    else:
+        raise ValueError("unknown filter_type: {!r}".format(filter_type))
 
     status = sep_extract(&buf[0,0], noise_ptr, sep_dtype, noise_dtype, w, h,
-                         thresh, minarea, convptr, convw, convh,
-                         deblend_nthresh, deblend_cont, clean, clean_param,
-                         use_matched_filter, &objects, &nobj)
+                         thresh, minarea, kernelptr, kernelw, kernelh,
+                         filter_typecode, deblend_nthresh, deblend_cont,
+                         clean, clean_param, &objects, &nobj)
     _assert_ok(status)
 
     # Allocate result record array and fill it

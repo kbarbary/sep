@@ -3,6 +3,8 @@ import os
 from glob import glob
 from distutils.core import setup
 from distutils.extension import Extension
+import re
+
 import numpy
 
 if os.path.exists("sep.pyx"):
@@ -19,6 +21,9 @@ if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions)
 
+# Synchronize version from code.
+version = re.findall(r"__version__ = \"(.*?)\"", open("sep.pyx").read())[0]
+
 description = "Astronomical source extraction and photometry library"
 long_description = "http://sep.readthedocs.org"
 
@@ -32,7 +37,7 @@ classifiers = [
     "Intended Audience :: Science/Research"]
 
 setup(name="sep", 
-      version="0.5.dev",
+      version=version,
       description=description,
       long_description=long_description,
       license="LGPLv3+",

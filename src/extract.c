@@ -136,8 +136,8 @@ void arraybuffer_free(arraybuffer *buf)
 /****************************** extract **************************************/
 int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
 	        float thresh, int minarea, float *conv, int convw, int convh,
-		int deblend_nthresh, double deblend_cont,
-		int clean_flag, double clean_param, int use_matched_filter,
+		int filter_type, int deblend_nthresh, double deblend_cont,
+		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
   arraybuffer       imbuf, nbuf;
@@ -269,13 +269,13 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   /* can only use a matched filter when convolving and when there is a noise
    * array */
   if (!(conv && noise))
-    use_matched_filter = 0;
+    filter_type = SEP_FILTER_CONV;
 
   if (conv)
     {
       /* allocate memory for convolved buffers */
       QMALLOC(cdscan, PIXTYPE, stacksize, status);
-      if (use_matched_filter)
+      if (filter_type == SEP_FILTER_MATCHED)
         {
           QMALLOC(sigscan, PIXTYPE, stacksize, status);
           QMALLOC(workscan, PIXTYPE, stacksize, status);
@@ -321,7 +321,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
               if (status != RETURN_OK)
                 goto exit;
 
-	      if (use_matched_filter)
+	      if (filter_type == SEP_FILTER_MATCHED)
                 {
                   status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
                                           convh, workscan, sigscan);
@@ -354,7 +354,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
             thresh = relthresh * ((xl==w || yl==h)? 0.0: wscan[xl]);
 
           /* luflag: is pixel above thresh (Y/N)? */
-          if (use_matched_filter)
+          if (filter_type == SEP_FILTER_MATCHED)
             luflag = ((xl != w) && (sigscan[xl] > relthresh))? 1: 0;
           else
             luflag = cdnewsymbol > thresh? 1: 0;
@@ -609,7 +609,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
     arraybuffer_free(&nbuf);
   if (conv)
     free(convnorm);
-  if (use_matched_filter)
+  if (filter_type == SEP_FILTER_MATCHED)
     {
       free(sigscan);
       free(workscan);

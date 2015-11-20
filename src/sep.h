@@ -41,6 +41,10 @@
 #define SEP_ERROR_IS_ARRAY   0x0002
 #define SEP_MASK_IGNORE      0x0004
 
+/* filter types for sep_extract */
+#define SEP_FILTER_CONV    0
+#define SEP_FILTER_MATCHED 1
+
 /*--------------------- global background estimation ------------------------*/
 
 typedef struct
@@ -141,11 +145,11 @@ int sep_extract(void *image,          /* image array                         */
 		float *conv,          /* convolution array (can be NULL)     */
                                       /*               [{1 2 1 2 4 2 1 2 1}] */
 		int convw, int convh, /* w, h of convolution array     [3,3] */
+                int filter_type,      /* convolution (0) or matched (1)  [0] */
 		int deblend_nthresh,  /* deblending thresholds          [32] */
 		double deblend_cont,  /* min. deblending contrast    [0.005] */
 		int clean_flag,       /* perform cleaning?               [1] */
 		double clean_param,   /* clean parameter               [1.0] */
-                int use_matched_filter, /* use matched filter?           [0] */
 		sepobj **objects,     /* OUTPUT: object array                */
 		int *nobj);           /* OUTPUT: number of objects           */
 /* Extract sources from an image.

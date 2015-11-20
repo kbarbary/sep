@@ -189,14 +189,14 @@ def test_extract_with_noise_array():
     # convolved. Near edges, the convolution doesn't adjust for pixels
     # off edge boundaries. As a result, the convolved noise map is not
     # all ones.
-    objects = sep.extract(data, 1.5*bkg.globalrms, conv=None)
+    objects = sep.extract(data, 1.5*bkg.globalrms, filter_kernel=None)
     objects2 = sep.extract(data, 1.5*bkg.globalrms, err=np.ones_like(data),
-                           conv=None)
+                           filter_kernel=None)
     assert_equal(objects, objects2)
 
     # Less trivial test where thresh is realistic. Still a flat noise map.
     noise = bkg.globalrms * np.ones_like(data)
-    objects2 = sep.extract(data, 1.5, err=noise, conv=None)
+    objects2 = sep.extract(data, 1.5, err=noise, filter_kernel=None)
     assert_equal(objects, objects2)
 
 def test_extract_with_noise_convolution():
@@ -227,7 +227,7 @@ def test_extract_with_noise_convolution():
     image[6, 5] = 1.0
     image[6, 7] = 1.0
 
-    objects = sep.extract(image, 2.0, minarea=1, err=error, use_matched_filter=True)
+    objects = sep.extract(image, 2.0, minarea=1, err=error)
     objects.sort(order=['x', 'y'])
 
     # Check that we recovered the two correct objects and not the others.
