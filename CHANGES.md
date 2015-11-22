@@ -1,6 +1,6 @@
 Python module versions
 
-v0.5.0 (unreleased)
+v0.5.0 (22 November 2015)
 ===================
 
 * `sep.extract()` now uses a more correct matched filter algorithm in the
@@ -8,9 +8,13 @@ v0.5.0 (unreleased)
   keyword has been changed to `filter_kernel` to reflect this, and a
   `filter_type` keyword has been added to allow selecting the old behavior
   of simple convolution.
+
 * `sep.extract()` now accepts a `mask` keyword argument.
+
+* `sep.extract()` can now return a segmentation map.
+
 * Special methods added to allow `data - bkg` and `np.array(bkg)` where
-  `bkg` is a Background instance.
+  `bkg` is a Background object.
 
 v0.4.1 (10 November 2015)
 =========================
