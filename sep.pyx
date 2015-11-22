@@ -541,11 +541,11 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
             np.ndarray filter_kernel=default_kernel, filter_type='matched',
             int deblend_nthresh=32, double deblend_cont=0.005,
             bint clean=True, double clean_param=1.0,
-            np.ndarray conv=default_kernel):
+            segmentation_map=False, np.ndarray conv=default_kernel):
     """extract(data, thresh, err=None, mask=None, minarea=5,
                filter_kernel=default_kernel, filter_type='matched',
                deblend_nthresh=32, deblend_cont=0.005, clean=True,
-               clean_param=1.0)
+               clean_param=1.0, segmentation_map=False)
 
     Extract sources from an image.
 
@@ -612,9 +612,14 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         * ``xpeak``, ``ypeak`` (int) Coordinate of convolved peak pixel.
         * ``flag`` (int) Extraction flags.
 
+    segmentation_map : `~numpy.ndarray`, optional
+        Array of integers with same shape as data. Pixels not belonging to
+        any object have value 0. All pixels belonging to the ``i``-th object
+        (e.g., ``objects[i]``) have value ``i+1``. Only returned if
+        ``segmentation_map=True``.
     """
 
-    cdef int w, h, kernelw, kernelh, status, sep_dtype, nobj, i,
+    cdef int w, h, kernelw, kernelh, status, sep_dtype, nobj, i, j
     cdef int filter_typecode
     cdef np.uint8_t[:, :] buf
     cdef np.uint8_t[:, :] noise_buf
@@ -626,6 +631,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     cdef np.uint8_t *noise_ptr
     cdef np.uint8_t *mask_ptr
     cdef int noise_dtype, mask_dtype
+    cdef np.int32_t[:, :] segmap_buf
+    cdef np.int32_t *segmap_ptr
+    cdef int *objpix
 
     _check_array_get_dims(data, &w, &h)
     sep_dtype = _get_sep_dtype(data.dtype)
@@ -636,7 +644,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         noise_dtype = 0
     else:
         noise_buf = err.view(dtype=np.uint8)
-        noise_ptr = &noise_buf[0,0]
+        noise_ptr = &noise_buf[0, 0]
         noise_dtype = _get_sep_dtype(err.dtype)
 
     if mask is None:
@@ -644,7 +652,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         mask_dtype = 0
     else:
         mask_buf = mask.view(dtype=np.uint8)
-        mask_ptr = &mask_buf[0,0]
+        mask_ptr = &mask_buf[0, 0]
         mask_dtype = _get_sep_dtype(mask.dtype)
 
     # 'conv' has been renamed to filter_kernel. If the user has set it
@@ -739,10 +747,26 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         result['ypeak'][i] = objects[i].ypeak
         result['flag'][i] = objects[i].flag
 
+    # construct a segmentation map, if it was requested.
+    if segmentation_map:
+        # Note: We have to write out `(data.shape[0], data.shape[1])` because
+        # because Cython turns `data.shape` later into an int pointer when
+        # the function argument is typed as np.ndarray.
+        segmap = np.zeros((data.shape[0], data.shape[1]), dtype=np.int32)
+        segmap_buf = segmap
+        segmap_ptr = &segmap_buf[0, 0]
+        for i in range(nobj):
+            objpix = objects[i].pix
+            for j in range(objects[i].npix):
+                segmap_ptr[objpix[j]] = i + 1
+
     # Free C array
     sep_freeobjarray(objects, nobj)
 
-    return result
+    if segmentation_map:
+        return result, segmap
+    else:
+        return result
 
 # -----------------------------------------------------------------------------
 # Aperture Photometry

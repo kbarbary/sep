@@ -275,6 +275,24 @@ def test_extract_with_mask():
     assert len(objects) > 0
     assert np.all(objects['y'] < ylim)
 
+
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+def test_extract_segmentation_map():
+
+    # Get some background-subtracted test data:
+    data = np.copy(image_data)
+    bkg = sep.Background(data, bw=64, bh=64, fw=3, fh=3)
+    bkg.subfrom(data)
+
+    objects, segmap = sep.extract(data, 1.5*bkg.globalrms,
+                                  segmentation_map=True)
+
+    assert type(segmap) is np.ndarray
+    assert segmap.shape == data.shape
+    for i in range(len(objects)):
+        assert objects["npix"][i] == (segmap == i+1).sum()
+
+
 # -----------------------------------------------------------------------------
 # aperture tests
 
