@@ -15,7 +15,7 @@ from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.5.dev"
+__version__ = "0.5.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -589,6 +589,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         Perform cleaning? Default is True.
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
+    segmentation_map : bool, optional
+        If True, also return a "segmentation map" giving the member
+        pixels of each object. Default is False.
 
     Returns
     -------
@@ -612,7 +615,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         * ``xpeak``, ``ypeak`` (int) Coordinate of convolved peak pixel.
         * ``flag`` (int) Extraction flags.
 
-    segmentation_map : `~numpy.ndarray`, optional
+    segmap : `~numpy.ndarray`, optional
         Array of integers with same shape as data. Pixels not belonging to
         any object have value 0. All pixels belonging to the ``i``-th object
         (e.g., ``objects[i]``) have value ``i+1``. Only returned if

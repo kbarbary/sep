@@ -13,10 +13,11 @@ directly from (and tested against) the Source Extractor code base.
 - spatially variable background and noise estimation
 - source extraction, with on-the-fly convolution and source deblending
 - circular and elliptical aperture photometry
-- extremely fast: implemented in C with Python bindings via Cython
+- fast: implemented in C with Python bindings via Cython
 
 **Additional features not in Source Extractor:**
 
+- Optimized matched filter for variable noise in source extraction
 - circular annulus and elliptical annulus apertures
 - Local background subtraction in shape consistent with aperture
 - exact pixel overlap mode in all aperture photometry functions
@@ -26,8 +27,8 @@ directly from (and tested against) the Source Extractor code base.
 Installation
 ------------
 
-SEP supports both Python 3 and Legacy Python (Python 2) and requires
-only numpy. To install::
+SEP supports both Python 3 and Python 2 and requires only numpy.
+To install::
 
     pip install --no-deps sep
 
@@ -40,7 +41,6 @@ Usage Guide
 .. toctree::
    :maxdepth: 1
 
-   background
    detection
    apertures
 
@@ -48,7 +48,6 @@ Usage Guide
    :hidden:
 
    reference
-
 
 For complete API documentation, see :doc:`reference`.
 
