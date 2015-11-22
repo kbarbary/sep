@@ -255,6 +255,26 @@ def test_extract_with_noise_convolution():
     assert_approx_equal(objects[1]['y'], 3.)
 
 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+def test_extract_with_mask():
+
+    # Get some background-subtracted test data:
+    data = np.copy(image_data)
+    bkg = sep.Background(data, bw=64, bh=64, fw=3, fh=3)
+    bkg.subfrom(data)
+
+    # mask half the image
+    ylim = data.shape[0] // 2
+    mask = np.zeros(data.shape, dtype=np.bool)
+    mask[ylim:,:] = True
+
+    objects = sep.extract(data, 1.5*bkg.globalrms, mask=mask)
+    
+    # check that we found some objects and that they are all in the unmasked
+    # region.
+    assert len(objects) > 0
+    assert np.all(objects['y'] < ylim)
+
 # -----------------------------------------------------------------------------
 # aperture tests
 

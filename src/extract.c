@@ -133,14 +133,48 @@ void arraybuffer_free(arraybuffer *buf)
   buf->bptr = NULL;
 }
 
+/* apply_mask_line: Apply the mask to the image and noise buffers.
+ *
+ * If convolution is off, masked values should simply be not
+ * detected. For this, would be sufficient to either set data to zero or
+ * set noise (if present) to infinity.
+ *
+ * If convolution is on, strictly speaking, a masked (unknown) pixel
+ * should "poison" the convolved value whenever it is present in the
+ * convolution kernel (e.g., NaN behavior). However, practically we'd
+ * rather use a "best guess" for the value. Without doing
+ * interpolation from neighbors, 0 is the best guess (assuming image
+ * is background subtracted).
+ *
+ * For the purpose of the full matched filter, we should set noise = infinity.
+ *
+ * So, this routine sets masked pixels to zero in the image buffer and
+ * infinity in the noise buffer (if present). It affects the first 
+ */
+void apply_mask_line(arraybuffer *mbuf, arraybuffer *imbuf, arraybuffer *nbuf)
+{
+  int i;
+  
+  for (i=0; i<mbuf->bw; i++)
+    {
+      if (mbuf->lastline[i] > 0.0)
+        {
+          imbuf->lastline[i] = 0.0;
+          if (nbuf)
+            nbuf->lastline[i] = BIG;
+        }
+    }
+}
+
 /****************************** extract **************************************/
-int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
+int sep_extract(void *image, void *noise, void *mask,
+                int dtype, int ndtype, int mdtype, int w, int h,
 	        float thresh, int minarea, float *conv, int convw, int convh,
 		int filter_type, int deblend_nthresh, double deblend_cont,
 		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
-  arraybuffer       imbuf, nbuf;
+  arraybuffer       imbuf, nbuf, mbuf;
   infostruct        curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
@@ -158,7 +192,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   objliststruct     *finalobjlist;
   pliststruct	    *pixel, *pixt;
   char              *marker;
-  PIXTYPE           *scan, *cdscan, *wscan, *dumscan;
+  PIXTYPE           *scan, *cdscan, *wscan, *dummyscan;
   PIXTYPE           *sigscan, *workscan;
   float             *convnorm;
   int               *start, *end, *survives;
@@ -168,7 +202,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   status = RETURN_OK;
   pixel = NULL;
   convnorm = NULL;
-  scan = wscan = cdscan = dumscan = NULL;
+  scan = wscan = cdscan = dummyscan = NULL;
   sigscan = workscan = NULL;
   info = NULL;
   store = NULL;
@@ -196,7 +230,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   QMALLOC(info, infostruct, stacksize, status);
   QCALLOC(store, infostruct, stacksize, status);
   QMALLOC(marker, char, stacksize, status);
-  QMALLOC(dumscan, PIXTYPE, stacksize, status);
+  QMALLOC(dummyscan, PIXTYPE, stacksize, status);
   QMALLOC(psstack, pixstatus, stacksize, status);
   QCALLOC(start, int, stacksize, status);
   QMALLOC(end, int, stacksize, status);
@@ -220,6 +254,12 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
       if (status != RETURN_OK)
         goto exit;
     }
+  if (mask)
+    {
+      status = arraybuffer_init(&mbuf, mask, mdtype, w, h, stacksize, bufh);
+      if (status != RETURN_OK)
+        goto exit;
+    }
 
   /* `scan` (or `wscan`) is always a pointer to the current line being
    * processed. It might be the only line in the buffer, or it might be the 
@@ -236,7 +276,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   for (xl=0; xl<stacksize; xl++)
     {
     marker[xl]  = 0 ;
-    dumscan[xl] = -BIG ;
+    dummyscan[xl] = -BIG ;
     }
 
   co = pstop = 0;
@@ -305,7 +345,7 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
 	      free(cdscan);
 	      cdscan = NULL;
 	    }
-	  cdscan = dumscan;
+	  cdscan = dummyscan;
 	}
 
       else
@@ -313,6 +353,11 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
           arraybuffer_readline(&imbuf);
           if (noise)
             arraybuffer_readline(&nbuf);
+          if (mask)
+            {
+              arraybuffer_readline(&mbuf);
+              apply_mask_line(&mbuf, &imbuf, (noise? &nbuf: NULL));
+            }
 
 	  /* filter the lines */
 	  if (conv)
@@ -602,13 +647,15 @@ int sep_extract(void *image, void *noise, int dtype, int ndtype, int w, int h,
   free(info);
   free(store);
   free(marker);
-  free(dumscan);
+  free(dummyscan);
   free(psstack);
   free(start);
   free(end);
   arraybuffer_free(&imbuf);
   if (noise)
     arraybuffer_free(&nbuf);
+  if (mask)
+    arraybuffer_free(&mbuf);
   if (conv)
     free(convnorm);
   if (filter_type == SEP_FILTER_MATCHED)

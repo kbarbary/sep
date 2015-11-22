@@ -137,8 +137,10 @@ typedef struct
 
 int sep_extract(void *image,          /* image array                         */
 		void *noise,          /* noise array (can be NULL)    [NULL] */
+                void *mask,           /* mask array (can be NULL)     [NULL] */
 		int dtype,            /* data type of image                  */
 		int ndtype,           /* data type of noise                  */
+                int mdtype,           /* data type of mask                   */
 		int w, int h,         /* width, height of image & noise      */
 		float thresh,         /* detection threshold     [1.5*sigma] */
 		int minarea,          /* minimum area in pixels          [5] */

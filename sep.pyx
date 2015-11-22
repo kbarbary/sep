@@ -94,8 +94,10 @@ cdef extern from "sep.h":
 
     int sep_extract(void *image,
                     void *noise,
+                    void *mask,
                     int dtype,
                     int ndtype,
+                    int mdtype,
                     int w, int h,
                     float thresh,
                     int minarea,
@@ -535,13 +537,15 @@ default_kernel = np.array([[1.0, 2.0, 1.0],
                            [1.0, 2.0, 1.0]], dtype=np.float32)
 
 def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
-            int minarea=5, np.ndarray filter_kernel=default_kernel,
-            filter_type='matched', int deblend_nthresh=32,
-            double deblend_cont=0.005, bint clean=True, double clean_param=1.0,
+            np.ndarray mask=None, int minarea=5,
+            np.ndarray filter_kernel=default_kernel, filter_type='matched',
+            int deblend_nthresh=32, double deblend_cont=0.005,
+            bint clean=True, double clean_param=1.0,
             np.ndarray conv=default_kernel):
-    """extract(data, thresh, err=None, minarea=5, filter_kernel=default_kernel,
-               filter_type='matched', deblend_nthresh=32, deblend_cont=0.005,
-               clean=True, clean_param=1.0)
+    """extract(data, thresh, err=None, mask=None, minarea=5,
+               filter_kernel=default_kernel, filter_type='matched',
+               deblend_nthresh=32, deblend_cont=0.005, clean=True,
+               clean_param=1.0)
 
     Extract sources from an image.
 
@@ -556,6 +560,10 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         threshold at pixel (j, i) will be ``thresh * err[j, i]``.
     err : `~numpy.ndarray`, optional
         Noise array for specifying a pixel-by-pixel detection threshold.
+    mask : `~numpy.ndarray`, optional
+        Mask array. ``True`` values, or numeric values greater than 0,
+        are considered masked. Masking a pixel is equivalent to setting data
+        to zero and noise (if present) to infinity.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
     filter_kernel : `~numpy.ndarray` or None, optional
@@ -610,12 +618,14 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     cdef int filter_typecode
     cdef np.uint8_t[:, :] buf
     cdef np.uint8_t[:, :] noise_buf
+    cdef np.uint8_t[:, :] mask_buf
     cdef sepobj *objects
     cdef np.ndarray[Object] result
     cdef float[:, :] kernelflt
     cdef float *kernelptr
     cdef np.uint8_t *noise_ptr
-    cdef int noise_dtype
+    cdef np.uint8_t *mask_ptr
+    cdef int noise_dtype, mask_dtype
 
     _check_array_get_dims(data, &w, &h)
     sep_dtype = _get_sep_dtype(data.dtype)
@@ -628,6 +638,14 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         noise_buf = err.view(dtype=np.uint8)
         noise_ptr = &noise_buf[0,0]
         noise_dtype = _get_sep_dtype(err.dtype)
+
+    if mask is None:
+        mask_ptr = NULL
+        mask_dtype = 0
+    else:
+        mask_buf = mask.view(dtype=np.uint8)
+        mask_ptr = &mask_buf[0,0]
+        mask_dtype = _get_sep_dtype(mask.dtype)
 
     # 'conv' has been renamed to filter_kernel. If the user has set it
     # explicitly, issue a warning. Don't use DeprecationWarning: no one will
@@ -656,7 +674,8 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     else:
         raise ValueError("unknown filter_type: {!r}".format(filter_type))
 
-    status = sep_extract(&buf[0,0], noise_ptr, sep_dtype, noise_dtype, w, h,
+    status = sep_extract(&buf[0,0], noise_ptr, mask_ptr,
+                         sep_dtype, noise_dtype, mask_dtype, w, h,
                          thresh, minarea, kernelptr, kernelw, kernelh,
                          filter_typecode, deblend_nthresh, deblend_cont,
                          clean, clean_param, &objects, &nobj)

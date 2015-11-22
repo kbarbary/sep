@@ -8,24 +8,25 @@ v0.5.0 (unreleased)
   keyword has been changed to `filter_kernel` to reflect this, and a
   `filter_type` keyword has been added to allow selecting the old behavior
   of simple convolution.
+* `sep.extract()` now accepts a `mask` keyword argument.
 * Special methods added to allow `data - bkg` and `np.array(bkg)` where
-  `bkg` is a sep.Background object.
+  `bkg` is a Background instance.
 
 v0.4.1 (10 November 2015)
 =========================
 
-Bugfix release, fixing error estimate in ``sep.sum_circle`` and
-``sep.sum_ellipse`` when ``bkgann`` keyword argument is given.
+Bugfix release, fixing error estimate in `sep.sum_circle` and
+`sep.sum_ellipse` when `bkgann` keyword argument is given.
 
 v0.4.0 (1 June 2015)
 ====================
 
-* New ``sep.winpos()`` function.
+* New `sep.winpos()` function.
 
 v0.3.0 (23 February 2015)
 =========================
 
-* New ``sep.flux_radius()`` function.
+* New `sep.flux_radius()` function.
 
 v0.2.0 (13 December 2014)
 =========================
