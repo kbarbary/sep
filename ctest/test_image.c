@@ -284,7 +284,7 @@ int main(int argc, char **argv)
 
   /* extract sources */
   t0 = gettime_ns();
-  status = sep_extract(im, NULL, SEP_TFLOAT, 0, nx, ny,
+  status = sep_extract(im, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny,
 		       1.5*bkmap->globalrms, 5, conv, 3, 3, SEP_FILTER_CONV,
                        32, 0.005, 1, 1.0, &objects, &nobj);
   t1 = gettime_ns();
