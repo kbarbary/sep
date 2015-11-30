@@ -22,7 +22,7 @@ if USE_CYTHON:
     extensions = cythonize(extensions)
 
 # Synchronize version from code.
-version = re.findall(r"__version__ = \"(.*?)\"", open("sep.pyx").read())[0]
+version = re.findall(r"__version__ = \"(.*?)\"", open(fname).read())[0]
 
 description = "Astronomical source extraction and photometry library"
 long_description = "http://sep.readthedocs.org"
