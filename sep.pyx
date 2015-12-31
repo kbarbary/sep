@@ -194,9 +194,9 @@ cdef int _get_sep_dtype(dtype) except -1:
         return SEP_TFLOAT
     elif t is np.bool_ or t is np.ubyte:
         return SEP_TBYTE
-    elif t == np.double:
+    elif dtype == np.double:
         return SEP_TDOUBLE
-    elif t == np.intc:
+    elif dtype == np.intc:
         return SEP_TINT
     raise ValueError('input array dtype not supported: {0}'.format(dtype))
 
