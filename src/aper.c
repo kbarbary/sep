@@ -35,6 +35,17 @@
 #define WINPOS_STEPMIN  0.0001  /* Minimum change in position for continuing */
 #define WINPOS_FAC      2.0     /* Centroid offset factor (2 for a Gaussian) */
 
+/*
+  Adding (void *) pointers is a GNU C extension, not part of standard C. 
+  When compiling on Windows with MS VIsual C compiler need to cast the
+  (void *) to something the size of one byte.
+*/
+#if defined(_MSC_VER)
+  #define MSVC_VOID_CAST (char *)
+#else
+  #define MSVC_VOID_CAST
+#endif
+
 /****************************************************************************/
 /* conversions between ellipse representations */
 
@@ -394,11 +405,11 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
     {
       /* set pointers to the start of this row */
       pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
+      datat = MSVC_VOID_CAST data + pos*size;
       if (errisarray)
-        errort = error + pos*esize;
+        errort = MSVC_VOID_CAST error + pos*esize;
       if (mask)
-        maskt = mask + pos*msize;
+        maskt = MSVC_VOID_CAST mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -609,9 +620,9 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
     {
       /* set pointers to the start of this row */
       pos = (iy%h) * w + xmin;
-      datat = data + pos*size;
+      datat = MSVC_VOID_CAST data + pos*size;
       if (mask)
-        maskt = mask + pos*msize;
+        maskt = MSVC_VOID_CAST mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -792,11 +803,11 @@ int sep_windowed(void *data, void *error, void *mask,
         {
           /* set pointers to the start of this row */
           pos = (iy%h) * w + xmin;
-          datat = data + pos*size;
+          datat = MSVC_VOID_CAST data + pos*size;
           if (errisarray)
-            errort = error + pos*esize;
+            errort = MSVC_VOID_CAST error + pos*esize;
           if (mask)
-            maskt = mask + pos*msize;
+            maskt = MSVC_VOID_CAST mask + pos*msize;
 
           /* loop over pixels in this row */
           for (ix=xmin; ix<xmax; ix++)
