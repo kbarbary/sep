@@ -3,7 +3,7 @@ SEP
 
 Python and C library for Source Extraction and Photometry
 
-[![Build Status](http://img.shields.io/travis/kbarbary/sep.svg?style=flat-square)](https://travis-ci.org/kbarbary/sep)
+[![Build Status](http://img.shields.io/travis/kbarbary/sep.svg?style=flat-square&label=linux)](https://travis-ci.org/kbarbary/sep)
 [![PyPI](https://img.shields.io/pypi/v/sep.svg?style=flat-square)](https://pypi.python.org/pypi/sep)
 
 

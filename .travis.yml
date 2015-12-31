@@ -1,5 +1,27 @@
 language: c
 
+os:
+    - linux
+
+# We still need to use sudo to install cfitsio (for the c library tests)
+# because for whatever reason, when using addons.apt.packages, cfitsio.pc
+# cannont be found by scons. :( 
+sudo: required
+
+# Upon switching to container-based infrastructure (sudo: false) this is
+# how we install cfitsio.
+#addons:
+#    apt:
+#        packages:
+#            - libcfitsio3-dev
+
+env:
+    global:
+        - LANG=python
+        - PYTHON_VERSION=3.5
+        - NUMPY_VERSION=1.9
+        - MINICONDA_URL=http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
+
 matrix:
     include:
         - env: LANG=c
@@ -10,23 +32,32 @@ matrix:
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=3.3 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
+        - os: osx
+          env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.9
+               MINICONDA_URL=http://repo.continuum.io/miniconda/Miniconda-3.7.3-MacOSX-x86_64.sh
 
 before_install:
-    - if [[ $LANG == python ]]; then wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh; fi
-    - if [[ $LANG == python ]]; then chmod +x miniconda.sh; fi
-    - if [[ $LANG == python ]]; then ./miniconda.sh -b -p $HOME/miniconda; fi
-    - if [[ $LANG == python ]]; then export PATH=/home/travis/miniconda/bin:$PATH; fi
-    - if [[ $LANG == python ]]; then conda update --yes conda; fi
-    - if [[ $LANG == python ]]; then conda create --yes -n test python=$PYTHON_VERSION; fi
-    - if [[ $LANG == python ]]; then source activate test; fi
-    - if [[ $LANG == python ]]; then conda install --yes numpy=$NUMPY_VERSION pytest cython astropy; fi
-    - if [[ $LANG == c ]]; then sudo apt-get update -qq; fi
-    - if [[ $LANG == c ]]; then sudo apt-get install -y libcfitsio3-dev; fi
-
+    - if [[ $LANG == python ]]; then
+      wget $MINICONDA_URL -O miniconda.sh;
+      chmod +x miniconda.sh;
+      ./miniconda.sh -b -p $HOME/miniconda;
+      export PATH="$HOME/miniconda/bin:$PATH";
+      conda update --yes conda;
+      conda create --yes -n test python=$PYTHON_VERSION;
+      source activate test;
+      conda install --yes numpy=$NUMPY_VERSION pytest cython astropy;
+      fi
+    - if [[ $LANG == c ]]; then
+      sudo apt-get update -qq;
+      sudo apt-get install -y libcfitsio3-dev;
+      fi
+    
 install:
     - if [[ $LANG == python ]]; then python setup.py install; fi
-    - if [[ $LANG == c ]]; then scons; fi
-    - if [[ $LANG == c ]]; then scons ctest; fi
+    - if [[ $LANG == c ]]; then
+      scons;
+      scons ctest;
+      fi
 
 before_script:
     - if [[ $LANG == c ]]; then export LD_LIBRARY_PATH=${PWD}/src; fi
