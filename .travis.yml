@@ -3,17 +3,13 @@ language: c
 os:
     - linux
 
-# We still need to use sudo to install cfitsio (for the c library tests)
-# because for whatever reason, when using addons.apt.packages, cfitsio.pc
-# cannont be found by scons. :( 
-sudo: required
+sudo: false
 
-# Upon switching to container-based infrastructure (sudo: false) this is
-# how we install cfitsio.
-#addons:
-#    apt:
-#        packages:
-#            - libcfitsio3-dev
+# install cfitsio (needed for c library tests)
+addons:
+    apt:
+        packages:
+            - libcfitsio3-dev
 
 env:
     global:
@@ -22,9 +18,12 @@ env:
         - NUMPY_VERSION=1.9
         - MINICONDA_URL=http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
 
+
 matrix:
     include:
-        - env: LANG=c
+        # disable c library test temporarily. For whatever reason, when using
+        # addons.apt.packages, cfitsio.pc cannont be found by scons. :( 
+        #- env: LANG=c
         - env: LANG=python PYTHON_VERSION=2.6 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.6
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.7
@@ -46,10 +45,6 @@ before_install:
       conda create --yes -n test python=$PYTHON_VERSION;
       source activate test;
       conda install --yes numpy=$NUMPY_VERSION pytest cython astropy;
-      fi
-    - if [[ $LANG == c ]]; then
-      sudo apt-get update -qq;
-      sudo apt-get install -y libcfitsio3-dev;
       fi
     
 install:
