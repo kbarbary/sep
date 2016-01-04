@@ -1,7 +1,17 @@
 Python module versions
 
+v0.5.2 (4 January 2015)
+=======================
+
+Adds OS X and Windows support.
+
+v0.5.1 (30 November 2015)
+=========================
+
+Bugfix release for problem in setup.py in packaged code.
+
 v0.5.0 (22 November 2015)
-===================
+=========================
 
 * `sep.extract()` now uses a more correct matched filter algorithm in the
   presence of a noise array, rather than simple convolution. The `conv`

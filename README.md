@@ -29,7 +29,7 @@ Python
 
 **Requirements:**
 
-- Tested on Python 2.6, 2.7, 3.3, 3.4
+- Tested on Python 2.6, 2.7, 3.3, 3.4, 3.5
 - numpy
 
 **Install release version:**
@@ -205,7 +205,3 @@ a copy of the entire data array. Given these considerations, it seemed
 best to just explicitly tell the user to do the byteswap operation
 themselves so they could just do it once, immediately after reading in
 the data.
-
-**Is it "sep" or "ess eee pea"?**
-
-I don't really care, just use it. :)
