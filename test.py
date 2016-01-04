@@ -59,6 +59,18 @@ if not NO_FITS:
 
 @pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
 def test_vs_sextractor():
+    """Test behavior of sep versus sextractor.
+
+    Note: we turn deblending off for this test. This is because the
+    deblending algorithm uses a random number generator. Since the sequence
+    of random numbers is not the same between sextractor and sep or between
+    different platforms, object member pixels (and even the number of objects)
+    can differ when deblending is on.
+
+    Deblending is turned off by setting DEBLEND_MINCONT=1.0 in the sextractor
+    configuration file and by setting deblend_cont=1.0 in sep.extract().
+    """
+
     data = np.copy(image_data)  # make an explicit copy so we can 'subfrom'
     bkg = sep.Background(data, bw=64, bh=64, fw=3, fh=3)
 
@@ -66,9 +78,9 @@ def test_vs_sextractor():
     bkgarr = bkg.back(dtype=np.float32)
     assert_allclose(bkgarr, image_refback, rtol=1.e-5)
 
-    # Extract objects
+    # Extract objects (use deblend_cont=1.0 to disable deblending).
     bkg.subfrom(data)
-    objs = sep.extract(data, 1.5*bkg.globalrms)
+    objs = sep.extract(data, 1.5*bkg.globalrms, deblend_cont=1.0)
     objs = np.sort(objs, order=['y'])
 
     # Read SExtractor result
@@ -98,17 +110,20 @@ def test_vs_sextractor():
                                           objs['theta'], r=2.5 * kr,
                                           err=bkg.globalrms, subpix=1)
 
-    # For some reason, object at index 59 doesn't match. It's very small
+    # For some reason, one object doesn't match. It's very small
     # and kron_radius is set to 0.0 in SExtractor, but 0.08 in sep.
-    # Most of the other values are within 1e-4 except one which is only
-    # within 0.01. This might be due to a change in SExtractor between
-    # v2.8.6 (used to generate "truth" catalog) and v2.18.11.
-    kr[59] = 0.0
-    flux[59] = 0.0
-    fluxerr[59] = 0.0
-    assert_allclose(2.5*kr, refobjs['kron_radius'], rtol=0.01)
-    assert_allclose(flux, refobjs['flux_auto'], rtol=0.01)
-    assert_allclose(fluxerr, refobjs['fluxerr_auto'], rtol=0.01)
+    # Could be due to a change in SExtractor between v2.8.6 (used to
+    # generate "truth" catalog) and v2.18.11 (from which sep was forked).
+    i = 56  # index is 59 when deblending is on.
+    kr[i] = 0.0
+    flux[i] = 0.0
+    fluxerr[i] = 0.0
+
+    # We use atol for radius because it is reported to nearest 0.01 in
+    # reference objects.
+    assert_allclose(2.5*kr, refobjs['kron_radius'], atol=0.01, rtol=0.) 
+    assert_allclose(flux, refobjs['flux_auto'], rtol=0.0005)
+    assert_allclose(fluxerr, refobjs['fluxerr_auto'], rtol=0.0005)
 
     # Test ellipse representation conversion
     cxx, cyy, cxy = sep.ellipse_coeffs(objs['a'], objs['b'], objs['theta'])
