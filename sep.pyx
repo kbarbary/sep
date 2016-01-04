@@ -585,6 +585,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         Number of thresholds used for object deblending. Default is 32.
     deblend_cont : float, optional
         Minimum contrast ratio used for object deblending. Default is 0.005.
+        To entirely disable deblending, set to 1.0.
     clean : bool, optional
         Perform cleaning? Default is True.
     clean_param : float, optional
