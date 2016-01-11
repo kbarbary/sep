@@ -11,11 +11,12 @@ from libc cimport limits
 from libc.math cimport sqrt
 cimport cython
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from cpython.version cimport PY_MAJOR_VERSION
 from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -229,30 +230,38 @@ cdef int _assert_ok(int status) except -1:
     """Get the SEP error message corresponding to status code"""
     cdef char *errmsg
     cdef char *errdetail
-    cdef bytes pyerrmsg
-    cdef bytes pyerrdetail
-    cdef bytes separator
 
     if status == 0:
         return 0
+
+    # First check if we have an out-of-memory error, so we don't try to
+    # allocate more memory to hold the error message.
     if status == MEMORY_ALLOC_ERROR:
         raise MemoryError
 
-    # otherwise, get error message
+    # Otherwise, get error message.
     errmsg = <char *>PyMem_Malloc(61 * sizeof(char))
     sep_get_errmsg(status, errmsg)
-    pyerrmsg = errmsg
+    pyerrmsg = <bytes> errmsg
     PyMem_Free(errmsg)
 
+    # Get error detail.
     errdetail = <char *>PyMem_Malloc(512 * sizeof(char))
     sep_get_errdetail(errdetail)
-    pyerrdetail = errdetail
+    pyerrdetail = <bytes> errdetail
     PyMem_Free(errdetail)
 
-    if pyerrdetail == "":
-        raise Exception(pyerrmsg)
+    # If error detail is present, append it to the message.
+    if pyerrdetail != b"":
+        pyerrmsg = pyerrmsg + b": " + pyerrdetail
+
+    # Convert string to unicode if on python 3
+    if PY_MAJOR_VERSION == 3:
+        msg = pyerrmsg.decode()
     else:
-        raise Exception(pyerrmsg + ": " + pyerrdetail)
+        msg = pyerrmsg
+
+    raise Exception(msg)
 
 
 cdef int _parse_arrays(np.ndarray data, err, var, mask,

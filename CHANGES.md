@@ -1,5 +1,10 @@
 Python module versions
 
+v0.5.3 (unreleased)
+===================
+
+Fix bug in creating long error messages on Python 3.
+
 v0.5.2 (4 January 2015)
 =======================
 

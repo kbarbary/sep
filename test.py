@@ -478,7 +478,7 @@ def test_byte_order_exception():
     data = data.byteswap(True).newbyteorder()
     with pytest.raises(ValueError) as excinfo:
         bkg = sep.Background(data)
-    assert 'byte order' in str(excinfo.value)
+    assert 'byte order' in excinfo.value.args[0]
 
 
 def test_set_pixstack():
@@ -487,4 +487,24 @@ def test_set_pixstack():
     new = old * 2
     sep.set_extract_pixstack(new)
     assert new == sep.get_extract_pixstack()
+    sep.set_extract_pixstack(old)
+
+
+def test_long_error_msg():
+    """Ensure that the error message is created successfully when
+    there is an error detail."""
+
+    # set extract pixstack to an insanely small value; this will trigger
+    # a detailed error message when running sep.extract()
+    old = sep.get_extract_pixstack()
+    sep.set_extract_pixstack(5)
+
+    data = np.ones((10, 10), dtype=np.float64)
+    with pytest.raises(Exception) as excinfo:
+        sep.extract(data, 0.1)
+    msg = excinfo.value.args[0]
+    assert type(msg) == str  # check that message is the native string type
+    assert msg.startswith("internal pixel buffer full: The limit")
+
+    # restore
     sep.set_extract_pixstack(old)
