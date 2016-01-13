@@ -3,7 +3,8 @@ Python module versions
 v0.5.3 (unreleased)
 ===================
 
-Fix bug in creating long error messages on Python 3.
+- Fix segfault in `Background.back()` when box size is same as image size.
+- Fix bug in creating long error messages on Python 3.
 
 v0.5.2 (4 January 2015)
 =======================
