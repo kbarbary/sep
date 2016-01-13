@@ -202,6 +202,15 @@ def test_background_special():
     bkg.subfrom(d2)
     assert np.all(d1 == d2)
 
+
+def test_background_boxsize():
+    """Test that background works when boxsize is same as image"""
+
+    ny, nx = 100, 100
+    data = np.ones((ny, nx), dtype=np.float64)
+    bkg = sep.Background(data, bh=ny, bw=nx, fh=1, fw=1)
+    bkg.back()
+
 # -----------------------------------------------------------------------------
 # Extract
 

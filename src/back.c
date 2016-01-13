@@ -51,7 +51,6 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh);
 float backguess(backstruct *, float *, float *);
 int makebackspline(sepbackmap *, float *, float *);
 
-
 int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 		 int bw, int bh, float mthresh, int fw, int fh,
 		 float fthresh, sepbackmap **bkm)
@@ -762,11 +761,12 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
 {
   int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
-  float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
+  float *nodebuf, *dnodebuf, *u;
+  float *node, *nodep, *dnode, *blo, *bhi, *dblo, *dbhi;
 
   status = RETURN_OK;
-  node = NULL;
-  dnode = NULL;
+  nodebuf = node = NULL;
+  dnodebuf = dnode = NULL;
   u = NULL;
 
   width = bkmap->w;
@@ -796,14 +796,15 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
       bhi = blo + nbx;
       dblo = bkmap->dback + ystep;
       dbhi = dblo + nbx;
-      QMALLOC(node, float, nbx, status);  /* Interpolated background */
-      nodep = node;
+      QMALLOC(nodebuf, float, nbx, status);  /* Interpolated background */
+      nodep = node = nodebuf;
       for (x=nbx; x--;)
 	*(nodep++) = cdy**(blo++) + dy**(bhi++) + cdy3**(dblo++) +
 	  dy3**(dbhi++);
 
       /*-- Computation of 2nd derivatives along x */
-      QMALLOC(dnode, float, nbx, status);  /* 2nd derivative along x */
+      QMALLOC(dnodebuf, float, nbx, status);  /* 2nd derivative along x */
+      dnode = dnodebuf;
       if (nbx>1)
 	{
 	  QMALLOC(u, float, nbxm1, status);  /* temporary array */
@@ -875,8 +876,8 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
       }
 
  exit:
-  free(node);
-  free(dnode);
+  free(nodebuf);
+  free(dnodebuf);
   free(u);
   return status;
 }
@@ -892,10 +893,11 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
 {
   int i,j,x,yl, nbx,nbxm1,nby, nx, width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
-  float *node,*nodep,*dnode, *blo,*bhi,*dblo,*dbhi, *u;
+  float *nodebuf, *dnodebuf, *u;
+  float *node, *nodep, *dnode, *blo, *bhi, *dblo, *dbhi;
   status = RETURN_OK;
-  node = NULL;
-  dnode = NULL;
+  nodebuf = node = NULL;
+  dnodebuf = dnode = NULL;
   u = NULL;
 
   nbx = bkmap->nx;
@@ -924,13 +926,14 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
       bhi = blo + nbx;
       dblo = bkmap->dsigma + ystep;
       dbhi = dblo + nbx;
-      QMALLOC(node, float, nbx, status); /* Interpolated background */
-      nodep = node;
+      QMALLOC(nodebuf, float, nbx, status); /* Interpolated background */
+      nodep = node = nodebuf;
       for (x=nbx; x--;)
 	*(nodep++) = cdy**(blo++)+dy**(bhi++)+cdy3**(dblo++)+dy3**(dbhi++);
 
       /*-- Computation of 2nd derivatives along x */
-      QMALLOC(dnode, float, nbx, status); /* 2nd derivative along x */
+      QMALLOC(dnodebuf, float, nbx, status); /* 2nd derivative along x */
+      dnode = nodebuf;
       if (nbx>1)
 	{
 	  QMALLOC(u, float, nbxm1, status);	/* temporary array */
