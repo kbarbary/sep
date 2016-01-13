@@ -15,8 +15,10 @@ else:
     fname = "sep.c"
 
 sourcefiles = [fname] + glob(os.path.join("src", "*.c"))
+headerfiles = glob(os.path.join("src", "*.h"))
 include_dirs=[numpy.get_include(), "src"]
-extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs)]
+extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
+                        depends=headerfiles)]
 if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions)
