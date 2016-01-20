@@ -1,5 +1,3 @@
-language: c
-
 os:
     - linux
 
@@ -21,9 +19,9 @@ env:
 
 matrix:
     include:
-        # disable c library test temporarily. For whatever reason, when using
-        # addons.apt.packages, cfitsio.pc cannont be found by scons. :( 
-        #- env: LANG=c
+        - env: LANG=c
+        - os: osx
+          env: LANG=c
         - env: LANG=python PYTHON_VERSION=2.6 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.6
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.7
@@ -49,14 +47,8 @@ before_install:
     
 install:
     - if [[ $LANG == python ]]; then python setup.py install; fi
-    - if [[ $LANG == c ]]; then
-      scons;
-      scons ctest;
-      fi
-
-before_script:
-    - if [[ $LANG == c ]]; then export LD_LIBRARY_PATH=${PWD}/src; fi
+    - if [[ $LANG == c ]]; then make; fi
 
 script:
     - if [[ $LANG == python ]]; then ./test.py; fi
-    - if [[ $LANG == c ]]; then cd ctest && ./runtests; fi
+    - if [[ $LANG == c ]]; then make test; fi
