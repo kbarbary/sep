@@ -1,3 +1,0 @@
-SConscript('src/sconscript')
-SConscript('ctest/sconscript')
-Default('src')

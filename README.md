@@ -59,42 +59,32 @@ C Library
 _Note: The C library should not yet be considered stable. (To my knowledge,
 no one is using it directly.)_
 
+_Note: The build process only works on Linux and OS X._
+
 **Build:** To build the C library from source, you must have
-[scons](http://scons.org/) available on your system. In the top level
-directory,
 
 ```
-scons          # build the library
-scons --clean  # clean the built library
+make
 ```
 
 **Run tests:** The test program requires that the `cfitsio` library
 and development header be installed. On Ubuntu `sudo apt-get install
-libcfitsio3-dev` should do it. In the top level directory:
+libcfitsio3-dev` should do it.
 
 ```
-scons ctest             # build the test executable
-cd ctest && ./runtests  # run tests
-scons ctest --clean     # clean the built test executable
+make test
 ```
 
-Note: before *running* the tests, ensure that the built shared library
-in `src` can be found. On linux, you can do this by putting the path
-to the library in the `LD_LIBRARY_PATH` environment variable.
-
-
-**Install or link:** The static library and header can be installed with
+**Install** The static library and header can be installed with
 
 ```
-scons install --prefix=/path/to/prefix
+make install
+make PREFIX=/path/to/prefix install
 ```
 
-This will install the library in `/path/to/prefix/lib` and header file
-in `/path/to/prefix/include`. If you wish to link against the static
-library without installing, it will be found in the `src` subdirectory
-after building.
-
-The shared library cannot yet be automatically installed.
+This will install the shared and static library in `/path/to/prefix/lib`
+and header file in `/path/to/prefix/include`. The default prefix is
+`/usr/local`.
 
 **API:** The C library API is documented in the header file
 [sep.h](src/sep.h).

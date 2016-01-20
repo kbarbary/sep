@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 
@@ -40,4 +40,4 @@ if __name__ == '__main__':
         assert abs(ref[i][2] - sep[i][2] - 1.) < 1.e-3  # y coordinate
         assert fracdiff(ref[i][6], sep[i][3]) < 2.e-4  # flux
 
-    print "compare passed"
+    print("compare passed")
