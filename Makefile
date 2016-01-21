@@ -81,11 +81,11 @@ uninstall:
 	rm $(DESTDIR)$(LIBDIR)/libsep.a
 
 test: ctest/test_image
-	$(LDPATHENV)=src ctest/test_image data/image.fits data/sep.cat data/sepback.fits
+	$(LDPATHENV)=src ctest/test_image data/image.fits data/sep.cat
 	ctest/compare.py data/image.cat data/sep.cat
 
 ctest/test_image: ctest/test_image.c src/$(SONAME)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Lsrc ctest/test_image.c -lm -lsep -lcfitsio -o ctest/test_image
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Lsrc ctest/test_image.c -lm -lsep -o ctest/test_image
 
 clean:
 	rm -f src/*.o src/*.a src/libsep.* ctest/test_image

@@ -4,7 +4,6 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
-#include <fitsio.h>
 #include "sep.h"
 
 uint64_t gettime_ns()
@@ -140,57 +139,76 @@ void printbox(float *im, int w, int h, int xmin, int xmax, int ymin, int ymax)
 }
 
 
-float *read_image_flt(char *fname, int *nx, int *ny)
-/* read a FITS image into a float array */
+/* an extremely dumb reader for our specific test FITS file! */
+int read_test_image(char *fname, float **data, int *nx, int *ny)
 {
-  fitsfile *ff;
-  float *im;
+  FILE *f;
+  char buf[80];  /* buffer to hold a line */
+  long pos;
+  size_t nbytes, nel, i, elsize, nread;
+  char *rawbytes = NULL;
+  short *rawdata;
+  char tmp;
   int status = 0;
-  long fpixel[2] = {1, 1};
-  long naxes[2];
-  char errtext[31];
+  float bscale, bzero;
 
-  fits_open_file(&ff, fname, READONLY, &status); 
-  fits_get_img_size(ff, 2, naxes, &status);
-  *nx = naxes[0];
-  *ny = naxes[1];
-  im = (float*)malloc((*nx * *ny)*sizeof(float));
-  ffgpxv(ff, TFLOAT, fpixel, (*nx * *ny), 0, im, NULL, &status);
-  fits_close_file(ff, &status);
-  if (status)
+  /* hard-code image size & element size */
+  *nx = 256;
+  *ny = 256;
+  elsize = 2;
+  nel = *nx * *ny;
+  bscale = 2.92273835509;
+  bzero = 3713.66692596;
+
+  f = fopen(fname, "r");
+
+  /* read first line and check if it is a FITS file */
+  nread = fread(buf, 1, 80, f);
+  if (nread != 80) { status = 1; goto exit; }
+  if (strncmp(buf, "SIMPLE  =                    T", 30) != 0)
     {
-      ffgerr(status, errtext);
-      puts(errtext);
-      exit(status);
+      printf("not a FITS file");
+      status = 1;
+      goto exit;
     }
-  return im;
-}
 
-void write_image_flt(float *im, int nx, int ny, char *fname)
-{
-  int status = 0;
-  fitsfile *ff;
-  char errtext[31];
-  char fname2[80];
-  long naxes[2];
-  long fpixel[2] = {1, 1};
-
-  printf("writing to file: %s\n", fname);
-
-  strcpy(fname2, "!");
-  strcat(fname2, fname);
-  naxes[0] = nx;
-  naxes[1] = ny;
-  ffinit(&ff, fname2, &status); /* open new image */
-  ffcrim(ff, FLOAT_IMG, 2, naxes, &status); /* create image extension */
-  ffppx(ff, TFLOAT, fpixel, nx*ny, im, &status); 
-  fits_close_file(ff, &status);
-  if (status)
+  /* read rows until we get to END keyword */
+  while (strncmp(buf, "END", 3) != 0)
     {
-      ffgerr(status, errtext);
-      puts(errtext);
-      exit(status);
+      nread = fread(buf, 1, 80, f);
+      if (nread != 80) { status = 1; goto exit; }
     }
+
+  /* move to next 2880 byte boundary. */
+  pos = ftell(f) % 2880;  /* position in "page" */
+  if (pos != 0) fseek(f, 2880 - pos, SEEK_CUR);
+
+  /* read raw data bytes */
+  nbytes = nel * elsize;
+  rawbytes = (char *)malloc(nbytes);
+  nread = fread(rawbytes, 1, nbytes, f);
+  if (nread != nbytes) { status = 1; goto exit; }
+
+  /* swap bytes in raw data (FITS is big-endian) */
+  for (i=0; i<nbytes; i+=2)
+    {
+      tmp = rawbytes[i];
+      rawbytes[i] = rawbytes[i+1];
+      rawbytes[i+1] = tmp;
+    }
+  rawdata = (short *)rawbytes; /* buffer is now little-endian */
+
+  /* convert to float, applying bscale/bzero */
+  *data = (float *)malloc(nel * sizeof(float));
+  for (i=0; i<nel; i++)
+    {
+      (*data)[i] = bscale * rawdata[i] + bzero;
+    }
+
+ exit:
+  free(rawbytes);
+
+  return status;
 }
 
 float *tile_flt(float *im, int nx, int ny, int ntilex, int ntiley,
@@ -221,7 +239,7 @@ void print_time(char *s, uint64_t tdiff)
 
 int main(int argc, char **argv)
 {
-  char *fname1, *fname2, *fname3;
+  char *fname1, *fname2;
   int i, status, nx, ny;
   double *flux, *fluxerr, *fluxt, *fluxerrt, *area, *areat;
   short *flag, *flagt;
@@ -238,21 +256,20 @@ int main(int argc, char **argv)
   flag = NULL;
 
   /* Parse command-line arguments */
-  if (argc != 4)
+  if (argc != 3)
     {
-      printf("Usage: runtests IMAGE_NAME CATALOG_NAME BACKGROUND_NAME\n");
+      printf("Usage: test-image IMAGE_NAME CATALOG_NAME\n");
       exit(1);
     }
   fname1 = argv[1];
   fname2 = argv[2];
-  fname3 = argv[3];
 
   /* read in image */
-  im = read_image_flt(fname1, &nx, &ny);
+  status = read_test_image(fname1, &im, &nx, &ny);
+  if (status) goto exit;
 
   /* test the version string */
   printf("sep version: %s\n", sep_version_string);
-
 
   /* background estimation */
   t0 = gettime_ns();
@@ -271,11 +288,7 @@ int main(int argc, char **argv)
   if (status) goto exit;
   print_time("sep_backarray()", t1-t0);
   
-  /* write out back map */
-  write_image_flt(imback, nx, ny, fname3);
-
-
-  /* subtract background */
+    /* subtract background */
   t0 = gettime_ns();
   status = sep_subbackarray(bkmap, im, SEP_TFLOAT);
   t1 = gettime_ns();

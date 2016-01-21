@@ -67,9 +67,7 @@ _Note: The build process only works on Linux and OS X._
 make
 ```
 
-**Run tests:** The test program requires that the `cfitsio` library
-and development header be installed. On Ubuntu `sudo apt-get install
-libcfitsio3-dev` should do it.
+**Run tests:**
 
 ```
 make test

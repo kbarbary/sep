@@ -3,12 +3,6 @@ os:
 
 sudo: false
 
-# install cfitsio (needed for c library tests)
-addons:
-    apt:
-        packages:
-            - libcfitsio3-dev
-
 env:
     global:
         - LANG=python
@@ -44,7 +38,7 @@ before_install:
       source activate test;
       conda install --yes numpy=$NUMPY_VERSION pytest cython astropy;
       fi
-    
+
 install:
     - if [[ $LANG == python ]]; then python setup.py install; fi
     - if [[ $LANG == c ]]; then make; fi
