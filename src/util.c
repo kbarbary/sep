@@ -280,6 +280,8 @@ void sep_get_errmsg(int status, char *errtext)
     case LINE_NOT_IN_BUF:
       strcpy(errtext, "array line out of buffer");
       break;
+   case RELTHRESH_NO_NOISE:
+      strcpy(errtext, "relative threshold but image has noise_type of NONE");
     default:
        strcpy(errtext, "unknown error status");
        break;

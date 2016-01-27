@@ -167,22 +167,23 @@ void apply_mask_line(arraybuffer *mbuf, arraybuffer *imbuf, arraybuffer *nbuf)
 }
 
 /****************************** extract **************************************/
-int sep_extract(void *image, void *noise, void *mask,
-                int dtype, int ndtype, int mdtype, int w, int h,
-	        float thresh, int minarea, float *conv, int convw, int convh,
+int sep_extract(sep_image *image, float thresh, int thresh_type,
+                int minarea, float *conv, int convw, int convh,
 		int filter_type, int deblend_nthresh, double deblend_cont,
 		int clean_flag, double clean_param,
 		sepobj **objects, int *nobj)
 {
-  arraybuffer       imbuf, nbuf, mbuf;
+  arraybuffer       dbuf, nbuf, mbuf;
   infostruct        curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
   size_t            mem_pixstack;
   int               nposize, oldnposize;
+  int               w, h;
   int               co, i, j, luflag, pstop, xl, xl2, yl, cn;
   int               stacksize, convn, status;
   int               bufh;
+  int               varthresh;
   short             trunflag;
   PIXTYPE           relthresh, cdnewsymbol;
   float             sum;
@@ -212,17 +213,40 @@ int sep_extract(void *image, void *noise, void *mask,
   finalobjlist = NULL; /* final return value */
   convn = 0;
   sum = 0.0;
+  w = image->w;
+  h = image->h;
+  varthresh = 0;
+  relthresh = 0.0;
 
   mem_pixstack = sep_get_extract_pixstack();
 
   /* seed the random number generator consistently on each call to get
-     consistent results. rand() is used in deblending. */
+   * consistent results. rand() is used in deblending. */
   srand(1);
 
-  /* If we have a noise array, thresh is actually relthresh; we'll use
-   * relthresh below to set the threshold for each pixel. */
-  relthresh = thresh;
+  /* Deal with relative thresholding */
+  if (thresh_type == SEP_THRESH_RELATIVE) {
 
+    /* If threshold is relative, the image must have noise information */
+    if (image->noise_type == SEP_NOISE_NONE) return RELTHRESH_NO_NOISE;
+
+    /* If we have a noise array, the threshold will be variable.
+     * We'll use `relthresh` below to set `thresh` for each pixel. */
+    if (image->noise != NULL) {
+      varthresh = 1;
+      relthresh = thresh;
+    }
+
+    /* otherwise, noise is scalar, so we can set an absolute threshold. */
+    else {
+      if (image->noise_type == SEP_NOISE_STDDEV)
+        thresh *= image->noiseval;
+      else if (image->noise_type == SEP_NOISE_VAR)
+        thresh *= sqrt(image->noiseval);
+    }
+  }
+
+  /* this is input `thresh` regardless of thresh_type. */
   objlist.thresh = thresh;
 
   /*Allocate memory for buffers */
@@ -245,27 +269,25 @@ int sep_extract(void *image, void *noise, void *mask,
    * the buffer height equals the height of the convolution kernel.
    */
   bufh = conv ? convh : 1;
-  status = arraybuffer_init(&imbuf, image, dtype, w, h, stacksize, bufh);
-  if (status != RETURN_OK)
-    goto exit;
-  if (noise)
-    {
-      status = arraybuffer_init(&nbuf, noise, ndtype, w, h, stacksize, bufh);
-      if (status != RETURN_OK)
-        goto exit;
+  status = arraybuffer_init(&dbuf, image->data, image->dtype, w, h, stacksize,
+                            bufh);
+  if (status != RETURN_OK) goto exit;
+  if (varthresh) {
+      status = arraybuffer_init(&nbuf, image->noise, image->ndtype, w, h,
+                                stacksize, bufh);
+      if (status != RETURN_OK) goto exit;
     }
-  if (mask)
-    {
-      status = arraybuffer_init(&mbuf, mask, mdtype, w, h, stacksize, bufh);
-      if (status != RETURN_OK)
-        goto exit;
+  if (image->mask) {
+      status = arraybuffer_init(&mbuf, image->mask, image->mdtype, w, h,
+                                stacksize, bufh);
+      if (status != RETURN_OK) goto exit;
     }
 
   /* `scan` (or `wscan`) is always a pointer to the current line being
    * processed. It might be the only line in the buffer, or it might be the 
    * middle line. */
-  scan = imbuf.midline;
-  if (noise)
+  scan = dbuf.midline;
+  if (varthresh)
     wscan = nbuf.midline;
 
   /* More initializations */
@@ -275,8 +297,8 @@ int sep_extract(void *image, void *noise, void *mask,
 
   for (xl=0; xl<stacksize; xl++)
     {
-    marker[xl]  = 0 ;
-    dummyscan[xl] = -BIG ;
+      marker[xl]  = 0;
+      dummyscan[xl] = -BIG;
     }
 
   co = pstop = 0;
@@ -291,7 +313,7 @@ int sep_extract(void *image, void *noise, void *mask,
 
 
   /* Allocate memory for the pixel list */
-  plistinit(conv, noise);
+  plistinit(conv, varthresh);
   if (!(pixel = objlist.plist = malloc(nposize=mem_pixstack*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -308,7 +330,7 @@ int sep_extract(void *image, void *noise, void *mask,
 
   /* can only use a matched filter when convolving and when there is a noise
    * array */
-  if (!(conv && noise))
+  if (!(conv && varthresh))
     filter_type = SEP_FILTER_CONV;
 
   if (conv)
@@ -350,25 +372,25 @@ int sep_extract(void *image, void *noise, void *mask,
 
       else
 	{
-          arraybuffer_readline(&imbuf);
-          if (noise)
+          arraybuffer_readline(&dbuf);
+          if (varthresh)
             arraybuffer_readline(&nbuf);
-          if (mask)
+          if (image->mask)
             {
               arraybuffer_readline(&mbuf);
-              apply_mask_line(&mbuf, &imbuf, (noise? &nbuf: NULL));
+              apply_mask_line(&mbuf, &dbuf, (varthresh? &nbuf: NULL));
             }
 
 	  /* filter the lines */
 	  if (conv)
 	    {
-              status = convolve(&imbuf, yl, convnorm, convw, convh, cdscan);
+              status = convolve(&dbuf, yl, convnorm, convw, convh, cdscan);
               if (status != RETURN_OK)
                 goto exit;
 
 	      if (filter_type == SEP_FILTER_MATCHED)
                 {
-                  status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
+                  status = matched_filter(&dbuf, &nbuf, yl, convnorm, convw,
                                           convh, workscan, sigscan);
 
                   if (status != RETURN_OK)
@@ -395,7 +417,7 @@ int sep_extract(void *image, void *noise, void *mask,
 
 	  curpixinfo.flag = trunflag;
 
-	  if (noise)
+	  if (varthresh)
             thresh = relthresh * ((xl==w || yl==h)? 0.0: wscan[xl]);
 
           /* luflag: is pixel above thresh (Y/N)? */
@@ -428,7 +450,7 @@ int sep_extract(void *image, void *noise, void *mask,
 	      if (PLISTEXIST(thresh))
 		PLISTPIX(pixt, thresh) = thresh;
 
-	      /* Check if we are running out of free pixels in objlist.plist */
+	      /* Check if we have run out of free pixels in objlist.plist */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
 		  status = PIXSTACK_FULL;
@@ -651,10 +673,10 @@ int sep_extract(void *image, void *noise, void *mask,
   free(psstack);
   free(start);
   free(end);
-  arraybuffer_free(&imbuf);
-  if (noise)
+  arraybuffer_free(&dbuf);
+  if (image->noise)
     arraybuffer_free(&nbuf);
-  if (mask)
+  if (image->mask)
     arraybuffer_free(&mbuf);
   if (conv)
     free(convnorm);

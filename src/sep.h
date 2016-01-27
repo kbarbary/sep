@@ -36,14 +36,38 @@
 #define SEP_APER_ALLMASKED   0x0040
 #define SEP_APER_NONPOSITIVE 0x0080
 
+/* noise_type values in sep_image */
+#define SEP_NOISE_NONE   0
+#define SEP_NOISE_STDDEV 1
+#define SEP_NOISE_VAR    2
+
 /* input flags for aperture photometry */
-#define SEP_ERROR_IS_VAR     0x0001
-#define SEP_ERROR_IS_ARRAY   0x0002
 #define SEP_MASK_IGNORE      0x0004
+
+/* threshold interpretation for sep_extract */
+#define SEP_THRESH_RELATIVE 0  /* in units of standard deviations (sigma) */
+#define SEP_THRESH_ABSOLUTE 1  /* absolute data values */
 
 /* filter types for sep_extract */
 #define SEP_FILTER_CONV    0
 #define SEP_FILTER_MATCHED 1
+
+/*---------------------- image type */
+
+typedef struct {
+  void *data;      /* data array                */
+  void *noise;     /* noise array (can be NULL) */
+  void *mask;      /* mask array (can be NULL)  */
+  int dtype;       /* element type of image     */
+  int ndtype;      /* element type of noise     */
+  int mdtype;      /* element type of mask      */
+  int w;           /* array width               */
+  int h;           /* array height              */
+  double noiseval; /* scalar noise value; used only if noise == NULL */
+  short noise_type; /* interpretation of noise value */
+  double gain;   /* (poisson counts / data unit) */
+} sep_image;
+
 
 /*--------------------- global background estimation ------------------------*/
 
@@ -61,11 +85,7 @@ typedef struct
   float *dsigma;
 } sepbackmap;
 
-int sep_makeback(void *im,            /* image data                          */
-		 void *mask,          /* mask (can be NULL)                  */
-		 int dtype,           /* image datatype code                 */
-		 int mdtype,          /* mask datatype code                  */
-		 int w, int h,        /* image and mask size (width, height) */
+int sep_makeback(sep_image *image,
 		 int bw, int bh,      /* size of a single background tile    */
 		 float mthresh,       /* only (mask<=maskthresh) counted     */
 		 int fw, int fh,      /* filter size in tiles                */
@@ -135,14 +155,9 @@ typedef struct
   int      *pix;                 /* pixel array (length is npix)             */
 } sepobj;
 
-int sep_extract(void *image,          /* image array                         */
-		void *noise,          /* noise array (can be NULL)    [NULL] */
-                void *mask,           /* mask array (can be NULL)     [NULL] */
-		int dtype,            /* data type of image                  */
-		int ndtype,           /* data type of noise                  */
-                int mdtype,           /* data type of mask                   */
-		int w, int h,         /* width, height of image & noise      */
-		float thresh,         /* detection threshold     [1.5*sigma] */
+int sep_extract(sep_image *image,
+		float thresh,         /* detection threshold     [1.5] */
+                int thresh_type,    /* threshold units [SEP_THRESH_RELATIVE] */
 		int minarea,          /* minimum area in pixels          [5] */
 		float *conv,          /* convolution array (can be NULL)     */
                                       /*               [{1 2 1 2 4 2 1 2 1}] */
@@ -178,15 +193,8 @@ void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-int sep_sum_circle(void *data,        /* data array */
-		   void *error,       /* error value or array or NULL */
-		   void *mask,        /* mask array (can be NULL) */
-		   int dtype,         /* data dtype code */
-		   int edtype,        /* error dtype code */
-		   int mdtype,        /* mask dtype code */
-		   int w, int h,      /* width, height of input arrays */
+int sep_sum_circle(sep_image *image,
 		   double maskthresh, /* pixel masked if mask > maskthresh */
-		   double gain,       /* (poisson counts / data unit) */
 		   short inflags,     /* input flags (see below) */
 		   double x,          /* center of aperture in x */
 		   double y,          /* center of aperture in y */
@@ -213,22 +221,16 @@ int sep_sum_circle(void *data,        /* data array */
  *        to inexact subpixel sampling and intersection with array boundaries.
  */
 
-int sep_sum_circann(void *data, void *error, void *mask,
-		    int dtype, int edtype, int mdtype, int w, int h,
-		    double maskthresh, double gain, short inflags,
+int sep_sum_circann(sep_image *image, double maskthresh, short inflags,
 		    double x, double y, double rin, double rout, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-int sep_sum_ellipse(void *data, void *error, void *mask,
-		    int dtype, int edtype, int mdtype, int w, int h,
-		    double maskthresh, double gain, short inflag,
+int sep_sum_ellipse(sep_image *image, double maskthresh, short inflags,
 		    double x, double y, double a, double b, double theta,
 		    double r, int subpix,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-int sep_sum_ellipann(void *data, void *error, void *mask,
-		     int dtype, int edtype, int mdtype, int w, int h,
-		     double maskthresh, double gain, short inflag,
+int sep_sum_ellipann(sep_image *image, double maskthresh, short inflags,
 		     double x, double y, double a, double b, double theta,
 		     double rin, double rout, int subpix,
 		     double *sum, double *sumerr, double *area, short *flag);

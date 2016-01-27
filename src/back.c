@@ -51,9 +51,8 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh);
 float backguess(backstruct *, float *, float *);
 int makebackspline(sepbackmap *, float *, float *);
 
-int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
-		 int bw, int bh, float mthresh, int fw, int fh,
-		 float fthresh, sepbackmap **bkm)
+int sep_makeback(sep_image* image, int bw, int bh, float mthresh,
+                 int fw, int fh, float fthresh, sepbackmap **bkm)
 {
   BYTE *imt, *maskt;
   int npix;                   /* size of image */
@@ -69,9 +68,9 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
   int j,k,m, status;
 
   status = RETURN_OK;
-  npix = w*h;
-  bufsize = w*bh;
-  maskthresh = mask? mthresh: 0.0;
+  npix = image->w * image->h;
+  bufsize = image->w * bh;
+  maskthresh = image->mask? mthresh: 0.0;
 
   backmesh = bm = NULL;
   bkmap = NULL;
@@ -79,9 +78,9 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
   convert = mconvert = NULL;
 
   /* determine number of background boxes */
-  if ((nx = (w-1)/bw + 1) < 1)
+  if ((nx = (image->w - 1) / bw + 1) < 1)
     nx = 1;
-  if ((ny = (h-1)/bh + 1) < 1)
+  if ((ny = (image->h - 1) / bh + 1) < 1)
     ny = 1;
   nb = nx*ny;
 
@@ -93,8 +92,8 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 
   /* Allocate the returned struct */
   QMALLOC(bkmap, sepbackmap, 1, status);
-  bkmap->w = w;
-  bkmap->h = h;
+  bkmap->w = image->w;
+  bkmap->h = image->h;
   bkmap->nx = nx;
   bkmap->ny = ny;
   bkmap->n = nb;
@@ -110,30 +109,30 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
   QMALLOC(bkmap->dsigma, float, nb, status);
 
   /* cast input array pointers. These are used to step through the arrays. */
-  imt = (BYTE *)im;
-  maskt = (BYTE *)mask;
+  imt = (BYTE *)image->data;
+  maskt = (BYTE *)image->mask;
 
   /* get the correct array converter and element size, based on dtype code */
-  status = get_array_converter(dtype, &convert, &elsize);
+  status = get_array_converter(image->dtype, &convert, &elsize);
   if (status != RETURN_OK)
     goto exit;
-  if (mask)
+  if (image->mask)
     {
-      status = get_array_converter(mdtype, &mconvert, &melsize);
+      status = get_array_converter(image->mdtype, &mconvert, &melsize);
       if (status != RETURN_OK)
 	goto exit;
     }
 
   /* If the input array type is not PIXTYPE, allocate a buffer to hold
      converted values */
-  if (dtype != PIXDTYPE)
+  if (image->dtype != PIXDTYPE)
     {
       QMALLOC(buf, PIXTYPE, bufsize, status);
       buft = buf;
       if (status != RETURN_OK)
 	goto exit;
     }
-  if (mask && (mdtype != PIXDTYPE))
+  if (image->mask && (image->mdtype != PIXDTYPE))
     {
       QMALLOC(mbuf, PIXTYPE, bufsize, status);
       mbuft = mbuf;
@@ -155,21 +154,21 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
         bufsize = npix%bufsize;
 
       /* convert this row to PIXTYPE and store in buffer(s)*/
-      if (dtype != PIXDTYPE)
+      if (image->dtype != PIXDTYPE)
 	convert(imt, bufsize, buft);
       else
 	buft = (PIXTYPE *)imt;
 
-      if (mask)
+      if (image->mask)
 	{
-	  if (mdtype != PIXDTYPE)
+	  if (image->mdtype != PIXDTYPE)
 	    mconvert(maskt, bufsize, mbuft);
 	  else
 	    mbuft = (PIXTYPE *)maskt;
 	}
 
       /* Get clipped mean, sigma for all boxes in the row */
-      backstat(backmesh, buft, mbuft, bufsize, nx, w, bw, maskthresh);
+      backstat(backmesh, buft, mbuft, bufsize, nx, image->w, bw, maskthresh);
 
       /* Allocate histograms in each box in this row. */
       bm = backmesh;
@@ -178,7 +177,7 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 	  bm->histo=NULL;
 	else
 	  QCALLOC(bm->histo, LONG, bm->nlevels, status);
-      backhisto(backmesh, buft, mbuft, bufsize, nx, w, bw, maskthresh);
+      backhisto(backmesh, buft, mbuft, bufsize, nx, image->w, bw, maskthresh);
 
       /* Compute background statistics from the histograms */
       bm = backmesh;
@@ -192,7 +191,7 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 
       /* increment array pointers to next row of background boxes */
       imt += elsize * bufsize;
-      if (mask)
+      if (image->mask)
 	maskt += melsize * bufsize;
     }
 

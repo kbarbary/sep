@@ -180,7 +180,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_INIT                               \
   r2 = r*r;                                     \
   oversamp_ann_circle(r, &r_in2, &r_out2)
-#define APER_BOXEXTENT boxextent(x, y, r, r, w, h,                      \
+#define APER_BOXEXTENT boxextent(x, y, r, r, im->w, im->h,              \
                                  &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, r)
 #define APER_RPIX2 dx*dx + dy*dy
@@ -218,7 +218,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
   sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy);            \
   a *= r;                                                       \
   b *= r
-#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h, \
+#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, r, im->w, im->h, \
                                          &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a, b, theta)
 #define APER_RPIX2 cxx*dx*dx + cyy*dy*dy + cxy*dx*dy
@@ -254,7 +254,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
   oversamp_ann_circle(rin, &rin_in2, &rin_out2);        \
   rout2 = rout*rout;                                    \
   oversamp_ann_circle(rout, &rout_in2, &rout_out2)
-#define APER_BOXEXTENT boxextent(x, y, rout, rout, w, h, \
+#define APER_BOXEXTENT boxextent(x, y, rout, rout, im->w, im->h, \
                                  &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT (circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rout) - \
                     circoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, rin))
@@ -295,7 +295,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
   rout2 = rout*rout;                                            \
   oversamp_ann_ellipse(rout, b, &rout_in2, &rout_out2);         \
   sep_ellipse_coeffs(a, b, theta, &cxx, &cyy, &cxy)
-#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, rout, w, h, \
+#define APER_BOXEXTENT boxextent_ellipse(x, y, cxx, cyy, cxy, rout, im->w, im->h, \
                                          &xmin, &xmax, &ymin, &ymax, flag)
 #define APER_EXACT                                                      \
   (ellipoverlap(dx-0.5, dy-0.5, dx+0.5, dy+0.5, a*rout, b*rout, theta) - \

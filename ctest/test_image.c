@@ -273,8 +273,8 @@ int main(int argc, char **argv)
 
   /* background estimation */
   t0 = gettime_ns();
-  status = sep_makeback(im, NULL, SEP_TFLOAT, 0, nx, ny, 64, 64,
-			0.0, 3, 3, 0.0, &bkmap);
+  sep_image image = {im, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0, 1.0};
+  status = sep_makeback(&image, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_makeback()", t1-t0);
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
   
     /* subtract background */
   t0 = gettime_ns();
-  status = sep_subbackarray(bkmap, im, SEP_TFLOAT);
+  status = sep_subbackarray(bkmap, image.data, image.dtype);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_subbackarray()", t1-t0);
@@ -307,18 +307,19 @@ int main(int argc, char **argv)
   print_time("sep_extract()", t1-t0);
 
   /* aperture photometry */
+  image.noise = &(bkmap->globalrms);  /* set image noise level */
+  image.ndtype = SEP_TFLOAT;
   fluxt = flux = (double *)malloc(nobj * sizeof(double));
   fluxerrt = fluxerr = (double *)malloc(nobj * sizeof(double));
   areat = area = (double *)malloc(nobj * sizeof(double));
   flagt = flag = (short *)malloc(nobj * sizeof(short));
   t0 = gettime_ns();
   for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
-    sep_sum_circle(im, &(bkmap->globalrms), NULL,
-		   SEP_TFLOAT, SEP_TFLOAT, 0, nx, ny, 0.0, 1.0, 0,
+    sep_sum_circle(&image, 0.0, 0,
 		   objects[i].x, objects[i].y, 5.0, 5,
 		   fluxt, fluxerrt, areat, flagt);
   t1 = gettime_ns();
-  printf("sep_apercirc() [r= 5.0]  %6.3f us/aperture\n",
+  printf("sep_sum_circle() [r= 5.0]  %6.3f us/aperture\n",
 	 (double)(t1 - t0) / 1000. / nobj);
 
   /* print results */
