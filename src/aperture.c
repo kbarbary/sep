@@ -325,9 +325,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * This is just different enough from the other aperture functions
  * that it doesn't quite make sense to use aperbody.c.inc.
  */
-int sep_sum_circann_multi(void *data, void *error, void *mask,
-                          int dtype, int edtype, int mdtype, int w, int h,
-                          double maskthresh, double gain, short inflag,
+int sep_sum_circann_multi(sep_image *im, double maskthresh, short inflag,
                           double x, double y, double rmax, int n, int subpix,
                           double *sum, double *sumvar, double *area,
                           double *maskarea, short *flag)
@@ -352,13 +350,13 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
   memset(sum, 0, (size_t)(n*sizeof(double)));
   memset(sumvar, 0, (size_t)(n*sizeof(double)));
   memset(area, 0, (size_t)(n*sizeof(double)));
-  if (mask)
+  if (im->mask)
     memset(maskarea, 0, (size_t)(n*sizeof(double)));
 
   /* initializations */
   size = esize = msize = 0;
   datat = maskt = NULL;
-  errort = error;
+  errort = im->noise;
   *flag = 0;
   varpix = 0.0;
   scale = 1.0/subpix;
@@ -374,42 +372,46 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
   j = 0;
   d = 0.;
   ismasked = 0;
+  errisarray = 0;
+  errisstd = 0;
 
   /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
+  if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+  if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
+  /* get image noise */
+  if (im->noise_type != SEP_NOISE_NONE)
     {
-      varpix = econvert(errort);
-      if (errisstd)
-        varpix *= varpix;
+      errisstd = (im->noise_type == SEP_NOISE_STDDEV);
+      if (im->noise)
+        {
+          errisarray = 1;
+          if ((status = get_converter(im->ndtype, &econvert, &esize)))
+            return status;
+        }
+      else
+        {
+          varpix = (errisstd)?  im->noiseval * im->noiseval: im->noiseval;
+        }
     }
 
+
   /* get extent of box */
-  boxextent(x, y, r_out, r_out, w, h, &xmin, &xmax, &ymin, &ymax, flag);
+  boxextent(x, y, r_out, r_out, im->w, im->h, &xmin, &xmax, &ymin, &ymax,
+            flag);
 
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
     {
       /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = MSVC_VOID_CAST data + pos*size;
+      pos = (iy % im->h) * im->w + xmin;
+      datat = MSVC_VOID_CAST im->data + pos*size;
       if (errisarray)
-        errort = MSVC_VOID_CAST error + pos*esize;
-      if (mask)
-        maskt = MSVC_VOID_CAST mask + pos*msize;
+        errort = MSVC_VOID_CAST im->noise + pos*esize;
+      if (im->mask)
+        maskt = MSVC_VOID_CAST im->mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -427,7 +429,7 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
                   if (errisstd)
                     varpix *= varpix;
                 }
-              if (mask)
+              if (im->mask)
                 {
                   if (mconvert(maskt) > maskthresh)
                     {
@@ -494,7 +496,7 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
 
 
   /* correct for masked values */
-  if (mask)
+  if (im->mask)
     {
       if (inflag & SEP_MASK_IGNORE)
         for (j=n; j--;)
@@ -511,10 +513,10 @@ int sep_sum_circann_multi(void *data, void *error, void *mask,
     }
 
   /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0)
+  if (im->gain > 0.0)
     for (j=n; j--;)
       if (sum[j] > 0.0)
-        sumvar[j] += sum[j]/gain;
+        sumvar[j] += sum[j] / im->gain;
 
   return status;
 }
@@ -546,9 +548,7 @@ static double inverse(double xmax, double *y, int n, double ytarg)
   return step * (i + (ytarg - y[i-1])/(y[i] - y[i-1]));
 }
 
-int sep_flux_radius(void *data, void *error, void *mask,
-                    int dtype, int edtype, int mdtype, int w, int h,
-                    double maskthresh, double gain, short inflag,
+int sep_flux_radius(sep_image *im, double maskthresh, short inflag,
                     double x, double y, double rmax, int subpix,
                     double *fluxtot, double *fluxfrac, int n, double *r,
                     short *flag)
@@ -562,9 +562,7 @@ int sep_flux_radius(void *data, void *error, void *mask,
   double maskareabuf[FLUX_RADIUS_BUFSIZE];
 
   /* measure FLUX_RADIUS_BUFSIZE annuli out to rmax. */
-  status = sep_sum_circann_multi(data, error, mask,
-                                 dtype, edtype, mdtype, w, h,
-                                 maskthresh, gain, inflag, x, y, rmax,
+  status = sep_sum_circann_multi(im, maskthresh, inflag, x, y, rmax,
                                  FLUX_RADIUS_BUFSIZE, subpix,
                                  sumbuf, sumvarbuf, areabuf, maskareabuf,
                                  flag);
@@ -585,8 +583,7 @@ int sep_flux_radius(void *data, void *error, void *mask,
 
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
-int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
-                    int w, int h, double maskthresh, double x, double y,
+int sep_kron_radius(sep_image *im, double maskthresh, double x, double y,
                     double cxx, double cyy, double cxy, double r,
                     double *kronrad, short *flag)
 {
@@ -605,24 +602,24 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
   size = msize = 0;
 
   /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
+  if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+  if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
       return status;
 
 
   /* get extent of ellipse in x and y */
-  boxextent_ellipse(x, y, cxx, cyy, cxy, r, w, h,
+  boxextent_ellipse(x, y, cxx, cyy, cxy, r, im->w, im->h,
                     &xmin, &xmax, &ymin, &ymax, flag);
 
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
     {
       /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = MSVC_VOID_CAST data + pos*size;
-      if (mask)
-        maskt = MSVC_VOID_CAST mask + pos*msize;
+      pos = (iy % im->h) * im->w + xmin;
+      datat = MSVC_VOID_CAST im->data + pos*size;
+      if (im->mask)
+        maskt = MSVC_VOID_CAST im->mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -633,7 +630,7 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
           if (rpix2 <= r2)
             {
               pix = convert(datat);
-              if ((pix < -BIG) || (mask && mconvert(maskt) > maskthresh))
+              if ((pix < -BIG) || (im->mask && mconvert(maskt) > maskthresh))
                 {
                   *flag |= SEP_APER_HASMASKED;
                 }
@@ -709,17 +706,11 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
  * - use sig = obj.hl_radius * 2/2.35.
  * - use obj.posx/posy for initial position
  *
- * NOTE: currently, the error and gain inputs are not used and the extrastats 
- * output is not used. In the future they might be used to compute more
- * windowed stats.
  */
 
-int sep_windowed(void *data, void *error, void *mask,
-                 int dtype, int edtype, int mdtype, int w, int h,
-                 double maskthresh, double gain, short inflag,
+int sep_windowed(sep_image *im, double maskthresh, short inflag,
                  double x, double y, double sig, int subpix,
-                 double *xout, double *yout, int *niter, short *flag,
-                 double* extrastats)
+                 double *xout, double *yout, int *niter, short *flag)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp, dxpos, dypos, weight;
@@ -744,13 +735,15 @@ int sep_windowed(void *data, void *error, void *mask,
   tv = sigtv = 0.0;
   overlap = totarea = maskweight = 0.0;
   datat = maskt = NULL;
-  errort = error;
+  errort = im->noise;
   *flag = 0;
   varpix = 0.0;
   scale = 1.0/subpix;
   scale2 = scale*scale;
   offset = 0.5*(scale-1.0);
   invtwosig2 = 1.0/(2.0*sig*sig);
+  errisarray = 0;
+  errisstd = 0;
 
   /* Integration radius */
   r = WINPOS_NSIG*sig;
@@ -760,25 +753,25 @@ int sep_windowed(void *data, void *error, void *mask,
   oversamp_ann_circle(r, &r_in2, &r_out2);
 
   /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
+  if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+  if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
+  /* get image noise */
+  if (im->noise_type != SEP_NOISE_NONE)
     {
-      varpix = econvert(errort);
-      if (errisstd)
-        varpix *= varpix;
+      errisstd = (im->noise_type == SEP_NOISE_STDDEV);
+      if (im->noise)
+        {
+          errisarray = 1;
+          if ((status = get_converter(im->ndtype, &econvert, &esize)))
+            return status;
+        }
+      else
+        {
+          varpix = (errisstd)?  im->noiseval * im->noiseval: im->noiseval;
+        }
     }
 
   /* iteration loop */
@@ -786,7 +779,7 @@ int sep_windowed(void *data, void *error, void *mask,
     {
 
       /* get extent of box */
-      boxextent(x, y, r, r, w, h,
+      boxextent(x, y, r, r, im->w, im->h,
                 &xmin, &xmax, &ymin, &ymax, flag);
 
       /* TODO: initialize values */
@@ -802,12 +795,12 @@ int sep_windowed(void *data, void *error, void *mask,
       for (iy=ymin; iy<ymax; iy++)
         {
           /* set pointers to the start of this row */
-          pos = (iy%h) * w + xmin;
-          datat = MSVC_VOID_CAST data + pos*size;
+          pos = (iy % im->h) * im->w + xmin;
+          datat = MSVC_VOID_CAST im->data + pos*size;
           if (errisarray)
-            errort = MSVC_VOID_CAST error + pos*esize;
-          if (mask)
-            maskt = MSVC_VOID_CAST mask + pos*msize;
+            errort = MSVC_VOID_CAST im->noise + pos*esize;
+          if (im->mask)
+            maskt = MSVC_VOID_CAST im->mask + pos*msize;
 
           /* loop over pixels in this row */
           for (ix=xmin; ix<xmax; ix++)
@@ -857,7 +850,7 @@ int sep_windowed(void *data, void *error, void *mask,
                   /* weight by gaussian */
                   weight = exp(-rpix2*invtwosig2);
 
-                  if (mask && (mconvert(maskt) > maskthresh))
+                  if (im->mask && (mconvert(maskt) > maskthresh))
                     {
                       *flag |= SEP_APER_HASMASKED;
                       maskarea += overlap;
@@ -899,7 +892,7 @@ int sep_windowed(void *data, void *error, void *mask,
        * the masked pixels had the value of the average unmasked value
        * in the aperture.
        */
-      if (mask)
+      if (im->mask)
         {
           /* this option will probably not yield accurate values */
           if (inflag & SEP_MASK_IGNORE)

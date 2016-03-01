@@ -243,9 +243,9 @@ int main(int argc, char **argv)
   int i, status, nx, ny;
   double *flux, *fluxerr, *fluxt, *fluxerrt, *area, *areat;
   short *flag, *flagt;
-  float *im, *imback;
+  float *data, *imback;
   uint64_t t0, t1;
-  sepbackmap *bkmap = NULL;
+  sep_backmap *bkmap = NULL;
   float conv[] = {1,2,1, 2,4,2, 1,2,1};
   int nobj = 0;
   sepobj *objects = NULL;
@@ -265,7 +265,7 @@ int main(int argc, char **argv)
   fname2 = argv[2];
 
   /* read in image */
-  status = read_test_image(fname1, &im, &nx, &ny);
+  status = read_test_image(fname1, &data, &nx, &ny);
   if (status) goto exit;
 
   /* test the version string */
@@ -273,8 +273,8 @@ int main(int argc, char **argv)
 
   /* background estimation */
   t0 = gettime_ns();
-  sep_image image = {im, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0, 1.0};
-  status = sep_makeback(&image, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
+  sep_image im = {data, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0.0, SEP_NOISE_NONE, 0.0, 1.0};
+  status = sep_makeback(&im, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_makeback()", t1-t0);
@@ -290,7 +290,7 @@ int main(int argc, char **argv)
   
     /* subtract background */
   t0 = gettime_ns();
-  status = sep_subbackarray(bkmap, image.data, image.dtype);
+  status = sep_subbackarray(bkmap, im.data, im.dtype);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_subbackarray()", t1-t0);
@@ -299,23 +299,23 @@ int main(int argc, char **argv)
    * Note that we set deblend_cont = 1.0 to turn off deblending.
    */
   t0 = gettime_ns();
-  status = sep_extract(im, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny,
-		       1.5*bkmap->globalrms, 5, conv, 3, 3, SEP_FILTER_CONV,
+  status = sep_extract(&im, 1.5*bkmap->globalrms, SEP_THRESH_ABSOLUTE,
+                       5, conv, 3, 3, SEP_FILTER_CONV,
                        32, 1.0, 1, 1.0, &objects, &nobj);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_extract()", t1-t0);
 
   /* aperture photometry */
-  image.noise = &(bkmap->globalrms);  /* set image noise level */
-  image.ndtype = SEP_TFLOAT;
+  im.noise = &(bkmap->globalrms);  /* set image noise level */
+  im.ndtype = SEP_TFLOAT;
   fluxt = flux = (double *)malloc(nobj * sizeof(double));
   fluxerrt = fluxerr = (double *)malloc(nobj * sizeof(double));
   areat = area = (double *)malloc(nobj * sizeof(double));
   flagt = flag = (short *)malloc(nobj * sizeof(short));
   t0 = gettime_ns();
   for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
-    sep_sum_circle(&image, 0.0, 0,
+    sep_sum_circle(&im, 0.0, 0,
 		   objects[i].x, objects[i].y, 5.0, 5,
 		   fluxt, fluxerrt, areat, flagt);
   t1 = gettime_ns();
@@ -341,7 +341,7 @@ int main(int argc, char **argv)
   /* clean-up & exit */
  exit:
   sep_freeback(bkmap);
-  free(im);
+  free(data);
   free(flux);
   free(fluxerr);
   free(flag);

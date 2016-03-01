@@ -39,29 +39,31 @@ int APER_NAME(sep_image *im, double maskthresh, short inflag,
   scale = 1.0/subpix;
   scale2 = scale*scale;
   offset = 0.5*(scale-1.0);
+  errisarray = 0;
+  errisstd = 0;
 
   APER_INIT;
 
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
-  if (im->noise && (status = get_converter(im->ndtype, &econvert, &esize)))
-    return status;
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
-  /* get options */
-  errisarray = im->flags & SEP_ERROR_IS_ARRAY;
-  if (!im->noise)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(im->flags & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (im->noise && !errisarray)
+  /* get image noise */
+  if (im->noise_type != SEP_NOISE_NONE)
     {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
+      errisstd = (im->noise_type == SEP_NOISE_STDDEV);
+      if (im->noise)
+        {
+          errisarray = 1;
+          if ((status = get_converter(im->ndtype, &econvert, &esize)))
+             return status;
+        }
+      else
+        {
+          varpix = (errisstd)?  im->noiseval * im->noiseval: im->noiseval;
+        }
     }
 
   /* get extent of box */

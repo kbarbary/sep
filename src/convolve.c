@@ -115,16 +115,17 @@ int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
  * convw, convh : width and height of conv
  * work : work buffer (`imbuf->dw` elements long)
  * out : output line (`imbuf->dw` elements long)
+ * noise_type : indicates contents of nbuf (std dev or variance)
  *
  * imbuf and nbuf should have same data dimensions and be on the same line
  * (their `yoff` fields should be the same).
  */
 int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
                    float *conv, int convw, int convh,
-                   PIXTYPE *work, PIXTYPE *out)
+                   PIXTYPE *work, PIXTYPE *out, int noise_type)
 {
   int convw2, convn, cx, cy, i, dcx, y0;
-  PIXTYPE imval, nval;
+  PIXTYPE imval, varval;
   PIXTYPE *imline, *nline;    /* current line in input buffer */
   PIXTYPE *outend;            /* end of output buffer */
   PIXTYPE *src_im, *src_n, *dst_num, *dst_denom, *dst_num_end;
@@ -191,11 +192,11 @@ int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
       while (dst_num < dst_num_end)
         {
           imval = *src_im;
-          nval = *src_n;
-          if (nval != 0.0)
+          varval = (noise_type == SEP_NOISE_VAR)? (*src_n): (*src_n)*(*src_n);
+          if (varval != 0.0)
             {
-              *dst_num   += conv[i] * imval / (nval * nval);
-              *dst_denom += conv[i] * conv[i] / (nval * nval);
+              *dst_num   += conv[i] * imval / varval;
+              *dst_denom += conv[i] * conv[i] / varval;
             }
           src_im++;
           src_n++;

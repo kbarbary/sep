@@ -47,12 +47,12 @@ void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
 	       int, int, int, int, PIXTYPE);
 void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
 	      int, int, int, int, PIXTYPE);
-int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh);
+int filterback(sep_backmap *bkmap, int fw, int fh, float fthresh);
 float backguess(backstruct *, float *, float *);
-int makebackspline(sepbackmap *, float *, float *);
+int makebackspline(sep_backmap *, float *, float *);
 
 int sep_makeback(sep_image* image, int bw, int bh, float mthresh,
-                 int fw, int fh, float fthresh, sepbackmap **bkm)
+                 int fw, int fh, float fthresh, sep_backmap **bkm)
 {
   BYTE *imt, *maskt;
   int npix;                   /* size of image */
@@ -64,7 +64,7 @@ int sep_makeback(sep_image* image, int bw, int bh, float mthresh,
   PIXTYPE maskthresh;
   array_converter convert, mconvert;
   backstruct *backmesh, *bm;  /* info about each background "box" */
-  sepbackmap *bkmap;          /* output */
+  sep_backmap *bkmap;          /* output */
   int j,k,m, status;
 
   status = RETURN_OK;
@@ -91,7 +91,7 @@ int sep_makeback(sep_image* image, int bw, int bh, float mthresh,
     bm->histo=NULL;
 
   /* Allocate the returned struct */
-  QMALLOC(bkmap, sepbackmap, 1, status);
+  QMALLOC(bkmap, sep_backmap, 1, status);
   bkmap->w = image->w;
   bkmap->h = image->h;
   bkmap->nx = nx;
@@ -499,7 +499,7 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
 
 /****************************************************************************/
 
-int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
+int filterback(sep_backmap *bkmap, int fw, int fh, float fthresh)
 /* Median filterthe background map to remove the contribution
  * from bright sources. */
 {
@@ -636,7 +636,7 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
 /*
  * Pre-compute 2nd derivatives along the y direction at background nodes.
  */
-int makebackspline(sepbackmap *bkmap, float *map, float *dmap)
+int makebackspline(sep_backmap *bkmap, float *map, float *dmap)
 {
   int   x, y, nbx, nby, nbym1, status;
   float *dmapt, *mapt, *u, temp;
@@ -685,12 +685,12 @@ int makebackspline(sepbackmap *bkmap, float *map, float *dmap)
 
 /*****************************************************************************/
 
-float sep_globalback(sepbackmap *bkmap)
+float sep_globalback(sep_backmap *bkmap)
 {
   return bkmap->globalback;
 }
 
-float sep_globalrms(sepbackmap *bkmap)
+float sep_globalrms(sep_backmap *bkmap)
 {
   return bkmap->globalrms;
 }
@@ -698,7 +698,7 @@ float sep_globalrms(sepbackmap *bkmap)
 
 /*****************************************************************************/
 
-float sep_backpix_linear(sepbackmap *bkmap, int x, int y)
+float sep_backpix_linear(sep_backmap *bkmap, int x, int y)
 /*
  * return background at position x,y.
  * (linear interpolation between background map vertices).
@@ -754,7 +754,7 @@ float sep_backpix_linear(sepbackmap *bkmap, int x, int y)
 
 /*****************************************************************************/
 
-int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
+int sep_backline_flt(sep_backmap *bkmap, int y, float *line)
 /* Interpolate background at line y (bicubic spline interpolation between
  * background map vertices) and save to line */
 {
@@ -884,7 +884,7 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
 
 /*****************************************************************************/
 
-int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
+int sep_backrmsline_flt(sep_backmap *bkmap, int y, float *line)
 /* Bicubic-spline interpolation of the background noise along the current
  * scanline (y). NOTE: Most of the code is a copy of subbackline(), for
  * optimization reasons.
@@ -1011,7 +1011,7 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
 /* Multiple dtype functions and convenience functions.
  * These mostly wrap the two "line" functions above. */
 
-int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_backline(sep_backmap *bkmap, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
@@ -1039,7 +1039,7 @@ int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype)
   return status;
 }
 
-int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_backrmsline(sep_backmap *bkmap, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
@@ -1067,7 +1067,7 @@ int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype)
   return status;
 }
 
-int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_backarray(sep_backmap *bkmap, void *arr, int dtype)
 {
   int y, width, size, status;
   array_writer write_array;
@@ -1105,7 +1105,7 @@ int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
   return status;
 }
 
-int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_backrmsarray(sep_backmap *bkmap, void *arr, int dtype)
 {
   int y, width, size, status;
   array_writer write_array;
@@ -1143,7 +1143,7 @@ int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
   return status;
 }
 
-int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_subbackline(sep_backmap *bkmap, int y, void *line, int dtype)
 {
   array_writer subtract_array;
   int status, size;
@@ -1169,7 +1169,7 @@ int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype)
   return status;
 }
 
-int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_subbackarray(sep_backmap *bkmap, void *arr, int dtype)
 {
   array_writer subtract_array;
   int y, status, size, width;
@@ -1201,7 +1201,7 @@ int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
 
 /*****************************************************************************/
 
-void sep_freeback(sepbackmap *bkmap)
+void sep_freeback(sep_backmap *bkmap)
 {
   if (bkmap)
     {

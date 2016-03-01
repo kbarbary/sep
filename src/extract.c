@@ -53,7 +53,7 @@ size_t sep_get_extract_pixstack()
 
 int  sortit(infostruct *, objliststruct *, int,
 	    objliststruct *, int, double);
-void plistinit(void *, void *);
+void plistinit(int hasconv, int hasvar);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
 
@@ -183,7 +183,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   int               co, i, j, luflag, pstop, xl, xl2, yl, cn;
   int               stacksize, convn, status;
   int               bufh;
-  int               varthresh;
+  int               isvarthresh;
   short             trunflag;
   PIXTYPE           relthresh, cdnewsymbol;
   float             sum;
@@ -215,7 +215,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   sum = 0.0;
   w = image->w;
   h = image->h;
-  varthresh = 0;
+  isvarthresh = 0;
   relthresh = 0.0;
 
   mem_pixstack = sep_get_extract_pixstack();
@@ -233,7 +233,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
     /* If we have a noise array, the threshold will be variable.
      * We'll use `relthresh` below to set `thresh` for each pixel. */
     if (image->noise != NULL) {
-      varthresh = 1;
+      isvarthresh = 1;
       relthresh = thresh;
     }
 
@@ -272,7 +272,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   status = arraybuffer_init(&dbuf, image->data, image->dtype, w, h, stacksize,
                             bufh);
   if (status != RETURN_OK) goto exit;
-  if (varthresh) {
+  if (isvarthresh) {
       status = arraybuffer_init(&nbuf, image->noise, image->ndtype, w, h,
                                 stacksize, bufh);
       if (status != RETURN_OK) goto exit;
@@ -287,7 +287,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
    * processed. It might be the only line in the buffer, or it might be the 
    * middle line. */
   scan = dbuf.midline;
-  if (varthresh)
+  if (isvarthresh)
     wscan = nbuf.midline;
 
   /* More initializations */
@@ -313,7 +313,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
 
   /* Allocate memory for the pixel list */
-  plistinit(conv, varthresh);
+  plistinit((conv != NULL), isvarthresh);
   if (!(pixel = objlist.plist = malloc(nposize=mem_pixstack*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -330,7 +330,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
   /* can only use a matched filter when convolving and when there is a noise
    * array */
-  if (!(conv && varthresh))
+  if (!(conv && isvarthresh))
     filter_type = SEP_FILTER_CONV;
 
   if (conv)
@@ -373,12 +373,12 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
       else
 	{
           arraybuffer_readline(&dbuf);
-          if (varthresh)
+          if (isvarthresh)
             arraybuffer_readline(&nbuf);
           if (image->mask)
             {
               arraybuffer_readline(&mbuf);
-              apply_mask_line(&mbuf, &dbuf, (varthresh? &nbuf: NULL));
+              apply_mask_line(&mbuf, &dbuf, (isvarthresh? &nbuf: NULL));
             }
 
 	  /* filter the lines */
@@ -391,7 +391,8 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	      if (filter_type == SEP_FILTER_MATCHED)
                 {
                   status = matched_filter(&dbuf, &nbuf, yl, convnorm, convw,
-                                          convh, workscan, sigscan);
+                                          convh, workscan, sigscan,
+                                          image->noise_type);
 
                   if (status != RETURN_OK)
                     goto exit;
@@ -417,8 +418,16 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
 	  curpixinfo.flag = trunflag;
 
-	  if (varthresh)
-            thresh = relthresh * ((xl==w || yl==h)? 0.0: wscan[xl]);
+          /* set "thresh" based on noise array. This is needed later, even
+           * if filter_type is SEP_FILTER_MATCHED */
+	  if (isvarthresh) {
+            if (xl == w || yl == h)
+              thresh = 0.0;
+            else if (image->noise_type == SEP_NOISE_VAR)
+              thresh = relthresh * sqrt(wscan[xl]);
+            else
+              thresh = relthresh * wscan[xl];
+          }
 
           /* luflag: is pixel above thresh (Y/N)? */
           if (filter_type == SEP_FILTER_MATCHED)
@@ -833,14 +842,14 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
  * (originally init_plist() in sextractor)
 PURPOSE	initialize a pixel-list and its components.
  ***/
-void plistinit(void *conv, void *var)
+void plistinit(int hasconv, int hasvar)
 {
   pbliststruct	*pbdum = NULL;
 
   plistsize = sizeof(pbliststruct);
   plistoff_value = (char *)&pbdum->value - (char *)pbdum;
 
-  if (conv)
+  if (hasconv)
     {
       plistexist_cdvalue = 1;
       plistoff_cdvalue = plistsize;
@@ -852,7 +861,7 @@ void plistinit(void *conv, void *var)
       plistoff_cdvalue = plistoff_value;
     }
 
-  if (var)
+  if (hasvar)
     {
       plistexist_var = 1;
       plistoff_var = plistsize;

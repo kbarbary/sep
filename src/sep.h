@@ -52,7 +52,7 @@
 #define SEP_FILTER_CONV    0
 #define SEP_FILTER_MATCHED 1
 
-/*---------------------- image type */
+/*---------------------- image type -----------------------------------------*/
 
 typedef struct {
   void *data;      /* data array                */
@@ -65,14 +65,14 @@ typedef struct {
   int h;           /* array height              */
   double noiseval; /* scalar noise value; used only if noise == NULL */
   short noise_type; /* interpretation of noise value */
+  double maskthresh; /* only (mask<=maskthresh) counted     */
   double gain;   /* (poisson counts / data unit) */
 } sep_image;
 
 
 /*--------------------- global background estimation ------------------------*/
 
-typedef struct
-{
+typedef struct {
   int w, h;          /* original image width, height */
   int bw, bh;        /* single tile width, height */
   int nx, ny;        /* number of tiles in x, y */
@@ -83,15 +83,11 @@ typedef struct
   float *dback;
   float *sigma;    
   float *dsigma;
-} sepbackmap;
+} sep_backmap;
 
-int sep_makeback(sep_image *image,
-		 int bw, int bh,      /* size of a single background tile    */
-		 float mthresh,       /* only (mask<=maskthresh) counted     */
-		 int fw, int fh,      /* filter size in tiles                */
-		 float fthresh,       /* filter threshold                    */
-		 sepbackmap **bkmap); /* OUTPUT                              */
-/* Create representation of spatially varying image background and variance.
+/* sep_makeback()
+ * 
+ * Create representation of spatially varying image background and variance.
  *
  * Note that the returned pointer must eventually be freed by calling 
  * `sep_freeback()`.
@@ -105,33 +101,39 @@ int sep_makeback(sep_image *image,
  * - fw, fh = (3, 3)
  * - fthresh = 0.0
  */
+int sep_makeback(sep_image *image,
+		 int bw, int bh,      /* size of a single background tile    */
+		 float mthresh,       
+		 int fw, int fh,      /* filter size in tiles                */
+		 float fthresh,       /* filter threshold                    */
+		 sep_backmap **bkmap); /* OUTPUT                              */
 
-float sep_globalback(sepbackmap *bkmap);
-float sep_globalrms(sepbackmap *bkmap);
 /* Get the estimate of the global background "mean" or standard deviation */
+float sep_globalback(sep_backmap *bkmap);
+float sep_globalrms(sep_backmap *bkmap);
 
-float sep_backpix_linear(sepbackmap *bkmap, int x, int y);
 /* Return background at (x, y).
  * Unlike other routines, this uses simple linear interpolation. */
+float sep_backpix_linear(sep_backmap *bkmap, int x, int y);
 
-int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype);
-int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype);
-int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype);
 /* Evaluate the background, RMS, or variance at line y.
  * Uses bicubic spline interpolation between background map verticies.
  * The second function subtracts the background from the input array.
  * Line must be an array with same width as original image. */
+int sep_backline(sep_backmap *bkmap, int y, void *line, int dtype);
+int sep_subbackline(sep_backmap *bkmap, int y, void *line, int dtype);
+int sep_backrmsline(sep_backmap *bkmap, int y, void *line, int dtype);
 
-int sep_backarray(sepbackmap *bkmap, void *arr, int dtype);
-int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype);
-int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype);
 /* Evaluate the background, RMS, or variance for entire image.
  * Uses bicubic spline interpolation between background map verticies.
  * The second function subtracts the background from the input array.
  * Arr must be an array of the same size as original image. */
+int sep_backarray(sep_backmap *bkmap, void *arr, int dtype);
+int sep_subbackarray(sep_backmap *bkmap, void *arr, int dtype);
+int sep_backrmsarray(sep_backmap *bkmap, void *arr, int dtype);
 
-void sep_freeback(sepbackmap *bkmap);
 /* Free memory associated with bkmap */
+void sep_freeback(sep_backmap *bkmap);
 
 /*-------------------------- source extraction ------------------------------*/
 
@@ -155,20 +157,6 @@ typedef struct
   int      *pix;                 /* pixel array (length is npix)             */
 } sepobj;
 
-int sep_extract(sep_image *image,
-		float thresh,         /* detection threshold     [1.5] */
-                int thresh_type,    /* threshold units [SEP_THRESH_RELATIVE] */
-		int minarea,          /* minimum area in pixels          [5] */
-		float *conv,          /* convolution array (can be NULL)     */
-                                      /*               [{1 2 1 2 4 2 1 2 1}] */
-		int convw, int convh, /* w, h of convolution array     [3,3] */
-                int filter_type,      /* convolution (0) or matched (1)  [0] */
-		int deblend_nthresh,  /* deblending thresholds          [32] */
-		double deblend_cont,  /* min. deblending contrast    [0.005] */
-		int clean_flag,       /* perform cleaning?               [1] */
-		double clean_param,   /* clean parameter               [1.0] */
-		sepobj **objects,     /* OUTPUT: object array                */
-		int *nobj);           /* OUTPUT: number of objects           */
 /* Extract sources from an image.
  *
  * Source Extractor defaults are shown in [ ] above.
@@ -183,27 +171,32 @@ int sep_extract(sep_image *image,
  * (the absolute threshold will be thresh*noise[i,j]).
  * 
  */
+int sep_extract(sep_image *image,
+		float thresh,         /* detection threshold     [1.5] */
+                int thresh_type,    /* threshold units [SEP_THRESH_RELATIVE] */
+		int minarea,          /* minimum area in pixels          [5] */
+		float *conv,          /* convolution array (can be NULL)     */
+                                      /*               [{1 2 1 2 4 2 1 2 1}] */
+		int convw, int convh, /* w, h of convolution array     [3,3] */
+                int filter_type,      /* convolution (0) or matched (1)  [0] */
+		int deblend_nthresh,  /* deblending thresholds          [32] */
+		double deblend_cont,  /* min. deblending contrast    [0.005] */
+		int clean_flag,       /* perform cleaning?               [1] */
+		double clean_param,   /* clean parameter               [1.0] */
+		sepobj **objects,     /* OUTPUT: object array                */
+		int *nobj);           /* OUTPUT: number of objects           */
+
 
 /* set and get the size of the pixel stack used in extract() */
 void sep_set_extract_pixstack(size_t val);
 size_t sep_get_extract_pixstack(void);
 
-void sep_freeobjarray(sepobj *objects, int nobj);
 /* free memory associated with an sepobj array, including pixel lists */
+void sep_freeobjarray(sepobj *objects, int nobj);
 
 /*-------------------------- aperture photometry ----------------------------*/
 
-int sep_sum_circle(sep_image *image,
-		   double maskthresh, /* pixel masked if mask > maskthresh */
-		   short inflags,     /* input flags (see below) */
-		   double x,          /* center of aperture in x */
-		   double y,          /* center of aperture in y */
-		   double r,          /* radius of aperture */
-		   int subpix,        /* subpixel sampling */
-		   double *sum,       /* OUTPUT: sum */
-		   double *sumerr,    /* OUTPUT: error on sum */
-		   double *area,      /* OUTPUT: area included in sum */
-		   short *flag);      /* OUTPUT: flags */
+
 /* Sum array values within a circular aperture.
  * 
  * Notes
@@ -220,6 +213,18 @@ int sep_sum_circle(sep_image *image,
  *        corrected. The area can differ from the exact area of a circle due
  *        to inexact subpixel sampling and intersection with array boundaries.
  */
+int sep_sum_circle(sep_image *image,
+		   double maskthresh, /* pixel masked if mask > maskthresh */
+		   short inflags,     /* input flags (see below) */
+		   double x,          /* center of aperture in x */
+		   double y,          /* center of aperture in y */
+		   double r,          /* radius of aperture */
+		   int subpix,        /* subpixel sampling */
+		   double *sum,       /* OUTPUT: sum */
+		   double *sumerr,    /* OUTPUT: error on sum */
+		   double *area,      /* OUTPUT: area included in sum */
+		   short *flag);      /* OUTPUT: flags */
+
 
 int sep_sum_circann(sep_image *image, double maskthresh, short inflags,
 		    double x, double y, double rin, double rout, int subpix,
@@ -235,36 +240,30 @@ int sep_sum_ellipann(sep_image *image, double maskthresh, short inflags,
 		     double rin, double rout, int subpix,
 		     double *sum, double *sumerr, double *area, short *flag);
 
-
-int sep_sum_circann_multi(void *data, void *error, void *mask,
-			  int dtype, int edtype, int mdtype, int w, int h,
-			  double maskthresh, double gain, short inflag,
-			  double x, double y, double rmax, int n, int subpix,
-			  double *sum, double *sumvar, double *area,
-			  double *maskarea, short *flag);
-/* sum an array of circular annuli more efficiently (but with no exact mode).
+/* sep_sum_circann_multi()
+ *
+ * Sum an array of circular annuli more efficiently (but with no exact mode).
  *
  * Notable parameters:
  * 
- * rmax : Input radii are  [rmax/n, 2*rmax/n, 3*rmax/n, ..., rmax].
- * n : Length of input and output arrays.
- * sum : Preallocated array of length n holding sums in annuli. sum[0]
- *       corrresponds to r=[0, rmax/n], sum[n-1] to outermost annulus.
- * sumvar : Preallocated array of length n holding variance on sums.
- * area : Preallocated array of length n holding area summed in each annulus.
- * maskarea : Preallocated array of length n holding masked area in each
-              annulus (if mask not NULL).
- * flag : output flag (non-array).
+ * rmax:     Input radii are  [rmax/n, 2*rmax/n, 3*rmax/n, ..., rmax].
+ * n:        Length of input and output arrays.
+ * sum:      Preallocated array of length n holding sums in annuli. sum[0]
+ *           corrresponds to r=[0, rmax/n], sum[n-1] to outermost annulus.
+ * sumvar:   Preallocated array of length n holding variance on sums.
+ * area:     Preallocated array of length n holding area summed in each annulus.
+ * maskarea: Preallocated array of length n holding masked area in each
+             annulus (if mask not NULL).
+ * flag:     Output flag (non-array).
  */
+int sep_sum_circann_multi(sep_image *im, double maskthresh, short inflag,
+			  double x, double y, double rmax, int n, int subpix,
+			  double *sum, double *sumvar, double *area,
+			  double *maskarea, short *flag);
 
-
-int sep_flux_radius(void *data, void *error, void *mask,
-		    int dtype, int edtype, int mdtype, int w, int h,
-		    double maskthresh, double gain, short inflag,
-		    double x, double y, double rmax, int subpix,
-		    double *fluxtot, double *fluxfrac, int n,
-		    double *r, short *flag);
-/* Calculate the radii enclosing the requested fraction of flux relative
+/* sep_flux_radius()
+ *
+ * Calculate the radii enclosing the requested fraction of flux relative
  * to radius rmax. 
  *
  * (see previous functions for most arguments)
@@ -276,13 +275,14 @@ int sep_flux_radius(void *data, void *error, void *mask,
  * r : (output) result array of length n.
  * flag : (output) scalar flag
  */
+int sep_flux_radius(sep_image *im, double maskthresh, short inflag,
+		    double x, double y, double rmax, int subpix,
+		    double *fluxtot, double *fluxfrac, int n,
+		    double *r, short *flag);
 
-
-int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
-		    int w, int h, double maskthresh, double x, double y,
-		    double cxx, double cyy, double cxy, double r,
-		    double *kronrad, short *flag);
-/* Calculate Kron radius within an ellipse given by 
+/* sep_kron_radius()
+ *
+ * Calculate Kron radius within an ellipse given by 
  *
  *     cxx*(x'-x)^2 + cyy*(y'-y)^2 + cxy*(x'-x)*(y'-y) < r^2
  *
@@ -296,14 +296,11 @@ int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
  * SEP_APER_NONPOSITIVE - There was a nonpositive numerator or deminator.
  *                        kronrad = 0.
  */
+int sep_kron_radius(sep_image *im, double maskthresh, double x, double y,
+		    double cxx, double cyy, double cxy, double r,
+		    double *kronrad, short *flag);
 
 
-int sep_windowed(void *data, void *error, void *mask,
-                 int dtype, int edtype, int mdtype, int w, int h,
-                 double maskthresh, double gain, short inflag,
-                 double x, double y, double sig, int subpix,
-                 double *xout, double *yout, int *niter, short *flag,
-                 double* extrastats);
 /* Calculate "windowed" position parameters.
  *
  * This is an iterative procedure.
@@ -316,6 +313,10 @@ int sep_windowed(void *data, void *error, void *mask,
  * xout, yout : output center.
  * niter      : number of iterations used.
  */
+int sep_windowed(sep_image *im, double maskthresh, short inflag,
+                 double x, double y, double sig, int subpix,
+                 double *xout, double *yout, int *niter, short *flag);
+
 
 
 void sep_set_ellipse(unsigned char *arr, int w, int h,
