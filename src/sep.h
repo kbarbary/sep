@@ -221,7 +221,7 @@ int sep_extract(sep_image *image,
 		double deblend_cont,  /* min. deblending contrast    [0.005] */
 		int clean_flag,       /* perform cleaning?               [1] */
 		double clean_param,   /* clean parameter               [1.0] */
-		sep_catalog **catalog); /* OUTPUT catalog                    */
+                sep_catalog **catalog); /* OUTPUT catalog                    */
 
 
 

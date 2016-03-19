@@ -675,7 +675,6 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   free(start);
   free(end);
   free(survives);
-  free(cat);
   arraybuffer_free(&dbuf);
   if (image->noise)
     arraybuffer_free(&nbuf);
@@ -691,8 +690,12 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
   if (status != RETURN_OK)
     {
-      free(cdscan);   /* only need to free these in case of early exit */
-      *catalog = NULL;
+      /* free cdscan if we didn't do it on the last `yl` line */
+      if ((cdscan != NULL) && (cdscan != dummyscan))
+        free(cdscan);
+      /* clean up catalog if it was allocated */
+      sep_catalog_free(cat);
+      cat = NULL;
     }
 
   *catalog = cat;
@@ -980,12 +983,12 @@ void free_catalog_fields(sep_catalog *catalog)
   free(catalog->ycpeak);
   free(catalog->xpeak);
   free(catalog->ypeak);
-  free(catalog->cflux);
-  free(catalog->flux);
   free(catalog->flag);
 
   free(catalog->pix);
   free(catalog->objectspix);
+
+  memset(catalog, 0, sizeof(sep_catalog));
 }
 
 
@@ -1131,21 +1134,18 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
             }
         }
     }
-  /* otherwise, we're not returning pixels */
-  else {
-    cat->pix = NULL;
-    cat->objectspix = NULL;
-  }
 
  exit:
   if (status != RETURN_OK)
     free_catalog_fields(cat);
+
   return status;
 }
 
 
 void sep_catalog_free(sep_catalog *catalog)
 {
-  free_catalog_fields(catalog);
+  if (catalog != NULL)
+    free_catalog_fields(catalog);
   free(catalog);
 }
