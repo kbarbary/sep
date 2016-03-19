@@ -9,8 +9,8 @@
   	#define MSVC_VOID_CAST
 #endif
 
-int APER_NAME(sep_image *im, double maskthresh, short inflag,
-	      double x, double y, APER_ARGS, int subpix,
+int APER_NAME(sep_image *im,
+	      double x, double y, APER_ARGS, int subpix, short inflag,
 	      double *sum, double *sumerr, double *area, short *flag)
 {
   PIXTYPE pix, varpix;
@@ -123,7 +123,7 @@ int APER_NAME(sep_image *im, double maskthresh, short inflag,
 		    varpix *= varpix;
 		}
 
-	      if (im->mask && (mconvert(maskt) > maskthresh))
+	      if (im->mask && (mconvert(maskt) > im->maskthresh))
 		{ 
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;

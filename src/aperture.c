@@ -325,8 +325,9 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * This is just different enough from the other aperture functions
  * that it doesn't quite make sense to use aperbody.c.inc.
  */
-int sep_sum_circann_multi(sep_image *im, double maskthresh, short inflag,
+int sep_sum_circann_multi(sep_image *im,
                           double x, double y, double rmax, int n, int subpix,
+                          short inflag,
                           double *sum, double *sumvar, double *area,
                           double *maskarea, short *flag)
 {
@@ -431,7 +432,7 @@ int sep_sum_circann_multi(sep_image *im, double maskthresh, short inflag,
                 }
               if (im->mask)
                 {
-                  if (mconvert(maskt) > maskthresh)
+                  if (mconvert(maskt) > im->maskthresh)
                     {
                       *flag |= SEP_APER_HASMASKED;
                       ismasked = 1;
@@ -548,8 +549,8 @@ static double inverse(double xmax, double *y, int n, double ytarg)
   return step * (i + (ytarg - y[i-1])/(y[i] - y[i-1]));
 }
 
-int sep_flux_radius(sep_image *im, double maskthresh, short inflag,
-                    double x, double y, double rmax, int subpix,
+int sep_flux_radius(sep_image *im,
+                    double x, double y, double rmax, int subpix, short inflag,
                     double *fluxtot, double *fluxfrac, int n, double *r,
                     short *flag)
 {
@@ -562,8 +563,8 @@ int sep_flux_radius(sep_image *im, double maskthresh, short inflag,
   double maskareabuf[FLUX_RADIUS_BUFSIZE];
 
   /* measure FLUX_RADIUS_BUFSIZE annuli out to rmax. */
-  status = sep_sum_circann_multi(im, maskthresh, inflag, x, y, rmax,
-                                 FLUX_RADIUS_BUFSIZE, subpix,
+  status = sep_sum_circann_multi(im, x, y, rmax,
+                                 FLUX_RADIUS_BUFSIZE, subpix, inflag,
                                  sumbuf, sumvarbuf, areabuf, maskareabuf,
                                  flag);
 
@@ -583,7 +584,7 @@ int sep_flux_radius(sep_image *im, double maskthresh, short inflag,
 
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
-int sep_kron_radius(sep_image *im, double maskthresh, double x, double y,
+int sep_kron_radius(sep_image *im, double x, double y,
                     double cxx, double cyy, double cxy, double r,
                     double *kronrad, short *flag)
 {
@@ -630,7 +631,7 @@ int sep_kron_radius(sep_image *im, double maskthresh, double x, double y,
           if (rpix2 <= r2)
             {
               pix = convert(datat);
-              if ((pix < -BIG) || (im->mask && mconvert(maskt) > maskthresh))
+              if ((pix < -BIG) || (im->mask && mconvert(maskt) > im->maskthresh))
                 {
                   *flag |= SEP_APER_HASMASKED;
                 }
@@ -708,8 +709,8 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
  *
  */
 
-int sep_windowed(sep_image *im, double maskthresh, short inflag,
-                 double x, double y, double sig, int subpix,
+int sep_windowed(sep_image *im,
+                 double x, double y, double sig, int subpix, short inflag,
                  double *xout, double *yout, int *niter, short *flag)
 {
   PIXTYPE pix, varpix;
@@ -850,7 +851,7 @@ int sep_windowed(sep_image *im, double maskthresh, short inflag,
                   /* weight by gaussian */
                   weight = exp(-rpix2*invtwosig2);
 
-                  if (im->mask && (mconvert(maskt) > maskthresh))
+                  if (im->mask && (mconvert(maskt) > im->maskthresh))
                     {
                       *flag |= SEP_APER_HASMASKED;
                       maskarea += overlap;

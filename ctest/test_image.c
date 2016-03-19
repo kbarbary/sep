@@ -245,10 +245,9 @@ int main(int argc, char **argv)
   short *flag, *flagt;
   float *data, *imback;
   uint64_t t0, t1;
-  sep_backmap *bkmap = NULL;
+  sep_bkg *bkg = NULL;
   float conv[] = {1,2,1, 2,4,2, 1,2,1};
-  int nobj = 0;
-  sepobj *objects = NULL;
+  sep_catalog *catalog = NULL;
   FILE *catout;
 
   status = 0;
@@ -273,54 +272,54 @@ int main(int argc, char **argv)
 
   /* background estimation */
   t0 = gettime_ns();
-  sep_image im = {data, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0.0, SEP_NOISE_NONE, 0.0, 1.0};
-  status = sep_makeback(&im, 64, 64, 0.0, 3, 3, 0.0, &bkmap);
+  sep_image im = {data, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0.0, SEP_NOISE_NONE, 1.0, 0.0};
+  status = sep_background(&im, 64, 64, 3, 3, 0.0, &bkg);
   t1 = gettime_ns();
   if (status) goto exit;
-  print_time("sep_makeback()", t1-t0);
+  print_time("sep_background()", t1-t0);
 
 
   /* evaluate background */
   imback = (float *)malloc((nx * ny)*sizeof(float));
   t0 = gettime_ns();
-  status = sep_backarray(bkmap, imback, SEP_TFLOAT);
+  status = sep_bkg_array(bkg, imback, SEP_TFLOAT);
   t1 = gettime_ns();
   if (status) goto exit;
-  print_time("sep_backarray()", t1-t0);
+  print_time("sep_bkg_array()", t1-t0);
   
     /* subtract background */
   t0 = gettime_ns();
-  status = sep_subbackarray(bkmap, im.data, im.dtype);
+  status = sep_bkg_subarray(bkg, im.data, im.dtype);
   t1 = gettime_ns();
   if (status) goto exit;
-  print_time("sep_subbackarray()", t1-t0);
+  print_time("sep_bkg_subarray()", t1-t0);
 
   /* extract sources 
    * Note that we set deblend_cont = 1.0 to turn off deblending.
    */
   t0 = gettime_ns();
-  status = sep_extract(&im, 1.5*bkmap->globalrms, SEP_THRESH_ABSOLUTE,
+  status = sep_extract(&im, 1.5*bkg->globalrms, SEP_THRESH_ABS,
                        5, conv, 3, 3, SEP_FILTER_CONV,
-                       32, 1.0, 1, 1.0, &objects, &nobj);
+                       32, 1.0, 1, 1.0, &catalog);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_extract()", t1-t0);
 
   /* aperture photometry */
-  im.noise = &(bkmap->globalrms);  /* set image noise level */
+  im.noise = &(bkg->globalrms);  /* set image noise level */
   im.ndtype = SEP_TFLOAT;
-  fluxt = flux = (double *)malloc(nobj * sizeof(double));
-  fluxerrt = fluxerr = (double *)malloc(nobj * sizeof(double));
-  areat = area = (double *)malloc(nobj * sizeof(double));
-  flagt = flag = (short *)malloc(nobj * sizeof(short));
+  fluxt = flux = (double *)malloc(catalog->nobj * sizeof(double));
+  fluxerrt = fluxerr = (double *)malloc(catalog->nobj * sizeof(double));
+  areat = area = (double *)malloc(catalog->nobj * sizeof(double));
+  flagt = flag = (short *)malloc(catalog->nobj * sizeof(short));
   t0 = gettime_ns();
-  for (i=0; i<nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
-    sep_sum_circle(&im, 0.0, 0,
-		   objects[i].x, objects[i].y, 5.0, 5,
+  for (i=0; i<catalog->nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
+    sep_sum_circle(&im,
+		   catalog->x[i], catalog->y[i], 5.0, 5, 0,
 		   fluxt, fluxerrt, areat, flagt);
   t1 = gettime_ns();
   printf("sep_sum_circle() [r= 5.0]  %6.3f us/aperture\n",
-	 (double)(t1 - t0) / 1000. / nobj);
+	 (double)(t1 - t0) / 1000. / catalog->nobj);
 
   /* print results */
   printf("writing to file: %s\n", fname2);
@@ -331,16 +330,16 @@ int main(int argc, char **argv)
   fprintf(catout, "# 3 Y_IMAGE (0-indexed)\n");
   fprintf(catout, "# 4 FLUX\n");
   fprintf(catout, "# 5 FLUXERR\n");
-  for (i=0; i<nobj; i++)
+  for (i=0; i<catalog->nobj; i++)
     {
       fprintf(catout, "%3d %#11.7g %#11.7g %#11.7g %#11.7g\n",
-	      i, objects[i].x, objects[i].y, flux[i], fluxerr[i]);
+	      i, catalog->x[i], catalog->y[i], flux[i], fluxerr[i]);
     }
   fclose(catout);
 
   /* clean-up & exit */
  exit:
-  sep_freeback(bkmap);
+  sep_bkg_free(bkg);
   free(data);
   free(flux);
   free(fluxerr);
