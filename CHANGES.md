@@ -1,6 +1,6 @@
 Python module versions
 
-v0.5.3 (unreleased)
+v0.6.0 (unreleased)
 ===================
 
 - Fix segfault in `Background.back()` when box size is same as image size.

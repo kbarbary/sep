@@ -24,7 +24,7 @@
 
 #define DETAILSIZE 512
 
-char *sep_version_string = "0.5.0";
+char *sep_version_string = "0.6.0";
 static char _errdetail_buffer[DETAILSIZE] = "";
 
 /****************************************************************************/
