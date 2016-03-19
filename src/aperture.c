@@ -188,7 +188,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 rpix2 < r_out2
 #define APER_COMPARE2 rpix2 > r_in2
 #define APER_COMPARE3 rpix2 < r2
-#include "aperbody.c.inc"
+#include "aperture.i"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -226,7 +226,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 rpix2 < r_out2
 #define APER_COMPARE2 rpix2 > r_in2
 #define APER_COMPARE3 rpix2 < r2
-#include "aperbody.c.inc"
+#include "aperture.i"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -263,7 +263,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
 #define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
 #define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
-#include "aperbody.c.inc"
+#include "aperture.i"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -305,7 +305,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 #define APER_COMPARE1 (rpix2 < rout_out2) && (rpix2 > rin_in2)
 #define APER_COMPARE2 (rpix2 > rout_in2) || (rpix2 < rin_out2)
 #define APER_COMPARE3 (rpix2 < rout2) && (rpix2 > rin2)
-#include "aperbody.c.inc"
+#include "aperture.i"
 #undef APER_NAME
 #undef APER_ARGS
 #undef APER_DECL
@@ -323,7 +323,7 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
 /*****************************************************************************/
 /*
  * This is just different enough from the other aperture functions
- * that it doesn't quite make sense to use aperbody.c.inc.
+ * that it doesn't quite make sense to use aperture.i.
  */
 int sep_sum_circann_multi(sep_image *im,
                           double x, double y, double rmax, int n, int subpix,
@@ -701,7 +701,7 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
 /*****************************************************************************/
 /*
  * As with `sep_sum_circann_multi`, this is different enough from the other
- * aperture functions that it doesn't quite make sense to use aperbody.c.inc.
+ * aperture functions that it doesn't quite make sense to use aperture.i.
  *
  * To reproduce SExtractor:
  * - use sig = obj.hl_radius * 2/2.35.

@@ -49,7 +49,7 @@ default: all
 src/analyse.o src/convolve.o src/deblend.o src/extract.o src/lutz.o: src/%.o: src/%.c src/extract.h src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/$*.c -o $@
 
-src/aperture.o: src/aperture.c src/aperbody.c.inc src/overlap.h src/sepcore.h src/sep.h
+src/aperture.o: src/aperture.c src/aperture.i src/overlap.h src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/aperture.c -o $@
 
 src/background.o src/util.o: src/%.o: src/%.c src/sepcore.h src/sep.h
