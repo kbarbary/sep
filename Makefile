@@ -2,8 +2,8 @@
 OS ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 
 SOMAJOR = 0
-SOMINOR = 5
-SOBUGFIX = 3
+SOMINOR = 6
+SOBUGFIX = 0
 
 ifeq ($(OS), darwin)
 SONAME = libsep.dylib
@@ -42,17 +42,17 @@ CFLAGS_LIB = $(CFLAGS) -fPIC
 LDFLAGS_LIB = $(LDFLAGS) -shared -Wl,$(SONAME_FLAG),$(SONAME_MAJOR)
 
 OBJS = src/analyse.o src/convolve.o src/deblend.o src/extract.o \
-       src/lutz.o src/aper.o src/back.o src/util.o
+       src/lutz.o src/aperture.o src/background.o src/util.o
 
 default: all
 
 src/analyse.o src/convolve.o src/deblend.o src/extract.o src/lutz.o: src/%.o: src/%.c src/extract.h src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/$*.c -o $@
 
-src/aper.o: src/aper.c src/aperbody.c.inc src/overlap.h src/sepcore.h src/sep.h
-	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/aper.c -o $@
+src/aperture.o: src/aperture.c src/aperture.i src/overlap.h src/sepcore.h src/sep.h
+	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/aperture.c -o $@
 
-src/back.o src/util.o: src/%.o: src/%.c src/sepcore.h src/sep.h
+src/background.o src/util.o: src/%.o: src/%.c src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/$*.c -o $@
 
 src/$(SONAME): $(OBJS)

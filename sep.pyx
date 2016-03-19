@@ -16,7 +16,7 @@ from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.5.3"
+__version__ = "0.6.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -28,13 +28,20 @@ DEF SEP_TFLOAT = 42
 DEF SEP_TDOUBLE = 82
 
 # input flag values (C macros)
-DEF SEP_ERROR_IS_VAR = 0x0001
-DEF SEP_ERROR_IS_ARRAY = 0x0002
-DEF SEP_MASK_IGNORE = 0x0004
+DEF SEP_NOISE_NONE = 0
+DEF SEP_NOISE_STDDEV = 1
+DEF SEP_NOISE_VAR = 2
 
 # filter types for sep_extract
 DEF SEP_FILTER_CONV = 0
 DEF SEP_FILTER_MATCHED = 1
+
+# Threshold types
+DEF SEP_THRESH_REL = 0
+DEF SEP_THRESH_ABS = 1 
+
+# input flags for aperture photometry
+DEF SEP_MASK_IGNORE = 0x0004
 
 # Output flag values accessible from python
 OBJ_MERGED = np.short(0x0001)
@@ -54,53 +61,74 @@ DEF MEMORY_ALLOC_ERROR = 1
 # header definitions
 cdef extern from "sep.h":
 
-    ctypedef struct sepbackmap:
+    ctypedef struct sep_image:
+        void *data
+        void *noise
+        void *mask
+        int dtype
+        int ndtype
+        int mdtype
+        int w
+        int h
+        double noiseval
+        short noise_type
+        double gain
+        double maskthresh
+
+    ctypedef struct sep_bkg:
         int w
         int h
         float globalback
         float globalrms
     
-    ctypedef struct sepobj:
-        float  thresh
-        int    npix
-        int    tnpix
-        int    xmin,xmax,ymin,ymax
-        double x, y
-        double x2, y2, xy
-        float  a, b, theta
-        float  cxx, cyy, cxy
-        float  cflux
-        float  flux
-        float  cpeak
-        float  peak
-        int    xpeak, ypeak
-        int    xcpeak, ycpeak
-        short  flag
-        int    *pix
+    ctypedef struct sep_catalog:
+        int    nobj
+        float  *thresh
+        int    *npix
+        int    *tnpix
+        int    *xmin
+        int    *xmax
+        int    *ymin
+        int    *ymax
+        double *x
+        double *y
+        double *x2
+        double *y2
+        double *xy
+        float  *a
+        float  *b
+        float  *theta
+        float  *cxx
+        float  *cyy
+        float  *cxy
+        float  *cflux
+        float  *flux
+        float  *cpeak
+        float  *peak
+        int    *xcpeak
+        int    *ycpeak
+        int    *xpeak
+        int    *ypeak
+        short  *flag
+        int    **pix
+        int    *objectspix
 
-    int sep_makeback(void* im, void *mask,
-                     int dtype,
-                     int mdtype,
-                     int w, int h,
-                     int bw, int bh,
-                     float mthresh,
-                     int fw, int fh,
-                     float fthresh,
-                     sepbackmap **bkmap)
+    int sep_background(sep_image *im,
+                       int bw, int bh,
+                       int fw, int fh,
+                       double fthresh,
+                       sep_bkg **bkg)
 
-    int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
-    int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
-    int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
-    void sep_freeback(sepbackmap *bkmap)
+    float sep_bkg_global(sep_bkg *bkg)
+    float sep_bkg_globalrms(sep_bkg *bkg)
+    int sep_bkg_array(sep_bkg *bkg, void *arr, int dtype)
+    int sep_bkg_rmsarray(sep_bkg *bkg, void *arr, int dtype)
+    int sep_bkg_subarray(sep_bkg *bkg, void *arr, int dtype)
+    void sep_bkg_free(sep_bkg *bkg)
 
-    int sep_extract(void *image,
-                    void *noise,
-                    void *mask,
-                    int dtype,
-                    int ndtype,
-                    int mdtype,
-                    int w, int h,
+    int sep_extract(sep_image *image,
                     float thresh,
+                    int thresh_type,
                     int minarea,
                     float *conv,
                     int convw, int convh,
@@ -109,58 +137,46 @@ cdef extern from "sep.h":
                     double deblend_cont,
                     int clean_flag,
                     double clean_param,
-                    sepobj **objects,
-                    int *nobj)
+                    sep_catalog **catalog)
 
-    void sep_freeobjarray(sepobj *objects, int nobj)
+    void sep_catalog_free(sep_catalog *catalog)
 
-    int sep_sum_circle(void *data, void *error, void *mask,
-                       int dtype, int edtype, int mdtype, int w, int h,
-                       double maskthresh, double gain, short inflags,
-                       double x, double y, double r, int subpix,
+    int sep_sum_circle(sep_image *image,
+                       double x, double y, double r, int subpix, short inflags,
                        double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_sum_circann(void *data, void *error, void *mask,
-                        int dtype, int edtype, int mdtype, int w, int h,
-                        double maskthresh, double gain, short inflags,
-                        double x, double y,
-                        double rin, double rout, int subpix,
+    int sep_sum_circann(sep_image *image,
+                        double x, double y, double rin, double rout,
+                        int subpix, short inflags,
                         double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_sum_ellipse(void *data, void *error, void *mask,
-                        int dtype, int edtype, int mdtype, int w, int h,
-                        double maskthresh, double gain, short inflag,
+    int sep_sum_ellipse(sep_image *image,
                         double x, double y, double a, double b, double theta,
-                        double r, int subpix,
+                        double r, int subpix, short inflags,
                         double *sum, double *sumerr, double *area,
                         short *flag)
 
-    int sep_sum_ellipann(void *data, void *error, void *mask,
-                         int dtype, int edtype, int mdtype, int w, int h,
-                         double maskthresh, double gain, short inflag,
+    int sep_sum_ellipann(sep_image *image,
                          double x, double y, double a, double b,
                          double theta, double rin, double rout, int subpix,
+                         short inflags,
                          double *sum, double *sumerr, double *area,
                          short *flag)
 
-    int sep_flux_radius(void *data, void *error, void *mask,
-                        int dtype, int edtype, int mdtype, int w, int h,
-                        double maskthresh, double gain, short inflag,
+    int sep_flux_radius(sep_image *image,
                         double x, double y, double rmax, int subpix,
+                        short inflag,
                         double *fluxtot, double *fluxfrac, int n,
                         double *r, short *flag)
 
-    int sep_kron_radius(void *data, void *mask, int dtype, int mdtype,
-                        int w, int h, double maskthresh, double x, double y,
-                        double cxx, double cyy, double cxy, double r,
+    int sep_kron_radius(sep_image *image,
+                        double x, double y, double cxx, double cyy,
+                        double cxy, double r,
                         double *kronrad, short *flag)
 
-    int sep_windowed(void *data, void *error, void *mask,
-                     int dtype, int edtype, int mdtype, int w, int h,
-                     double maskthresh, double gain, short inflag,
-                     double x, double y, double sig, int subpix,
-                     double *xout, double *yout, int *niter, short *flag,
-                     double* extrastats)
+    int sep_windowed(sep_image *image,
+                     double x, double y, double sig, int subpix, short inflag,
+                     double *xout, double *yout, int *niter, short *flag)
 
     int sep_ellipse_axes(double cxx, double cyy, double cxy,
                          double *a, double *b, double *theta)
@@ -265,56 +281,71 @@ cdef int _assert_ok(int status) except -1:
 
 
 cdef int _parse_arrays(np.ndarray data, err, var, mask,
-                       int *dtype, int *edtype, int *mdtype, int *w, int *h,
-                       void **ptr, void **eptr, void **mptr, float *scalarerr,
-                       short *inflag) except -1:
-    """Helper function for functions accepting data, error & mask arrays"""
+                       sep_image *im) except -1:
+    """Helper function for functions accepting data, error & mask arrays.
+    Fills in an sep_image struct."""
 
     cdef int ew, eh, mw, mh
     cdef np.uint8_t[:,:] buf, ebuf, mbuf
 
-    # Get main image info
-    _check_array_get_dims(data, w, h)
-    dtype[0] = _get_sep_dtype(data.dtype)
-    buf = data.view(dtype=np.uint8)
-    ptr[0] = <void*>&buf[0, 0]
+    # Clear im fields we might not touch (everything besides data, dtype, w, h)
+    im.noise = NULL
+    im.mask = NULL
+    im.ndtype = 0
+    im.mdtype = 0
+    im.noiseval = 0.0
+    im.noise_type = SEP_NOISE_NONE
+    im.gain = 0.0
+    im.maskthresh = 0.0
 
-    # Get error or variance array
-    if err is not None and var is not None:
-        raise ValueError("Cannot specify both err and var")
+    # Get main image info
+    _check_array_get_dims(data, &(im.w), &(im.h))
+    im.dtype = _get_sep_dtype(data.dtype)
+    buf = data.view(dtype=np.uint8)
+    im.data = <void*>&buf[0, 0]
+
+    # Check if noise is error or variance.
+    if err is not None:
+        if var is not None:
+            raise ValueError("Cannot specify both err and var")
+        im.noise_type = SEP_NOISE_STDDEV
     elif var is not None:
         err = var
-        inflag[0] |= SEP_ERROR_IS_VAR
-    if err is not None:
-        if isinstance(err, np.ndarray):
-            if err.ndim == 0:
-                scalarerr[0] = err
-                eptr[0] = <void*>scalarerr
-                edtype[0] = SEP_TFLOAT
-            elif err.ndim == 2:
-                _check_array_get_dims(err, &ew, &eh)
-                if ew != w[0] or eh != h[0]:
-                    raise ValueError("size of error/variance array must match"
-                                     " data")
-                edtype[0] = _get_sep_dtype(err.dtype)
-                ebuf = err.view(dtype=np.uint8)
-                eptr[0] = <void*>&ebuf[0, 0]
-                inflag[0] |= SEP_ERROR_IS_ARRAY
-            else:
-                raise ValueError("error/variance array must be 0-d or 2-d")
+        im.noise_type = SEP_NOISE_VAR
+
+    # parse noise
+    if err is None:
+        im.noise = NULL
+        im.noise_type = SEP_NOISE_NONE
+        im.noiseval = 0.0
+    elif isinstance(err, np.ndarray):
+        if err.ndim == 0:
+            im.noise = NULL
+            im.noiseval = err
+        elif err.ndim == 2:
+            _check_array_get_dims(err, &ew, &eh)
+            if ew != im.w or eh != im.h:
+                raise ValueError("size of error/variance array must match"
+                                 " data")
+            im.ndtype = _get_sep_dtype(err.dtype)
+            ebuf = err.view(dtype=np.uint8)
+            im.noise = <void*>&ebuf[0, 0]
         else:
-            scalarerr[0] = err
-            eptr[0] = <void*>scalarerr
-            edtype[0] = SEP_TFLOAT
+            raise ValueError("error/variance array must be 0-d or 2-d")
+    else:
+        im.noise = NULL
+        im.noiseval = err
 
     # Optional input: mask
-    if mask is not None:
+    if mask is None:
+        im.mask = NULL
+    else:
         _check_array_get_dims(mask, &mw, &mh)
-        if mw != w[0] or mh != h[0]:
+        if mw != im.w or mh != im.h:
             raise ValueError("size of mask array must match data")
-        mdtype[0] = _get_sep_dtype(mask.dtype)
+        im.mdtype = _get_sep_dtype(mask.dtype)
         mbuf = mask.view(dtype=np.uint8)
-        mptr[0] = <void*>&mbuf[0, 0]
+        im.mask = <void*>&mbuf[0, 0]
 
 # -----------------------------------------------------------------------------
 # Background Estimation
@@ -346,7 +377,7 @@ cdef class Background:
         Filter threshold. Default is 0.0.
     """
 
-    cdef sepbackmap *ptr      # pointer to C struct
+    cdef sep_bkg *ptr      # pointer to C struct
     cdef np.dtype orig_dtype  # dtype code of original image
 
     @cython.boundscheck(False)
@@ -355,31 +386,15 @@ cdef class Background:
                   float maskthresh=0.0, int bw=64, int bh=64,
                   int fw=3, int fh=3, float fthresh=0.0):
 
-        cdef int w, h, w2, h2, status, sep_dtype, sep_dtype2 
-        cdef np.uint8_t[:, :] buf
-        cdef np.uint8_t[:, :] buf2
-        cdef void *maskptr
+        cdef int status
+        cdef sep_image im
 
-        _check_array_get_dims(data, &w, &h)
-        sep_dtype = _get_sep_dtype(data.dtype)
-        self.orig_dtype = data.dtype
-        buf = data.view(dtype=np.uint8)
-
-        if mask is not None:
-            _check_array_get_dims(mask, &w2, &h2)
-            if (w != w2) or (h != h2):
-                raise ValueError("dimensions of data and mask must match")
-            sep_dtype2 = _get_sep_dtype(mask.dtype)
-            buf2 = mask.view(dtype=np.uint8)
-            maskptr = &buf2[0, 0]
-        else:
-            sep_dtype2 = 0  # ignored if mask is NULL
-            maskptr = NULL
-
-        status = sep_makeback(&buf[0, 0], maskptr, sep_dtype, sep_dtype2,
-                              w, h, bw, bh, maskthresh, fw, fh, fthresh,
-                              &self.ptr)
+        _parse_arrays(data, None, None, mask, &im)
+        im.maskthresh = maskthresh
+        status = sep_background(&im, bw, bh, fw, fh, fthresh, &self.ptr)
         _assert_ok(status)
+
+        self.orig_dtype = data.dtype
 
     # Note: all initialization work is done in __cinit__. This is just here
     # for the docstring.
@@ -393,12 +408,12 @@ cdef class Background:
     property globalback:
         """Global background level."""
         def __get__(self):
-            return self.ptr.globalback
+            return sep_bkg_global(self.ptr)
 
     property globalrms:
         """Global background RMS."""
         def __get__(self):
-            return self.ptr.globalrms
+            return sep_bkg_globalrms(self.ptr)
 
     def back(self, dtype=None):
         """back(dtype=None)
@@ -427,7 +442,7 @@ cdef class Background:
 
         result = np.empty((self.ptr.h, self.ptr.w), dtype=dtype)
         buf = result.view(dtype=np.uint8)        
-        status = sep_backarray(self.ptr, &buf[0, 0], sep_dtype)
+        status = sep_bkg_array(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 
         return result
@@ -459,7 +474,7 @@ cdef class Background:
 
         result = np.empty((self.ptr.h, self.ptr.w), dtype=dtype)
         buf = result.view(dtype=np.uint8)        
-        status = sep_backrmsarray(self.ptr, &buf[0, 0], sep_dtype)
+        status = sep_bkg_rmsarray(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 
         return result
@@ -493,7 +508,7 @@ cdef class Background:
             raise ValueError("Data dimensions do not match background "
                              "dimensions")
 
-        status = sep_subbackarray(self.ptr, &buf[0, 0], sep_dtype)
+        status = sep_bkg_subarray(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 
     def __array__(self, dtype=None):
@@ -506,7 +521,7 @@ cdef class Background:
 
     def __dealloc__(self):
         if self.ptr is not NULL:
-            sep_freeback(self.ptr)
+            sep_bkg_free(self.ptr)
 
 # -----------------------------------------------------------------------------
 # Source Extraction
@@ -632,41 +647,19 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         ``segmentation_map=True``.
     """
 
-    cdef int w, h, kernelw, kernelh, status, sep_dtype, nobj, i, j
-    cdef int filter_typecode
-    cdef np.uint8_t[:, :] buf
-    cdef np.uint8_t[:, :] noise_buf
-    cdef np.uint8_t[:, :] mask_buf
-    cdef sepobj *objects
+    cdef int kernelw, kernelh, status, i, j
+    cdef int filter_typecode, thresh_type
+    cdef sep_catalog *catalog = NULL
     cdef np.ndarray[Object] result
     cdef float[:, :] kernelflt
     cdef float *kernelptr
-    cdef np.uint8_t *noise_ptr
-    cdef np.uint8_t *mask_ptr
-    cdef int noise_dtype, mask_dtype
     cdef np.int32_t[:, :] segmap_buf
     cdef np.int32_t *segmap_ptr
     cdef int *objpix
+    cdef sep_image im
 
-    _check_array_get_dims(data, &w, &h)
-    sep_dtype = _get_sep_dtype(data.dtype)
-    buf = data.view(dtype=np.uint8)
-
-    if err is None:
-        noise_ptr = NULL
-        noise_dtype = 0
-    else:
-        noise_buf = err.view(dtype=np.uint8)
-        noise_ptr = &noise_buf[0, 0]
-        noise_dtype = _get_sep_dtype(err.dtype)
-
-    if mask is None:
-        mask_ptr = NULL
-        mask_dtype = 0
-    else:
-        mask_buf = mask.view(dtype=np.uint8)
-        mask_ptr = &mask_buf[0, 0]
-        mask_dtype = _get_sep_dtype(mask.dtype)
+    # parse arrays
+    _parse_arrays(data, err, None, mask, &im)
 
     # 'conv' has been renamed to filter_kernel. If the user has set it
     # explicitly, issue a warning. Don't use DeprecationWarning: no one will
@@ -695,70 +688,78 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     else:
         raise ValueError("unknown filter_type: {!r}".format(filter_type))
 
-    status = sep_extract(&buf[0,0], noise_ptr, mask_ptr,
-                         sep_dtype, noise_dtype, mask_dtype, w, h,
-                         thresh, minarea, kernelptr, kernelw, kernelh,
-                         filter_typecode, deblend_nthresh, deblend_cont,
-                         clean, clean_param, &objects, &nobj)
+    # If there is an error array, the threshold is relative, otherwise
+    # it is absolute
+    if im.noise == NULL:
+        thresh_type = SEP_THRESH_ABS
+    else:
+        thresh_type = SEP_THRESH_REL
+
+    status = sep_extract(&im,
+                         thresh, thresh_type, minarea,
+                         kernelptr, kernelw, kernelh, filter_typecode,
+                         deblend_nthresh, deblend_cont, clean, clean_param,
+                         &catalog)
     _assert_ok(status)
 
     # Allocate result record array and fill it
-    result = np.empty(nobj, dtype=np.dtype([('thresh', np.float64),
-                                            ('npix', np.int),
-                                            ('tnpix', np.int),
-                                            ('xmin', np.int),
-                                            ('xmax', np.int),
-                                            ('ymin', np.int),
-                                            ('ymax', np.int),
-                                            ('x', np.float64),
-                                            ('y', np.float64),
-                                            ('x2', np.float64),
-                                            ('y2', np.float64),
-                                            ('xy', np.float64),
-                                            ('a', np.float64),
-                                            ('b', np.float64),
-                                            ('theta', np.float64),
-                                            ('cxx', np.float64),
-                                            ('cyy', np.float64),
-                                            ('cxy', np.float64),
-                                            ('cflux', np.float64),
-                                            ('flux', np.float64),
-                                            ('cpeak', np.float64),
-                                            ('peak', np.float64),
-                                            ('xcpeak', np.int),
-                                            ('ycpeak', np.int),
-                                            ('xpeak', np.int),
-                                            ('ypeak', np.int),
-                                            ('flag', np.int)]))
+    result = np.empty(catalog.nobj,
+                      dtype=np.dtype([('thresh', np.float64),
+                                      ('npix', np.int),
+                                      ('tnpix', np.int),
+                                      ('xmin', np.int),
+                                      ('xmax', np.int),
+                                      ('ymin', np.int),
+                                      ('ymax', np.int),
+                                      ('x', np.float64),
+                                      ('y', np.float64),
+                                      ('x2', np.float64),
+                                      ('y2', np.float64),
+                                      ('xy', np.float64),
+                                      ('a', np.float64),
+                                      ('b', np.float64),
+                                      ('theta', np.float64),
+                                      ('cxx', np.float64),
+                                      ('cyy', np.float64),
+                                      ('cxy', np.float64),
+                                      ('cflux', np.float64),
+                                      ('flux', np.float64),
+                                      ('cpeak', np.float64),
+                                      ('peak', np.float64),
+                                      ('xcpeak', np.int),
+                                      ('ycpeak', np.int),
+                                      ('xpeak', np.int),
+                                      ('ypeak', np.int),
+                                      ('flag', np.int)]))
 
-    for i in range(nobj):
-        result['thresh'][i] = objects[i].thresh
-        result['npix'][i] = objects[i].npix
-        result['tnpix'][i] = objects[i].tnpix
-        result['xmin'][i] = objects[i].xmin
-        result['xmax'][i] = objects[i].xmax
-        result['ymin'][i] = objects[i].ymin
-        result['ymax'][i] = objects[i].ymax
-        result['x'][i] = objects[i].x
-        result['y'][i] = objects[i].y
-        result['x2'][i] = objects[i].x2
-        result['y2'][i] = objects[i].y2
-        result['xy'][i] = objects[i].xy
-        result['a'][i] = objects[i].a
-        result['b'][i] = objects[i].b
-        result['theta'][i] = objects[i].theta
-        result['cxx'][i] = objects[i].cxx
-        result['cyy'][i] = objects[i].cyy
-        result['cxy'][i] = objects[i].cxy
-        result['cflux'][i] = objects[i].cflux
-        result['flux'][i] = objects[i].flux
-        result['cpeak'][i] = objects[i].cpeak
-        result['peak'][i] = objects[i].peak
-        result['xcpeak'][i] = objects[i].xcpeak
-        result['ycpeak'][i] = objects[i].ycpeak
-        result['xpeak'][i] = objects[i].xpeak
-        result['ypeak'][i] = objects[i].ypeak
-        result['flag'][i] = objects[i].flag
+    for i in range(catalog.nobj):
+        result['thresh'][i] = catalog.thresh[i]
+        result['npix'][i] = catalog.npix[i]
+        result['tnpix'][i] = catalog.tnpix[i]
+        result['xmin'][i] = catalog.xmin[i]
+        result['xmax'][i] = catalog.xmax[i]
+        result['ymin'][i] = catalog.ymin[i]
+        result['ymax'][i] = catalog.ymax[i]
+        result['x'][i] = catalog.x[i]
+        result['y'][i] = catalog.y[i]
+        result['x2'][i] = catalog.x2[i]
+        result['y2'][i] = catalog.y2[i]
+        result['xy'][i] = catalog.xy[i]
+        result['a'][i] = catalog.a[i]
+        result['b'][i] = catalog.b[i]
+        result['theta'][i] = catalog.theta[i]
+        result['cxx'][i] = catalog.cxx[i]
+        result['cyy'][i] = catalog.cyy[i]
+        result['cxy'][i] = catalog.cxy[i]
+        result['cflux'][i] = catalog.cflux[i]
+        result['flux'][i] = catalog.flux[i]
+        result['cpeak'][i] = catalog.cpeak[i]
+        result['peak'][i] = catalog.peak[i]
+        result['xcpeak'][i] = catalog.xcpeak[i]
+        result['ycpeak'][i] = catalog.ycpeak[i]
+        result['xpeak'][i] = catalog.xpeak[i]
+        result['ypeak'][i] = catalog.ypeak[i]
+        result['flag'][i] = catalog.flag[i]
 
     # construct a segmentation map, if it was requested.
     if segmentation_map:
@@ -768,13 +769,13 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         segmap = np.zeros((data.shape[0], data.shape[1]), dtype=np.int32)
         segmap_buf = segmap
         segmap_ptr = &segmap_buf[0, 0]
-        for i in range(nobj):
-            objpix = objects[i].pix
-            for j in range(objects[i].npix):
+        for i in range(catalog.nobj):
+            objpix = catalog.pix[i]
+            for j in range(catalog.npix[i]):
                 segmap_ptr[objpix[j]] = i + 1
 
-    # Free C array
-    sep_freeobjarray(objects, nobj)
+    # Free the C catalog
+    sep_catalog_free(catalog)
 
     if segmentation_map:
         return result, segmap
@@ -845,34 +846,17 @@ def sum_circle(np.ndarray data not None, x, y, r,
     """
 
     cdef double flux1, fluxerr1, area1,
-    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
-    cdef float scalarerr
+    cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef short inflag
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status
-    cdef void *ptr
-    cdef void *eptr
-    cdef void *mptr
+    cdef int status
     cdef np.broadcast it
+    cdef sep_image im
 
-    dtype = 0
-    edtype = 0
-    mdtype = 0
-    w = 0
-    h = 0
-    ptr = NULL
-    eptr = NULL
-    mptr = NULL
-    scalarerr = 0.0
-    inflag = 0
-    _parse_arrays(data, err, var, mask,
-                  &dtype, &edtype, &mdtype, &w, &h,
-                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
-
-    gain_ = 0.0
+    _parse_arrays(data, err, var, mask, &im)
+    im.maskthresh = maskthresh
     if gain is not None:
-        gain_ = gain
+        im.gain = gain
 
     # Require that inputs are float64 arrays. This has to be done because we
     # are using a broadcasting iterator below, where we need to know the type
@@ -897,12 +881,11 @@ def sum_circle(np.ndarray data not None, x, y, r,
         it = np.broadcast(x, y, r, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_circle(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                subpix,
+                subpix, 0,
                 <double*>np.PyArray_MultiIter_DATA(it, 3),
                 <double*>np.PyArray_MultiIter_DATA(it, 4),
                 &area1,
@@ -930,24 +913,22 @@ def sum_circle(np.ndarray data not None, x, y, r,
         it = np.broadcast(x, y, r, rin, rout, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_circle(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                subpix, &flux1, &fluxerr1, &area1, &flag1)
+                subpix, 0, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
                 
             # background subtraction
             # Note that background output flags are not used.
             status = sep_sum_circann(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag | SEP_MASK_IGNORE,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                1, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
+                1, SEP_MASK_IGNORE, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
             flux1 -= bkgflux / bkgarea * area1
@@ -1014,34 +995,16 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         Integer giving flags. (0 if no flags set.)
     """
 
-    cdef double area1, gain_
-    cdef float scalarerr
-    cdef short inflag
+    cdef double area1
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status
-    cdef void *ptr
-    cdef void *eptr
-    cdef void *mptr
+    cdef int status
     cdef np.broadcast it
+    cdef sep_image im
 
-    dtype = 0
-    edtype = 0
-    mdtype = 0
-    w = 0
-    h = 0
-    ptr = NULL
-    eptr = NULL
-    mptr = NULL
-    scalarerr = 0.0
-    area1 = 0.0
-    inflag = 0
-    _parse_arrays(data, err, var, mask,
-                  &dtype, &edtype, &mdtype, &w, &h,
-                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
-
-    gain_ = 0.0
+    _parse_arrays(data, err, var, mask, &im)
+    im.maskthresh = maskthresh
     if gain is not None:
-        gain_ = gain
+        im.gain = gain
 
     # convert inputs to double arrays
     dt = np.dtype(np.double)
@@ -1059,13 +1022,12 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_circann(
-            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-            maskthresh, gain_, inflag,
+            &im,
             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
-            subpix,
+            subpix, 0,
             <double*>np.PyArray_MultiIter_DATA(it, 4),
             <double*>np.PyArray_MultiIter_DATA(it, 5),
             &area1,
@@ -1151,34 +1113,17 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     """
 
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
-    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
-    cdef float scalarerr
+    cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef short inflag
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status
-    cdef void *ptr
-    cdef void *eptr
-    cdef void *mptr
+    cdef int status
     cdef np.broadcast it
+    cdef sep_image im
 
-    dtype = 0
-    edtype = 0
-    mdtype = 0
-    w = 0
-    h = 0
-    ptr = NULL
-    eptr = NULL
-    mptr = NULL
-    scalarerr = 0.0
-    inflag = 0
-    _parse_arrays(data, err, var, mask,
-                  &dtype, &edtype, &mdtype, &w, &h,
-                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
-
-    gain_ = 0.0
+    _parse_arrays(data, err, var, mask, &im)
+    im.maskthresh = maskthresh
     if gain is not None:
-        gain_ = gain
+        im.gain = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
     dt = np.dtype(np.double)
@@ -1200,20 +1145,18 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         it = np.broadcast(x, y, a, b, theta, r, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_ellipse(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                subpix,
+                subpix, 0,
                 <double*>np.PyArray_MultiIter_DATA(it, 6),
                 <double*>np.PyArray_MultiIter_DATA(it, 7),
                 &area1,
                 <short*>np.PyArray_MultiIter_DATA(it, 8))
-
             _assert_ok(status)
 
             np.PyArray_MultiIter_NEXT(it)
@@ -1236,20 +1179,18 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         it = np.broadcast(x, y, a, b, theta, r, rin, rout, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_ellipse(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                subpix, &flux1, &fluxerr1, &area1, &flag1)
+                subpix, 0, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
 
             status = sep_sum_ellipann(
-                ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-                maskthresh, gain_, inflag,
+                &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
@@ -1257,7 +1198,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 7))[0],
-                subpix, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
+                subpix, 0, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
             flux1 -= bkgflux / bkgarea * area1
@@ -1335,34 +1276,17 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     """
 
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
-    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
-    cdef float scalarerr
+    cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef short inflag
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status
-    cdef void *ptr
-    cdef void *eptr
-    cdef void *mptr
+    cdef int status
     cdef np.broadcast it
+    cdef sep_image im
 
-    dtype = 0
-    edtype = 0
-    mdtype = 0
-    w = 0
-    h = 0
-    ptr = NULL
-    eptr = NULL
-    mptr = NULL
-    scalarerr = 0.0
-    inflag = 0
-    _parse_arrays(data, err, var, mask,
-                  &dtype, &edtype, &mdtype, &w, &h,
-                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
-
-    gain_ = 0.0
+    _parse_arrays(data, err, var, mask, &im)
+    im.maskthresh = maskthresh
     if gain is not None:
-        gain_ = gain
+        im.gain = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
     dt = np.dtype(np.double)
@@ -1383,8 +1307,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     it = np.broadcast(x, y, a, b, theta, rin, rout, sum, sumerr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_ellipann(
-            ptr, eptr, mptr, dtype, edtype, mdtype, w, h,
-            maskthresh, gain_, inflag,
+            &im,
             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
@@ -1392,7 +1315,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
             (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
-            subpix,
+            subpix, 0,
             <double*>np.PyArray_MultiIter_DATA(it, 7),
             <double*>np.PyArray_MultiIter_DATA(it, 8),
             &area1,
@@ -1460,15 +1383,10 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     """
 
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
-    cdef double bkgflux, bkgfluxerr, bkgarea, gain_
-    cdef float scalarerr
+    cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef short inflag
     cdef size_t i
-    cdef int w, h, dtype, edtype, mdtype, status, fracn
-    cdef void *ptr
-    cdef void *eptr
-    cdef void *mptr
+    cdef int status, fracn
     cdef short[:] flag
     cdef double[:, :] radius
     cdef double[:] fractmp
@@ -1477,22 +1395,10 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     cdef double[:] rtmp
     cdef double[:] normfluxbuf
     cdef double *normfluxptr
+    cdef sep_image im
 
-    dtype = 0
-    edtype = 0
-    mdtype = 0
-    w = 0
-    h = 0
-    ptr = NULL
-    eptr = NULL
-    mptr = NULL
-    scalarerr = 0.0
-    inflag = 0
-    _parse_arrays(data, None, None, mask,
-                  &dtype, &edtype, &mdtype, &w, &h,
-                  &ptr, &eptr, &mptr, &scalarerr, &inflag)
-
-    gain_ = 0.0
+    _parse_arrays(data, None, None, mask, &im)
+    im.maskthresh = maskthresh
 
     # Require that inputs are float64 arrays with same shape. See note in
     # circular aperture.
@@ -1532,11 +1438,10 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     for i in range(len(xtmp)):
         if normfluxptr != NULL:
             normfluxptr = &normfluxbuf[i]
-        status = sep_flux_radius(ptr, eptr, mptr, dtype, edtype,
-                                 mdtype, w, h, maskthresh, gain_,
-                                 inflag, xtmp[i], ytmp[i], rtmp[i],
-                                 subpix, normfluxptr, &fractmp[0],
-                                 fracn, &radius[i, 0], &flag[i])
+        status = sep_flux_radius(&im,
+                                 xtmp[i], ytmp[i], rtmp[i], subpix, 0,
+                                 normfluxptr, &fractmp[0], fracn,
+                                 &radius[i, 0], &flag[i])
         _assert_ok(status)
 
     return (np.asarray(radius).reshape(inshape + infracshape),
@@ -1692,20 +1597,11 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     """
 
-    cdef int w, h, mw, mh
-    cdef np.uint8_t[:,:] buf, mbuf
-    cdef void *ptr
-    cdef void *mptr
     cdef double cxx, cyy, cxy
+    cdef sep_image im
 
-    mptr = NULL
-    mdtype = 0
-
-    # Get main image info
-    _check_array_get_dims(data, &w, &h)
-    dtype = _get_sep_dtype(data.dtype)
-    buf = data.view(dtype=np.uint8)
-    ptr = <void*>&buf[0, 0]
+    _parse_arrays(data, None, None, mask, &im)
+    im.maskthresh = maskthresh
 
     # See note in apercirc on requiring specific array type
     dt = np.dtype(np.double)
@@ -1715,14 +1611,6 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     b = np.require(b, dtype=dt)
     theta = np.require(theta, dtype=dt)
     r = np.require(r, dtype=dt)
-
-    if mask is not None:
-        _check_array_get_dims(mask, &mw, &mh)
-        if mw != w or mh != h:
-            raise ValueError("size of mask array must match data")
-        mdtype = _get_sep_dtype(mask.dtype)
-        mbuf = mask.view(dtype=np.uint8)
-        mptr = <void*>&mbuf[0, 0]
 
     # allocate output arrays
     shape = np.broadcast(x, y, a, b, theta, r).shape
@@ -1735,7 +1623,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                            &cxx, &cyy, &cxy)
-        sep_kron_radius(ptr, mptr, dtype, mdtype, w, h, maskthresh,
+        sep_kron_radius(&im,
                         (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                         (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                         cxx, cyy, cxy,
@@ -1796,37 +1684,19 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
 
     """
 
-    cdef int w, h, mw, mh, status
-    cdef np.uint8_t[:,:] buf, mbuf
-    cdef void *ptr
-    cdef void *mptr
+    cdef int status
     cdef double cxx, cyy, cxy
-    cdef int niter
+    cdef int niter = 0  # not currently returned
+    cdef sep_image im
 
-    niter = 0  # not currently used or returned.
-
-    mptr = NULL
-    mdtype = 0
-
-    # Get main image info
-    _check_array_get_dims(data, &w, &h)
-    dtype = _get_sep_dtype(data.dtype)
-    buf = data.view(dtype=np.uint8)
-    ptr = <void*>&buf[0, 0]
+    _parse_arrays(data, None, None, mask, &im)
+    im.maskthresh = maskthresh
 
     # See note in apercirc on requiring specific array type
     dt = np.dtype(np.double)
     xinit = np.require(xinit, dtype=dt)
     yinit = np.require(yinit, dtype=dt)
     sig = np.require(sig, dtype=dt)
-
-    if mask is not None:
-        _check_array_get_dims(mask, &mw, &mh)
-        if mw != w or mh != h:
-            raise ValueError("size of mask array must match data")
-        mdtype = _get_sep_dtype(mask.dtype)
-        mbuf = mask.view(dtype=np.uint8)
-        mptr = <void*>&mbuf[0, 0]
 
     # allocate output arrays
     shape = np.broadcast(xinit, yinit, sig).shape
@@ -1836,18 +1706,16 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
 
     it = np.broadcast(xinit, yinit, sig, x, y, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
-        status = sep_windowed(ptr, NULL, mptr, dtype, 0, mdtype, w, h,
-                              maskthresh, 0., 0,
+        status = sep_windowed(&im,
                               (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                               (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                               (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
-                              subpix,
+                              subpix, 0,
                               <double*>np.PyArray_MultiIter_DATA(it, 3),
                               <double*>np.PyArray_MultiIter_DATA(it, 4),
                               &niter,
-                              <short*>np.PyArray_MultiIter_DATA(it, 5),
-                              NULL)
-        _assert_ok(status);
+                              <short*>np.PyArray_MultiIter_DATA(it, 5))
+        _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
     return x, y, flag 

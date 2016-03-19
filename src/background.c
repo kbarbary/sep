@@ -33,8 +33,7 @@
 #define	QUANTIF_AMIN       4     /* min nb of "mode pixels" */
 
 /* Background info in a single mesh*/
-typedef struct
-{
+typedef struct {
   float	 mode, mean, sigma;	/* Background mode, mean and sigma */
   LONG	 *histo;	       	/* Pointer to a histogram */
   int	 nlevels;		/* Nb of histogram bins */
@@ -43,17 +42,20 @@ typedef struct
   int	 npix;			/* Number of pixels involved */
 } backstruct;
 
-void backhisto(backstruct *, PIXTYPE *, PIXTYPE *,
-	       int, int, int, int, PIXTYPE);
-void backstat(backstruct *, PIXTYPE *, PIXTYPE *,
-	      int, int, int, int, PIXTYPE);
-int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh);
-float backguess(backstruct *, float *, float *);
-int makebackspline(sepbackmap *, float *, float *);
+/* internal helper functions */
+void backhisto(backstruct *backmesh,
+	       PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
+	       int n, int w, int bw, PIXTYPE maskthresh);
+void backstat(backstruct *backmesh,
+	      PIXTYPE *buf, PIXTYPE *wbuf, int bufsize,
+	      int n, int w, int bw, PIXTYPE maskthresh);
+int filterback(sep_bkg *bkg, int fw, int fh, double fthresh);
+float backguess(backstruct *bkg, float *mean, float *sigma);
+int makebackspline(sep_bkg *bkg, float *map, float *dmap);
 
-int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
-		 int bw, int bh, float mthresh, int fw, int fh,
-		 float fthresh, sepbackmap **bkm)
+
+int sep_background(sep_image* image, int bw, int bh, int fw, int fh,
+                   double fthresh, sep_bkg **bkg)
 {
   BYTE *imt, *maskt;
   int npix;                   /* size of image */
@@ -65,23 +67,24 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
   PIXTYPE maskthresh;
   array_converter convert, mconvert;
   backstruct *backmesh, *bm;  /* info about each background "box" */
-  sepbackmap *bkmap;          /* output */
+  sep_bkg *bkgout;          /* output */
   int j,k,m, status;
 
   status = RETURN_OK;
-  npix = w*h;
-  bufsize = w*bh;
-  maskthresh = mask? mthresh: 0.0;
+  npix = image->w * image->h;
+  bufsize = image->w * bh;
+  maskthresh = image->maskthresh;
+  if (image->mask == NULL) maskthresh = 0.0;
 
   backmesh = bm = NULL;
-  bkmap = NULL;
+  bkgout = NULL;
   buf = mbuf = buft = mbuft = NULL;
   convert = mconvert = NULL;
 
   /* determine number of background boxes */
-  if ((nx = (w-1)/bw + 1) < 1)
+  if ((nx = (image->w - 1) / bw + 1) < 1)
     nx = 1;
-  if ((ny = (h-1)/bh + 1) < 1)
+  if ((ny = (image->h - 1) / bh + 1) < 1)
     ny = 1;
   nb = nx*ny;
 
@@ -92,48 +95,48 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
     bm->histo=NULL;
 
   /* Allocate the returned struct */
-  QMALLOC(bkmap, sepbackmap, 1, status);
-  bkmap->w = w;
-  bkmap->h = h;
-  bkmap->nx = nx;
-  bkmap->ny = ny;
-  bkmap->n = nb;
-  bkmap->bw = bw;
-  bkmap->bh = bh;
-  bkmap->back = NULL;
-  bkmap->sigma = NULL;
-  bkmap->dback = NULL;
-  bkmap->dsigma = NULL;
-  QMALLOC(bkmap->back, float, nb, status);
-  QMALLOC(bkmap->sigma, float, nb, status);
-  QMALLOC(bkmap->dback, float, nb, status);
-  QMALLOC(bkmap->dsigma, float, nb, status);
+  QMALLOC(bkgout, sep_bkg, 1, status);
+  bkgout->w = image->w;
+  bkgout->h = image->h;
+  bkgout->nx = nx;
+  bkgout->ny = ny;
+  bkgout->n = nb;
+  bkgout->bw = bw;
+  bkgout->bh = bh;
+  bkgout->back = NULL;
+  bkgout->sigma = NULL;
+  bkgout->dback = NULL;
+  bkgout->dsigma = NULL;
+  QMALLOC(bkgout->back, float, nb, status);
+  QMALLOC(bkgout->sigma, float, nb, status);
+  QMALLOC(bkgout->dback, float, nb, status);
+  QMALLOC(bkgout->dsigma, float, nb, status);
 
   /* cast input array pointers. These are used to step through the arrays. */
-  imt = (BYTE *)im;
-  maskt = (BYTE *)mask;
+  imt = (BYTE *)image->data;
+  maskt = (BYTE *)image->mask;
 
   /* get the correct array converter and element size, based on dtype code */
-  status = get_array_converter(dtype, &convert, &elsize);
+  status = get_array_converter(image->dtype, &convert, &elsize);
   if (status != RETURN_OK)
     goto exit;
-  if (mask)
+  if (image->mask)
     {
-      status = get_array_converter(mdtype, &mconvert, &melsize);
+      status = get_array_converter(image->mdtype, &mconvert, &melsize);
       if (status != RETURN_OK)
 	goto exit;
     }
 
   /* If the input array type is not PIXTYPE, allocate a buffer to hold
      converted values */
-  if (dtype != PIXDTYPE)
+  if (image->dtype != PIXDTYPE)
     {
       QMALLOC(buf, PIXTYPE, bufsize, status);
       buft = buf;
       if (status != RETURN_OK)
 	goto exit;
     }
-  if (mask && (mdtype != PIXDTYPE))
+  if (image->mask && (image->mdtype != PIXDTYPE))
     {
       QMALLOC(mbuf, PIXTYPE, bufsize, status);
       mbuft = mbuf;
@@ -155,21 +158,21 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
         bufsize = npix%bufsize;
 
       /* convert this row to PIXTYPE and store in buffer(s)*/
-      if (dtype != PIXDTYPE)
+      if (image->dtype != PIXDTYPE)
 	convert(imt, bufsize, buft);
       else
 	buft = (PIXTYPE *)imt;
 
-      if (mask)
+      if (image->mask)
 	{
-	  if (mdtype != PIXDTYPE)
+	  if (image->mdtype != PIXDTYPE)
 	    mconvert(maskt, bufsize, mbuft);
 	  else
 	    mbuft = (PIXTYPE *)maskt;
 	}
 
       /* Get clipped mean, sigma for all boxes in the row */
-      backstat(backmesh, buft, mbuft, bufsize, nx, w, bw, maskthresh);
+      backstat(backmesh, buft, mbuft, bufsize, nx, image->w, bw, maskthresh);
 
       /* Allocate histograms in each box in this row. */
       bm = backmesh;
@@ -178,21 +181,21 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 	  bm->histo=NULL;
 	else
 	  QCALLOC(bm->histo, LONG, bm->nlevels, status);
-      backhisto(backmesh, buft, mbuft, bufsize, nx, w, bw, maskthresh);
+      backhisto(backmesh, buft, mbuft, bufsize, nx, image->w, bw, maskthresh);
 
       /* Compute background statistics from the histograms */
       bm = backmesh;
       for (m=0; m<nx; m++, bm++)
 	{
 	  k = m+nx*j;
-	  backguess(bm, bkmap->back+k, bkmap->sigma+k);
+	  backguess(bm, bkgout->back+k, bkgout->sigma+k);
 	  free(bm->histo);
 	  bm->histo = NULL;
 	}
 
       /* increment array pointers to next row of background boxes */
       imt += elsize * bufsize;
-      if (mask)
+      if (image->mask)
 	maskt += melsize * bufsize;
     }
 
@@ -205,18 +208,18 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
   backmesh = NULL;
 
   /* Median-filter and check suitability of the background map */
-  if ((status = filterback(bkmap, fw, fh, fthresh)) != RETURN_OK)
+  if ((status = filterback(bkgout, fw, fh, fthresh)) != RETURN_OK)
     goto exit;
 
   /* Compute 2nd derivatives along the y-direction */
-  if ((status = makebackspline(bkmap, bkmap->back, bkmap->dback)) !=
+  if ((status = makebackspline(bkgout, bkgout->back, bkgout->dback)) !=
       RETURN_OK)
     goto exit;
-  if ((status = makebackspline(bkmap, bkmap->sigma, bkmap->dsigma)) !=
+  if ((status = makebackspline(bkgout, bkgout->sigma, bkgout->dsigma)) !=
       RETURN_OK)
     goto exit;
 
-  *bkm = bkmap;
+  *bkg = bkgout;
   return status;
 
   /* If we encountered a problem, clean up any allocated memory */
@@ -230,8 +233,8 @@ int sep_makeback(void *im, void *mask, int dtype, int mdtype, int w, int h,
 	free(bm->histo);
     }
   free(backmesh);
-  sep_freeback(bkmap);
-  *bkm = NULL;
+  sep_bkg_free(bkgout);
+  *bkg = NULL;
   return status;
 }
 
@@ -425,7 +428,7 @@ void backhisto(backstruct *backmesh,
 /*
 Estimate the background from a histogram;
 */
-float	backguess(backstruct *bkg, float *mean, float *sigma)
+float backguess(backstruct *bkg, float *mean, float *sigma)
 
 #define	EPS	(1e-4)	/* a small number */
 
@@ -500,7 +503,7 @@ float	backguess(backstruct *bkg, float *mean, float *sigma)
 
 /****************************************************************************/
 
-int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
+int filterback(sep_bkg *bkg, int fw, int fh, double fthresh)
 /* Median filterthe background map to remove the contribution
  * from bright sources. */
 {
@@ -512,9 +515,9 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
   status = RETURN_OK;
   bmask = smask = back2 = sigma2 = NULL;
 
-  nx = bkmap->nx;
-  ny = bkmap->ny;
-  np = bkmap->n;
+  nx = bkg->nx;
+  ny = bkg->ny;
+  np = bkg->n;
   npx = fw/2;
   npy = fh/2;
   npy *= nx;
@@ -524,8 +527,8 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
   QMALLOC(back2, float, np, status);
   QMALLOC(sigma2, float, np, status);
 
-  back = bkmap->back;
-  sigma = bkmap->sigma;
+  back = bkg->back;
+  sigma = bkg->sigma;
   val = sval = 0.0;  /* to avoid gcc -Wall warnings */
 
 /* Look for `bad' meshes and interpolate them if necessary */
@@ -603,20 +606,20 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
   free(smask);
   bmask = smask = NULL;
   memcpy(back, back2, np*sizeof(float));
-  bkmap->globalback = fqmedian(back2, np);
+  bkg->global = fqmedian(back2, np);
   free(back2);
   back2 = NULL;
   memcpy(sigma, sigma2, np*sizeof(float));
-  bkmap->globalrms = fqmedian(sigma2, np);
+  bkg->globalrms = fqmedian(sigma2, np);
 
-  if (bkmap->globalrms <= 0.0)
+  if (bkg->globalrms <= 0.0)
     {
     sigmat = sigma2+np;
     for (i=np; i-- && *(--sigmat)>0.0;);
     if (i>=0 && i<(np-1))
-      bkmap->globalrms = fqmedian(sigmat+1, np-1-i);
+      bkg->globalrms = fqmedian(sigmat+1, np-1-i);
     else
-      bkmap->globalrms = 1.0;
+      bkg->globalrms = 1.0;
     }
 
   free(sigma2);
@@ -637,15 +640,15 @@ int filterback(sepbackmap *bkmap, int fw, int fh, float fthresh)
 /*
  * Pre-compute 2nd derivatives along the y direction at background nodes.
  */
-int makebackspline(sepbackmap *bkmap, float *map, float *dmap)
+int makebackspline(sep_bkg *bkg, float *map, float *dmap)
 {
   int   x, y, nbx, nby, nbym1, status;
   float *dmapt, *mapt, *u, temp;
   u = NULL;
   status = RETURN_OK;
 
-  nbx = bkmap->nx;
-  nby = bkmap->ny;
+  nbx = bkg->nx;
+  nby = bkg->ny;
   nbym1 = nby - 1;
   for (x=0; x<nbx; x++)
     {
@@ -686,20 +689,20 @@ int makebackspline(sepbackmap *bkmap, float *map, float *dmap)
 
 /*****************************************************************************/
 
-float sep_globalback(sepbackmap *bkmap)
+float sep_bkg_global(sep_bkg *bkg)
 {
-  return bkmap->globalback;
+  return bkg->global;
 }
 
-float sep_globalrms(sepbackmap *bkmap)
+float sep_bkg_globalrms(sep_bkg *bkg)
 {
-  return bkmap->globalrms;
+  return bkg->globalrms;
 }
 
 
 /*****************************************************************************/
 
-float sep_backpix_linear(sepbackmap *bkmap, int x, int y)
+float sep_bkg_pix(sep_bkg *bkg, int x, int y)
 /*
  * return background at position x,y.
  * (linear interpolation between background map vertices).
@@ -710,12 +713,12 @@ float sep_backpix_linear(sepbackmap *bkmap, int x, int y)
   float	 *b;
   float  b0, b1, b2, b3;
 
-  b = bkmap->back;
-  nx = bkmap->nx;
-  ny = bkmap->ny;
+  b = bkg->back;
+  nx = bkg->nx;
+  ny = bkg->ny;
 
-  dx = (double)x/bkmap->bw - 0.5;
-  dy = (double)y/bkmap->bh - 0.5;
+  dx = (double)x/bkg->bw - 0.5;
+  dy = (double)y/bkg->bh - 0.5;
   dx -= (xl = (int)dx);
   dy -= (yl = (int)dy);
 
@@ -755,7 +758,7 @@ float sep_backpix_linear(sepbackmap *bkmap, int x, int y)
 
 /*****************************************************************************/
 
-int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
+int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
 /* Interpolate background at line y (bicubic spline interpolation between
  * background map vertices) and save to line */
 {
@@ -769,13 +772,13 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
   dnodebuf = dnode = NULL;
   u = NULL;
 
-  width = bkmap->w;
-  nbx = bkmap->nx;
+  width = bkg->w;
+  nbx = bkg->nx;
   nbxm1 = nbx - 1;
-  nby = bkmap->ny;
+  nby = bkg->ny;
   if (nby > 1)
     {
-      dy = (float)y/bkmap->bh - 0.5;
+      dy = (float)y/bkg->bh - 0.5;
       dy -= (yl = (int)dy);
       if (yl<0)
 	{
@@ -792,9 +795,9 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
       dy3 = (dy*dy*dy-dy);
       cdy3 = (cdy*cdy*cdy-cdy);
       ystep = nbx*yl;
-      blo = bkmap->back + ystep;
+      blo = bkg->back + ystep;
       bhi = blo + nbx;
-      dblo = bkmap->dback + ystep;
+      dblo = bkg->dback + ystep;
       dbhi = dblo + nbx;
       QMALLOC(nodebuf, float, nbx, status);  /* Interpolated background */
       nodep = node = nodebuf;
@@ -831,14 +834,14 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
   else
     {
       /*-- No interpolation and no new 2nd derivatives needed along y */
-      node = bkmap->back;
-      dnode = bkmap->dback;
+      node = bkg->back;
+      dnode = bkg->dback;
     }
 
   /*-- Interpolation along x */
   if (nbx>1)
     {
-      nx = bkmap->bw;
+      nx = bkg->bw;
       xstep = 1.0/nx;
       changepoint = nx/2;
       dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
@@ -885,7 +888,7 @@ int sep_backline_flt(sepbackmap *bkmap, int y, float *line)
 
 /*****************************************************************************/
 
-int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
+int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
 /* Bicubic-spline interpolation of the background noise along the current
  * scanline (y). NOTE: Most of the code is a copy of subbackline(), for
  * optimization reasons.
@@ -900,12 +903,12 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
   dnodebuf = dnode = NULL;
   u = NULL;
 
-  nbx = bkmap->nx;
+  nbx = bkg->nx;
   nbxm1 = nbx - 1;
-  nby = bkmap->ny;
+  nby = bkg->ny;
   if (nby > 1)
     {
-      dy = (float)y/bkmap->bh - 0.5;
+      dy = (float)y/bkg->bh - 0.5;
       dy -= (yl = (int)dy);
       if (yl<0)
 	{
@@ -922,9 +925,9 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
       dy3 = (dy*dy*dy-dy);
       cdy3 = (cdy*cdy*cdy-cdy);
       ystep = nbx*yl;
-      blo = bkmap->sigma + ystep;
+      blo = bkg->sigma + ystep;
       bhi = blo + nbx;
-      dblo = bkmap->dsigma + ystep;
+      dblo = bkg->dsigma + ystep;
       dbhi = dblo + nbx;
       QMALLOC(nodebuf, float, nbx, status); /* Interpolated background */
       nodep = node = nodebuf;
@@ -960,15 +963,15 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
   else
     {
       /*-- No interpolation and no new 2nd derivatives needed along y */
-      node = bkmap->sigma;
-      dnode = bkmap->dsigma;
+      node = bkg->sigma;
+      dnode = bkg->dsigma;
     }
   
   /*-- Interpolation along x */
-  width = bkmap->w;
+  width = bkg->w;
   if (nbx>1)
     {
-      nx = bkmap->bw;
+      nx = bkg->bw;
       xstep = 1.0/nx;
       changepoint = nx/2;
       dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
@@ -1012,14 +1015,14 @@ int sep_backrmsline_flt(sepbackmap *bkmap, int y, float *line)
 /* Multiple dtype functions and convenience functions.
  * These mostly wrap the two "line" functions above. */
 
-int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_bkg_line(sep_bkg *bkg, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
   float *tmpline; 
 
   if (dtype == SEP_TFLOAT)
-    return sep_backline_flt(bkmap, y, (float *)line);
+    return sep_bkg_line_flt(bkg, y, (float *)line);
    
   tmpline = NULL;
 
@@ -1027,27 +1030,27 @@ int sep_backline(sepbackmap *bkmap, int y, void *line, int dtype)
   if (status != RETURN_OK)
     goto exit;
 
-  QMALLOC(tmpline, float, bkmap->w, status);
-  status = sep_backline_flt(bkmap, y, tmpline);
+  QMALLOC(tmpline, float, bkg->w, status);
+  status = sep_bkg_line_flt(bkg, y, tmpline);
   if (status != RETURN_OK)
     goto exit;
 
   /* write to desired output type */
-  write_array(tmpline, bkmap->w, line);
+  write_array(tmpline, bkg->w, line);
 
  exit:
   free(tmpline);
   return status;
 }
 
-int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_bkg_rmsline(sep_bkg *bkg, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
   float *tmpline; 
 
   if (dtype == SEP_TFLOAT)
-    return sep_backrmsline_flt(bkmap, y, (float *)line);
+    return sep_bkg_rmsline_flt(bkg, y, (float *)line);
    
   tmpline = NULL;
 
@@ -1055,20 +1058,20 @@ int sep_backrmsline(sepbackmap *bkmap, int y, void *line, int dtype)
   if (status != RETURN_OK)
     goto exit;
 
-  QMALLOC(tmpline, float, bkmap->w, status);
-  status = sep_backrmsline_flt(bkmap, y, tmpline);
+  QMALLOC(tmpline, float, bkg->w, status);
+  status = sep_bkg_rmsline_flt(bkg, y, tmpline);
   if (status != RETURN_OK)
     goto exit;
 
   /* write to desired output type */
-  write_array(tmpline, bkmap->w, line);
+  write_array(tmpline, bkg->w, line);
 
  exit:
   free(tmpline);
   return status;
 }
 
-int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_bkg_array(sep_bkg *bkg, void *arr, int dtype)
 {
   int y, width, size, status;
   array_writer write_array;
@@ -1077,13 +1080,13 @@ int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
 
   tmpline = NULL;
   status = RETURN_OK;
-  width = bkmap->w;
+  width = bkg->w;
 
   if (dtype == SEP_TFLOAT)
     {
       tmpline = (float *)arr;
-      for (y=0; y<bkmap->h; y++, tmpline+=width)
-	if ((status = sep_backline_flt(bkmap, y, tmpline)) != RETURN_OK)
+      for (y=0; y<bkg->h; y++, tmpline+=width)
+	if ((status = sep_bkg_line_flt(bkg, y, tmpline)) != RETURN_OK)
 	  return status;
       return status;
     }
@@ -1094,9 +1097,9 @@ int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
   QMALLOC(tmpline, float, width, status);
 
   line = (BYTE *)arr;
-  for (y=0; y<bkmap->h; y++, line += size*width)
+  for (y=0; y<bkg->h; y++, line += size*width)
     {
-      if ((status = sep_backline_flt(bkmap, y, tmpline)) != RETURN_OK)
+      if ((status = sep_bkg_line_flt(bkg, y, tmpline)) != RETURN_OK)
 	goto exit;
       write_array(tmpline, width, line);
     }
@@ -1106,7 +1109,7 @@ int sep_backarray(sepbackmap *bkmap, void *arr, int dtype)
   return status;
 }
 
-int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_bkg_rmsarray(sep_bkg *bkg, void *arr, int dtype)
 {
   int y, width, size, status;
   array_writer write_array;
@@ -1115,13 +1118,13 @@ int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
 
   tmpline = NULL;
   status = RETURN_OK;
-  width = bkmap->w;
+  width = bkg->w;
 
   if (dtype == SEP_TFLOAT)
     {
       tmpline = (float *)arr;
-      for (y=0; y<bkmap->h; y++, tmpline+=width)
-	if ((status = sep_backrmsline_flt(bkmap, y, tmpline)) != RETURN_OK)
+      for (y=0; y<bkg->h; y++, tmpline+=width)
+	if ((status = sep_bkg_rmsline_flt(bkg, y, tmpline)) != RETURN_OK)
 	  return status;
       return status;
     }
@@ -1132,9 +1135,9 @@ int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
   QMALLOC(tmpline, float, width, status);
 
   line = (BYTE *)arr;
-  for (y=0; y<bkmap->h; y++, line += size*width)
+  for (y=0; y<bkg->h; y++, line += size*width)
     {
-      if ((status = sep_backrmsline_flt(bkmap, y, tmpline)) != RETURN_OK)
+      if ((status = sep_bkg_rmsline_flt(bkg, y, tmpline)) != RETURN_OK)
 	goto exit;
       write_array(tmpline, width, line);
     }
@@ -1144,7 +1147,7 @@ int sep_backrmsarray(sepbackmap *bkmap, void *arr, int dtype)
   return status;
 }
 
-int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype)
+int sep_bkg_subline(sep_bkg *bkg, int y, void *line, int dtype)
 {
   array_writer subtract_array;
   int status, size;
@@ -1153,9 +1156,9 @@ int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype)
   tmpline = NULL;
   status = RETURN_OK;
 
-  QMALLOC(tmpline, PIXTYPE, bkmap->w, status);
+  QMALLOC(tmpline, PIXTYPE, bkg->w, status);
 
-  status = sep_backline_flt(bkmap, y, tmpline);
+  status = sep_bkg_line_flt(bkg, y, tmpline);
   if (status != RETURN_OK)
     goto exit;
 
@@ -1163,14 +1166,14 @@ int sep_subbackline(sepbackmap *bkmap, int y, void *line, int dtype)
   if (status != RETURN_OK)
     goto exit;
 
-  subtract_array(tmpline, bkmap->w, line);
+  subtract_array(tmpline, bkg->w, line);
 
  exit:
   free(tmpline);
   return status;
 }
 
-int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
+int sep_bkg_subarray(sep_bkg *bkg, void *arr, int dtype)
 {
   array_writer subtract_array;
   int y, status, size, width;
@@ -1179,7 +1182,7 @@ int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
 
   tmpline = NULL;
   status = RETURN_OK;
-  width = bkmap->w;
+  width = bkg->w;
   arrt = (BYTE *)arr;
 
   QMALLOC(tmpline, PIXTYPE, width, status);
@@ -1188,9 +1191,9 @@ int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
   if (status != RETURN_OK)
     goto exit;
 
-  for (y=0; y<bkmap->h; y++, arrt+=(width*size))
+  for (y=0; y<bkg->h; y++, arrt+=(width*size))
     { 
-      if ((status = sep_backline_flt(bkmap, y, tmpline)) != RETURN_OK)
+      if ((status = sep_bkg_line_flt(bkg, y, tmpline)) != RETURN_OK)
 	goto exit;
       subtract_array(tmpline, width, arrt);
     }
@@ -1202,16 +1205,16 @@ int sep_subbackarray(sepbackmap *bkmap, void *arr, int dtype)
 
 /*****************************************************************************/
 
-void sep_freeback(sepbackmap *bkmap)
+void sep_bkg_free(sep_bkg *bkg)
 {
-  if (bkmap)
+  if (bkg)
     {
-      free(bkmap->back);
-      free(bkmap->dback);
-      free(bkmap->sigma);
-      free(bkmap->dsigma);
+      free(bkg->back);
+      free(bkg->dback);
+      free(bkg->sigma);
+      free(bkg->dsigma);
     }
-  free(bkmap);
+  free(bkg);
   
   return;
 }

@@ -9,10 +9,8 @@
   	#define MSVC_VOID_CAST
 #endif
 
-int APER_NAME(void *data, void *error, void *mask,
-	      int dtype, int edtype, int mdtype, int w, int h,
-	      double maskthresh, double gain, short inflag,
-	      double x, double y, APER_ARGS, int subpix,
+int APER_NAME(sep_image *im,
+	      double x, double y, APER_ARGS, int subpix, short inflag,
 	      double *sum, double *sumerr, double *area, short *flag)
 {
   PIXTYPE pix, varpix;
@@ -35,35 +33,37 @@ int APER_NAME(void *data, void *error, void *mask,
   tv = sigtv = 0.0;
   overlap = totarea = maskarea = 0.0;
   datat = maskt = NULL;
-  errort = error;
+  errort = im->noise;
   *flag = 0;
   varpix = 0.0;
   scale = 1.0/subpix;
   scale2 = scale*scale;
   offset = 0.5*(scale-1.0);
+  errisarray = 0;
+  errisstd = 0;
 
   APER_INIT;
 
   /* get data converter(s) for input array(s) */
-  if ((status = get_converter(dtype, &convert, &size)))
+  if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
-  if (error && (status = get_converter(edtype, &econvert, &esize)))
-    return status;
-  if (mask && (status = get_converter(mdtype, &mconvert, &msize)))
+  if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
-  /* get options */
-  errisarray = inflag & SEP_ERROR_IS_ARRAY;
-  if (!error)
-    errisarray = 0; /* in case user set flag but error is NULL */
-  errisstd = !(inflag & SEP_ERROR_IS_VAR);
-
-  /* If error exists and is scalar, set the pixel variance now */
-  if (error && !errisarray)
+  /* get image noise */
+  if (im->noise_type != SEP_NOISE_NONE)
     {
-      varpix = econvert(errort);
-      if (errisstd)
-	varpix *= varpix;
+      errisstd = (im->noise_type == SEP_NOISE_STDDEV);
+      if (im->noise)
+        {
+          errisarray = 1;
+          if ((status = get_converter(im->ndtype, &econvert, &esize)))
+             return status;
+        }
+      else
+        {
+          varpix = (errisstd)?  im->noiseval * im->noiseval: im->noiseval;
+        }
     }
 
   /* get extent of box */
@@ -73,12 +73,12 @@ int APER_NAME(void *data, void *error, void *mask,
   for (iy=ymin; iy<ymax; iy++)
     {
       /* set pointers to the start of this row */
-      pos = (iy%h) * w + xmin;
-      datat = MSVC_VOID_CAST data + pos*size;
+      pos = (iy%im->h) * im->w + xmin;
+      datat = MSVC_VOID_CAST im->data + pos*size;
       if (errisarray)
-	errort = MSVC_VOID_CAST error + pos*esize;
-      if (mask)
-	maskt = MSVC_VOID_CAST mask + pos*msize;
+	errort = MSVC_VOID_CAST im->noise + pos*esize;
+      if (im->mask)
+	maskt = MSVC_VOID_CAST im->mask + pos*msize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -123,7 +123,7 @@ int APER_NAME(void *data, void *error, void *mask,
 		    varpix *= varpix;
 		}
 
-	      if (mask && (mconvert(maskt) > maskthresh))
+	      if (im->mask && (mconvert(maskt) > im->maskthresh))
 		{ 
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;
@@ -147,7 +147,7 @@ int APER_NAME(void *data, void *error, void *mask,
     }
 
   /* correct for masked values */
-  if (mask)
+  if (im->mask)
     {
       if (inflag & SEP_MASK_IGNORE)
 	totarea -= maskarea;
@@ -159,8 +159,8 @@ int APER_NAME(void *data, void *error, void *mask,
     }
 
   /* add poisson noise, only if gain > 0 */
-  if (gain > 0.0 && tv>0.0)
-    sigtv += tv/gain;
+  if (im->gain > 0.0 && tv>0.0)
+    sigtv += tv / im->gain;
 
   *sum = tv;
   *sumerr = sqrt(sigtv);

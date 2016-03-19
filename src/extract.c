@@ -51,11 +51,13 @@ size_t sep_get_extract_pixstack()
   return extract_pixstack;
 }
 
-int  sortit(infostruct *, objliststruct *, int,
-	    objliststruct *, int, double);
-void plistinit(void *, void *);
+int sortit(infostruct *info, objliststruct *objlist, int minarea,
+	   objliststruct *finalobjlist,
+	   int deblend_nthresh, double deblend_mincont);
+void plistinit(int hasconv, int hasvar);
 void clean(objliststruct *objlist, double clean_param, int *survives);
-int convertobj(int l, objliststruct *objlist, sepobj *objout, int w);
+int convert_to_catalog(objliststruct *objlist, int *survives,
+                       sep_catalog *cat, int w, int include_pixels);
 
 int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
                      int bufw, int bufh);
@@ -167,22 +169,23 @@ void apply_mask_line(arraybuffer *mbuf, arraybuffer *imbuf, arraybuffer *nbuf)
 }
 
 /****************************** extract **************************************/
-int sep_extract(void *image, void *noise, void *mask,
-                int dtype, int ndtype, int mdtype, int w, int h,
-	        float thresh, int minarea, float *conv, int convw, int convh,
+int sep_extract(sep_image *image, float thresh, int thresh_type,
+                int minarea, float *conv, int convw, int convh,
 		int filter_type, int deblend_nthresh, double deblend_cont,
 		int clean_flag, double clean_param,
-		sepobj **objects, int *nobj)
+		sep_catalog **catalog)
 {
-  arraybuffer       imbuf, nbuf, mbuf;
+  arraybuffer       dbuf, nbuf, mbuf;
   infostruct        curpixinfo, initinfo, freeinfo;
   objliststruct     objlist;
   char              newmarker;
   size_t            mem_pixstack;
   int               nposize, oldnposize;
-  int               co, i, j, luflag, pstop, xl, xl2, yl, cn;
+  int               w, h;
+  int               co, i, luflag, pstop, xl, xl2, yl, cn;
   int               stacksize, convn, status;
   int               bufh;
+  int               isvarthresh;
   short             trunflag;
   PIXTYPE           relthresh, cdnewsymbol;
   float             sum;
@@ -198,6 +201,7 @@ int sep_extract(void *image, void *noise, void *mask,
   int               *start, *end, *survives;
   pixstatus         *psstack;
   char              errtext[512];
+  sep_catalog       *cat;
 
   status = RETURN_OK;
   pixel = NULL;
@@ -209,20 +213,45 @@ int sep_extract(void *image, void *noise, void *mask,
   marker = NULL;
   psstack = NULL;
   start = end = NULL;
-  finalobjlist = NULL; /* final return value */
+  finalobjlist = NULL;
+  survives = NULL;
+  cat = NULL;
   convn = 0;
   sum = 0.0;
+  w = image->w;
+  h = image->h;
+  isvarthresh = 0;
+  relthresh = 0.0;
 
   mem_pixstack = sep_get_extract_pixstack();
 
   /* seed the random number generator consistently on each call to get
-     consistent results. rand() is used in deblending. */
+   * consistent results. rand() is used in deblending. */
   srand(1);
 
-  /* If we have a noise array, thresh is actually relthresh; we'll use
-   * relthresh below to set the threshold for each pixel. */
-  relthresh = thresh;
+  /* Deal with relative thresholding */
+  if (thresh_type == SEP_THRESH_REL) {
 
+    /* If threshold is relative, the image must have noise information */
+    if (image->noise_type == SEP_NOISE_NONE) return RELTHRESH_NO_NOISE;
+
+    /* If we have a noise array, the threshold will be variable.
+     * We'll use `relthresh` below to set `thresh` for each pixel. */
+    if (image->noise != NULL) {
+      isvarthresh = 1;
+      relthresh = thresh;
+    }
+
+    /* otherwise, noise is scalar, so we can set an absolute threshold. */
+    else {
+      if (image->noise_type == SEP_NOISE_STDDEV)
+        thresh *= image->noiseval;
+      else if (image->noise_type == SEP_NOISE_VAR)
+        thresh *= sqrt(image->noiseval);
+    }
+  }
+
+  /* this is input `thresh` regardless of thresh_type. */
   objlist.thresh = thresh;
 
   /*Allocate memory for buffers */
@@ -245,27 +274,25 @@ int sep_extract(void *image, void *noise, void *mask,
    * the buffer height equals the height of the convolution kernel.
    */
   bufh = conv ? convh : 1;
-  status = arraybuffer_init(&imbuf, image, dtype, w, h, stacksize, bufh);
-  if (status != RETURN_OK)
-    goto exit;
-  if (noise)
-    {
-      status = arraybuffer_init(&nbuf, noise, ndtype, w, h, stacksize, bufh);
-      if (status != RETURN_OK)
-        goto exit;
+  status = arraybuffer_init(&dbuf, image->data, image->dtype, w, h, stacksize,
+                            bufh);
+  if (status != RETURN_OK) goto exit;
+  if (isvarthresh) {
+      status = arraybuffer_init(&nbuf, image->noise, image->ndtype, w, h,
+                                stacksize, bufh);
+      if (status != RETURN_OK) goto exit;
     }
-  if (mask)
-    {
-      status = arraybuffer_init(&mbuf, mask, mdtype, w, h, stacksize, bufh);
-      if (status != RETURN_OK)
-        goto exit;
+  if (image->mask) {
+      status = arraybuffer_init(&mbuf, image->mask, image->mdtype, w, h,
+                                stacksize, bufh);
+      if (status != RETURN_OK) goto exit;
     }
 
   /* `scan` (or `wscan`) is always a pointer to the current line being
    * processed. It might be the only line in the buffer, or it might be the 
    * middle line. */
-  scan = imbuf.midline;
-  if (noise)
+  scan = dbuf.midline;
+  if (isvarthresh)
     wscan = nbuf.midline;
 
   /* More initializations */
@@ -275,15 +302,15 @@ int sep_extract(void *image, void *noise, void *mask,
 
   for (xl=0; xl<stacksize; xl++)
     {
-    marker[xl]  = 0 ;
-    dummyscan[xl] = -BIG ;
+      marker[xl]  = 0;
+      dummyscan[xl] = -BIG;
     }
 
   co = pstop = 0;
   objlist.nobj = 1;
   curpixinfo.pixnb = 1;
 
-  /* Init finalobjlist (the return catalog) */
+  /* Init finalobjlist */
   QMALLOC(finalobjlist, objliststruct, 1, status);
   finalobjlist->obj = NULL;
   finalobjlist->plist = NULL;
@@ -291,7 +318,7 @@ int sep_extract(void *image, void *noise, void *mask,
 
 
   /* Allocate memory for the pixel list */
-  plistinit(conv, noise);
+  plistinit((conv != NULL), isvarthresh);
   if (!(pixel = objlist.plist = malloc(nposize=mem_pixstack*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -308,7 +335,7 @@ int sep_extract(void *image, void *noise, void *mask,
 
   /* can only use a matched filter when convolving and when there is a noise
    * array */
-  if (!(conv && noise))
+  if (!(conv && isvarthresh))
     filter_type = SEP_FILTER_CONV;
 
   if (conv)
@@ -350,26 +377,27 @@ int sep_extract(void *image, void *noise, void *mask,
 
       else
 	{
-          arraybuffer_readline(&imbuf);
-          if (noise)
+          arraybuffer_readline(&dbuf);
+          if (isvarthresh)
             arraybuffer_readline(&nbuf);
-          if (mask)
+          if (image->mask)
             {
               arraybuffer_readline(&mbuf);
-              apply_mask_line(&mbuf, &imbuf, (noise? &nbuf: NULL));
+              apply_mask_line(&mbuf, &dbuf, (isvarthresh? &nbuf: NULL));
             }
 
 	  /* filter the lines */
 	  if (conv)
 	    {
-              status = convolve(&imbuf, yl, convnorm, convw, convh, cdscan);
+              status = convolve(&dbuf, yl, convnorm, convw, convh, cdscan);
               if (status != RETURN_OK)
                 goto exit;
 
 	      if (filter_type == SEP_FILTER_MATCHED)
                 {
-                  status = matched_filter(&imbuf, &nbuf, yl, convnorm, convw,
-                                          convh, workscan, sigscan);
+                  status = matched_filter(&dbuf, &nbuf, yl, convnorm, convw,
+                                          convh, workscan, sigscan,
+                                          image->noise_type);
 
                   if (status != RETURN_OK)
                     goto exit;
@@ -395,8 +423,16 @@ int sep_extract(void *image, void *noise, void *mask,
 
 	  curpixinfo.flag = trunflag;
 
-	  if (noise)
-            thresh = relthresh * ((xl==w || yl==h)? 0.0: wscan[xl]);
+          /* set "thresh" based on noise array. This is needed later, even
+           * if filter_type is SEP_FILTER_MATCHED */
+	  if (isvarthresh) {
+            if (xl == w || yl == h)
+              thresh = 0.0;
+            else if (image->noise_type == SEP_NOISE_VAR)
+              thresh = relthresh * sqrt(wscan[xl]);
+            else
+              thresh = relthresh * wscan[xl];
+          }
 
           /* luflag: is pixel above thresh (Y/N)? */
           if (filter_type == SEP_FILTER_MATCHED)
@@ -428,7 +464,7 @@ int sep_extract(void *image, void *noise, void *mask,
 	      if (PLISTEXIST(thresh))
 		PLISTPIX(pixt, thresh) = thresh;
 
-	      /* Check if we are running out of free pixels in objlist.plist */
+	      /* Check if we have run out of free pixels in objlist.plist */
 	      if (freeinfo.firstpix==freeinfo.lastpix)
 		{
 		  status = PIXSTACK_FULL;
@@ -438,7 +474,7 @@ int sep_extract(void *image, void *noise, void *mask,
 			  "the image is background subtracted and the "
 			  "detection threshold is not too low. If you "
                           "need to increase the limit, use "
-                          "sep.set_extract_pixstack.",
+                          "set_extract_pixstack.",
 			  (int)mem_pixstack);
 		  put_errdetail(errtext);
 		  goto exit;
@@ -604,6 +640,7 @@ int sep_extract(void *image, void *noise, void *mask,
     } /*---------------- End of the loop over the y's -----------------------*/
 
   /* convert `finalobjlist` to an array of `sepobj` structs */
+  /* if cleaning, see which objects "survive" cleaning. */
   if (clean_flag)
     {
       /* Calculate mthresh for all objects in the list (needed for cleaning) */
@@ -616,26 +653,12 @@ int sep_extract(void *image, void *noise, void *mask,
 
       QMALLOC(survives, int, finalobjlist->nobj, status);
       clean(finalobjlist, clean_param, survives);
-
-      /* count surviving objects and allocate space accordingly*/
-      *nobj = 0;
-      for (i=0; i<finalobjlist->nobj; i++)
-	*nobj += survives[i];
-      QMALLOC(*objects, sepobj, *nobj, status);
-
-      /* fill */
-      j=0;
-      for (i=0; i<finalobjlist->nobj; i++)
-	if (survives[i])
-	    convertobj(i, finalobjlist, (*objects) + j++, w);
     }
-  else
-    {
-      *nobj = finalobjlist->nobj;
-      QMALLOC(*objects, sepobj, *nobj, status);
-      for (i=0; i<finalobjlist->nobj; i++)
-	convertobj(i, finalobjlist, (*objects) + i, w);
-    }
+
+  /* convert to output catalog */
+  QCALLOC(cat, sep_catalog, 1, status);
+  status = convert_to_catalog(finalobjlist, survives, cat, w, 1);
+  if (status != RETURN_OK) goto exit;
 
  exit:
   free(finalobjlist->obj);
@@ -651,10 +674,11 @@ int sep_extract(void *image, void *noise, void *mask,
   free(psstack);
   free(start);
   free(end);
-  arraybuffer_free(&imbuf);
-  if (noise)
+  free(survives);
+  arraybuffer_free(&dbuf);
+  if (image->noise)
     arraybuffer_free(&nbuf);
-  if (mask)
+  if (image->mask)
     arraybuffer_free(&mbuf);
   if (conv)
     free(convnorm);
@@ -666,11 +690,15 @@ int sep_extract(void *image, void *noise, void *mask,
 
   if (status != RETURN_OK)
     {
-      free(cdscan);   /* only need to free these in case of early exit */
-      *objects = NULL;
-      *nobj = 0;
+      /* free cdscan if we didn't do it on the last `yl` line */
+      if ((cdscan != NULL) && (cdscan != dummyscan))
+        free(cdscan);
+      /* clean up catalog if it was allocated */
+      sep_catalog_free(cat);
+      cat = NULL;
     }
 
+  *catalog = cat;
   return status;
 }
 
@@ -811,14 +839,14 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
  * (originally init_plist() in sextractor)
 PURPOSE	initialize a pixel-list and its components.
  ***/
-void plistinit(void *conv, void *var)
+void plistinit(int hasconv, int hasvar)
 {
   pbliststruct	*pbdum = NULL;
 
   plistsize = sizeof(pbliststruct);
   plistoff_value = (char *)&pbdum->value - (char *)pbdum;
 
-  if (conv)
+  if (hasconv)
     {
       plistexist_cdvalue = 1;
       plistoff_cdvalue = plistsize;
@@ -830,7 +858,7 @@ void plistinit(void *conv, void *var)
       plistoff_cdvalue = plistoff_value;
     }
 
-  if (var)
+  if (hasvar)
     {
       plistexist_var = 1;
       plistoff_var = plistsize;
@@ -925,68 +953,199 @@ void clean(objliststruct *objlist, double clean_param, int *survives)
 
 
 /*****************************************************************************/
-/*
-Convert to an output object.
-*/
+/* sep_catalog manipulations */
 
-int convertobj(int l, objliststruct *objlist, sepobj *objout, int w)
+void free_catalog_fields(sep_catalog *catalog)
 {
-  int j, status = RETURN_OK;
-  objstruct *obj = objlist->obj + l;
+  free(catalog->thresh);
+  free(catalog->npix);
+  free(catalog->tnpix);
+  free(catalog->xmin);
+  free(catalog->xmax);
+  free(catalog->ymin);
+  free(catalog->ymax);
+  free(catalog->x);
+  free(catalog->y);
+  free(catalog->x2);
+  free(catalog->y2);
+  free(catalog->xy);
+  free(catalog->a);
+  free(catalog->b);
+  free(catalog->theta);
+  free(catalog->cxx);
+  free(catalog->cyy);
+  free(catalog->cxy);
+  free(catalog->cflux);
+  free(catalog->flux);
+  free(catalog->cpeak);
+  free(catalog->peak);
+  free(catalog->xcpeak);
+  free(catalog->ycpeak);
+  free(catalog->xpeak);
+  free(catalog->ypeak);
+  free(catalog->flag);
+
+  free(catalog->pix);
+  free(catalog->objectspix);
+
+  memset(catalog, 0, sizeof(sep_catalog));
+}
+
+
+/* convert_to_catalog()
+ *
+ * Convert the final object list to an output catalog.
+ *
+ * `survives`: array of 0 or 1 indicating whether or not to output each object
+ *             (ignored if NULL)
+ * `cat`:      catalog object to be filled.
+ * `w`:        width of image (used to calculate linear indicies).
+ */
+int convert_to_catalog(objliststruct *objlist, int *survives,
+                       sep_catalog *cat, int w, int include_pixels) 
+{
+  int i, j, k;
+  int totnpix;
+  int nobj = 0;
+  int status = RETURN_OK;
+  objstruct *obj;
   pliststruct *pixt, *pixel;
 
-  pixel = objlist->plist;
+  /* Set struct to zero in case the caller didn't.
+   * This is important if there is a memory error and we have to call
+   * free_catalog_fields() to recover at exit */
+  memset(cat, 0, sizeof(sep_catalog));
 
-  objout->thresh = obj->thresh;
-  objout->npix = obj->fdnpix;
-  objout->tnpix = obj->dnpix;
+  /* Count number of surviving objects so that we can allocate the
+     appropriate amount of space in the output catalog. */
+  if (survives)
+    for (i=0; i<objlist->nobj; i++) nobj += survives[i];
+  else 
+    nobj = objlist->nobj;
 
-  objout->xmin = obj->xmin;
-  objout->xmax = obj->xmax;
-  objout->ymin = obj->ymin;
-  objout->ymax = obj->ymax;
-  objout->x = obj->mx;
-  objout->y = obj->my;
-  objout->x2 = obj->mx2;
-  objout->y2 = obj->my2;
-  objout->xy = obj->mxy;
+  /* allocate catalog fields */
+  cat->nobj = nobj;
+  QMALLOC(cat->thresh, float, nobj, status);
+  QMALLOC(cat->npix, int, nobj, status);
+  QMALLOC(cat->tnpix, int, nobj, status);
+  QMALLOC(cat->xmin, int, nobj, status);
+  QMALLOC(cat->xmax, int, nobj, status);
+  QMALLOC(cat->ymin, int, nobj, status);
+  QMALLOC(cat->ymax, int, nobj, status);
+  QMALLOC(cat->x, double, nobj, status);
+  QMALLOC(cat->y, double, nobj, status);
+  QMALLOC(cat->x2, double, nobj, status);
+  QMALLOC(cat->y2, double, nobj, status);
+  QMALLOC(cat->xy, double, nobj, status);
+  QMALLOC(cat->a, float, nobj, status);
+  QMALLOC(cat->b, float, nobj, status);
+  QMALLOC(cat->theta, float, nobj, status);
+  QMALLOC(cat->cxx, float, nobj, status);
+  QMALLOC(cat->cyy, float, nobj, status);
+  QMALLOC(cat->cxy, float, nobj, status);
+  QMALLOC(cat->cflux, float, nobj, status);
+  QMALLOC(cat->flux, float, nobj, status);
+  QMALLOC(cat->cpeak, float, nobj, status);
+  QMALLOC(cat->peak, float, nobj, status);
+  QMALLOC(cat->xcpeak, int, nobj, status);
+  QMALLOC(cat->ycpeak, int, nobj, status);
+  QMALLOC(cat->xpeak, int, nobj, status);
+  QMALLOC(cat->ypeak, int, nobj, status);
+  QMALLOC(cat->cflux, float, nobj, status);
+  QMALLOC(cat->flux, float, nobj, status);
+  QMALLOC(cat->flag, short, nobj, status);
 
-  objout->a = obj->a;
-  objout->b = obj->b;
-  objout->theta = obj->theta;
+  /* fill output arrays */
+  j = 0;  /* running index in output array */
+  for (i=0; i<objlist->nobj; i++)
+    {
+      if ((survives == NULL) || survives[i])
+        {
+          obj = objlist->obj + i;
+          cat->thresh[j] = obj->thresh;
+          cat->npix[j] = obj->fdnpix;
+          cat->tnpix[j] = obj->dnpix;
+          cat->xmin[j] = obj->xmin;
+          cat->xmax[j] = obj->xmax;
+          cat->ymin[j] = obj->ymin;
+          cat->ymax[j] = obj->ymax;
+          cat->x[j] = obj->mx;
+          cat->y[j] = obj->my;
+          cat->x2[j] = obj->mx2;
+          cat->y2[j] = obj->my2;
+          cat->xy[j] = obj->mxy;
 
-  objout->cxx = obj->cxx;
-  objout->cyy = obj->cyy;
-  objout->cxy = obj->cxy;
+          cat->a[j] = obj->a;
+          cat->b[j] = obj->b;
+          cat->theta[j] = obj->theta;
 
-  objout->cflux = obj->fdflux; /* these change names */
-  objout->flux = obj->dflux;
-  objout->cpeak = obj->fdpeak;
-  objout->peak = obj->dpeak;
+          cat->cxx[j] = obj->cxx;
+          cat->cyy[j] = obj->cyy;
+          cat->cxy[j] = obj->cxy;
 
-  objout->xpeak = obj->xpeak;
-  objout->ypeak = obj->ypeak;
-  objout->xcpeak = obj->xcpeak;
-  objout->ycpeak = obj->ycpeak;
+          cat->cflux[j] = obj->fdflux; /* these change names */
+          cat->flux[j] = obj->dflux;
+          cat->cpeak[j] = obj->fdpeak;
+          cat->peak[j] = obj->dpeak;
 
-  objout->flag = obj->flag;
-  
-  /* Allocate object's pixel list */
-  QMALLOC(objout->pix, int, objout->npix, status);
+          cat->xpeak[j] = obj->xpeak;
+          cat->ypeak[j] = obj->ypeak;
+          cat->xcpeak[j] = obj->xcpeak;
+          cat->ycpeak[j] = obj->ycpeak;
 
-  /* fill it */
-  for (pixt=pixel+obj->firstpix, j=0; pixt>=pixel;
-       pixt=pixel+PLIST(pixt,nextpix), j++)
-      objout->pix[j] = PLIST(pixt,x) + w*PLIST(pixt,y);
+          cat->flag[j] = obj->flag;
+
+          j++;
+        }
+    }
+
+  if (include_pixels)
+    {
+      /* count the total number of pixels */
+      totnpix = 0;
+      for (i=0; i<cat->nobj; i++) totnpix += cat->npix[i];
+      
+      /* allocate buffer for all objects' pixels */
+      QMALLOC(cat->objectspix, int, totnpix, status);
+
+      /* allocate array of pointers into the above buffer */
+      QMALLOC(cat->pix, int*, nobj, status);
+
+      pixel = objlist->plist;
+
+      /* for each object, fill buffer and direct object's to it */
+      k = 0; /* current position in `objectspix` buffer */
+      j = 0; /* output object index */
+      for (i=0; i<objlist->nobj; i++)
+        {
+          obj = objlist->obj + i; /* input object */
+          if ((survives == NULL) || survives[i])
+            {
+              /* point this object's pixel list into the buffer. */
+              cat->pix[j] = cat->objectspix + k;
+
+              /* fill the actual pixel values */
+              for (pixt=pixel+obj->firstpix; pixt>=pixel;
+                   pixt=pixel+PLIST(pixt,nextpix), k++)
+                {
+                  cat->objectspix[k] = PLIST(pixt,x) + w*PLIST(pixt,y);
+                }
+              j++;
+            }
+        }
+    }
 
  exit:
+  if (status != RETURN_OK)
+    free_catalog_fields(cat);
+
   return status;
 }
 
-void sep_freeobjarray(sepobj *objects, int nobj)
-/* free memory associated with an array of sepobj, including pixel lists */
+
+void sep_catalog_free(sep_catalog *catalog)
 {
-  while (nobj > 0)
-    free(objects[--nobj].pix);
-  free(objects);
+  if (catalog != NULL)
+    free_catalog_fields(catalog);
+  free(catalog);
 }

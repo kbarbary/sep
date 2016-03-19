@@ -158,4 +158,4 @@ int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
              PIXTYPE *out);
 int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
                    float *conv, int convw, int convh,
-                   PIXTYPE *outnum, PIXTYPE *outdenom);
+                   PIXTYPE *work, PIXTYPE *out, int noise_type);

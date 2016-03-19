@@ -24,7 +24,7 @@
 
 #define DETAILSIZE 512
 
-char *sep_version_string = "0.5.0";
+char *sep_version_string = "0.6.0";
 static char _errdetail_buffer[DETAILSIZE] = "";
 
 /****************************************************************************/
@@ -280,6 +280,8 @@ void sep_get_errmsg(int status, char *errtext)
     case LINE_NOT_IN_BUF:
       strcpy(errtext, "array line out of buffer");
       break;
+   case RELTHRESH_NO_NOISE:
+      strcpy(errtext, "relative threshold but image has noise_type of NONE");
     default:
        strcpy(errtext, "unknown error status");
        break;
