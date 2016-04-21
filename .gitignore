@@ -40,3 +40,10 @@ sep.c
 # pytest cache
 .cache
 __pycache__
+
+# PyCharm
+.idea
+.project 
+
+# Eclipse
+.pydevproject
