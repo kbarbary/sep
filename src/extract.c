@@ -1037,6 +1037,9 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
   QMALLOC(cat->x2, double, nobj, status);
   QMALLOC(cat->y2, double, nobj, status);
   QMALLOC(cat->xy, double, nobj, status);
+  QMALLOC(cat->errx2, double, nobj, status);
+  QMALLOC(cat->erry2, double, nobj, status);
+  QMALLOC(cat->errxy, double, nobj, status);
   QMALLOC(cat->a, float, nobj, status);
   QMALLOC(cat->b, float, nobj, status);
   QMALLOC(cat->theta, float, nobj, status);
@@ -1074,6 +1077,9 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
           cat->x2[j] = obj->mx2;
           cat->y2[j] = obj->my2;
           cat->xy[j] = obj->mxy;
+          cat->errx2[j] = obj->errx2;
+          cat->erry2[j] = obj->erry2;
+          cat->errxy[j] = obj->errxy;
 
           cat->a[j] = obj->a;
           cat->b[j] = obj->b;

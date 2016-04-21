@@ -95,6 +95,9 @@ cdef extern from "sep.h":
         double *x2
         double *y2
         double *xy
+        double *errx2
+        double *erry2
+        double *errxy
         float  *a
         float  *b
         float  *theta
@@ -550,6 +553,9 @@ cdef packed struct Object:
     np.float64_t flux
     np.float64_t cpeak
     np.float64_t peak
+    np.float64_t errx2
+    np.float64_t erry2
+    np.float64_t errxy
     np.int_t xcpeak
     np.int_t ycpeak
     np.int_t xpeak
@@ -630,6 +636,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         * ``ymin``, ``ymax`` (int) Minimum, maximum y coordinates of pixels.
         * ``x``, ``y`` (float) object barycenter (first moments).
         * ``x2``, ``y2``, ``xy`` (float) Second moments.
+        * ``errx2``, ``erry2``, ``errxy`` (float) Second moment errors.
         * ``a``, ``b``, ``theta`` (float) Ellipse parameters.
         * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
         * ``cflux`` (float) Sum of member pixels in convolved data.
@@ -716,6 +723,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
                                       ('x2', np.float64),
                                       ('y2', np.float64),
                                       ('xy', np.float64),
+                                      ('errx2', np.float64),
+                                      ('erry2', np.float64),
+                                      ('errxy', np.float64),
                                       ('a', np.float64),
                                       ('b', np.float64),
                                       ('theta', np.float64),
@@ -745,6 +755,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         result['x2'][i] = catalog.x2[i]
         result['y2'][i] = catalog.y2[i]
         result['xy'][i] = catalog.xy[i]
+        result['errx2'][i] = catalog.errx2[i]
+        result['erry2'][i] = catalog.erry2[i]
+        result['errxy'][i] = catalog.errxy[i]
         result['a'][i] = catalog.a[i]
         result['b'][i] = catalog.b[i]
         result['theta'][i] = catalog.theta[i]

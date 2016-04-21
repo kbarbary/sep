@@ -178,7 +178,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   double	thresh,thresh2, t1t2,darea,
                 mx,my, mx2,my2,mxy, rv, tv,
 		xm,ym, xm2,ym2,xym,
-		temp,temp2, theta,pmx2,pmy2;
+		temp,temp2, theta,pmx2,pmy2, errx2, erry2, errxy, cvar;
   int		x, y, xmin, ymin, area2, dnpix;
 
   preanalyse(no, objlist);
@@ -186,6 +186,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
   dnpix = 0;
   mx = my = tv = 0.0;
   mx2 = my2 = mxy = 0.0;
+  errx2 = erry2 = errxy = 0.0;
   thresh = obj->thresh;
   peak = obj->dpeak;
   rv = obj->fdflux;
@@ -200,6 +201,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
       x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
       cval = PLISTPIX(pixt, cdvalue);
+      cvar = PLISTPIX(pixt, var);
       tv += (val = PLISTPIX(pixt, value));
       if (val>thresh)
 	dnpix++;
@@ -210,11 +212,13 @@ void  analyse(int no, objliststruct *objlist, int robust)
       mx2 += cval * x*x;
       my2 += cval * y*y;
       mxy += cval * x*y;
+
     }
 
   /* compute object's properties */
   xm = mx / rv;    /* mean x */
   ym = my / rv;    /* mean y */
+
 
   /* In case of blending, use previous barycenters */
   if ((robust) && (obj->flag & SEP_OBJ_MERGED))
@@ -234,7 +238,25 @@ void  analyse(int no, objliststruct *objlist, int robust)
       xm2 = mx2 / rv - xm * xm;	 /* variance of x */
       ym2 = my2 / rv - ym * ym;	 /* variance of y */
       xym = mxy / rv - xm * ym;	 /* covariance */
+
     }
+
+  /* Calculate the errors on the variances */
+  for (pixt=pixel+obj->firstpix; pixt>=pixel; pixt=pixel+PLIST(pixt,nextpix))
+    {
+      x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
+      y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
+
+      cvar = PLISTPIX(pixt, var);
+      /* Note that this works for both blended and non-blended cases
+       * because xm is set to xn above for the blended case. */
+      errx2 += cvar * (x - xm) * (x - xm);
+      erry2 += cvar * (y - ym) * (y - ym);
+      errxy += cvar * (x - xm) * (y - ym);
+    }
+  errx2 /= rv;
+  erry2 /= rv;
+  errxy /= rv;
 
   /* Handle fully correlated x/y (which cause a singularity...) */
   if ((temp2=xm2*ym2-xym*xym)<0.00694)
@@ -260,8 +282,11 @@ void  analyse(int no, objliststruct *objlist, int robust)
   obj->mx = xm+xmin;	/* add back xmin */
   obj->my = ym+ymin;	/* add back ymin */
   obj->mx2 = xm2;
+  obj->errx2 = errx2;
   obj->my2 = ym2;
+  obj->erry2 = erry2;
   obj->mxy = xym;
+  obj->errxy = errxy;
   obj->a = (float)sqrt(pmx2);
   obj->b = (float)sqrt(pmy2);
   obj->theta = theta;

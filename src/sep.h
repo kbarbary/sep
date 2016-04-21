@@ -106,6 +106,7 @@ typedef struct {
   int    *ymin, *ymax;
   double *x, *y;                 /* barycenter (first moments)               */
   double *x2, *y2, *xy;		 /* second moments                           */
+  double *errx2, *erry2, *errxy;      /* second moment errors            */
   float	 *a, *b, *theta;    /* ellipse parameters                       */
   float	 *cxx, *cyy, *cxy;  /* ellipse parameters (alternative)         */
   float	 *cflux;                /* total flux of pixels (convolved im)      */

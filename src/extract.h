@@ -103,6 +103,7 @@ typedef struct
   double   mx2,my2,mxy;			     /* variances and covariance */
   float	   a, b, theta, abcor;		     /* moments and angle */
   float	   cxx,cyy,cxy;			     /* ellipse parameters */
+  double   errx2, erry2, errxy;      /* Uncertainties on the variances */
 
   /* flux */
   float	   fdflux;	       		/* integrated ext. flux */
