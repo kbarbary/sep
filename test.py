@@ -27,6 +27,12 @@ IMAGECAT_DTYPE = [('number', np.int64),
                   ('y', np.float64),
                   ('xwin', np.float64),
                   ('ywin', np.float64),
+                  ('x2', np.float64),
+                  ('y2', np.float64),
+                  ('xy', np.float64),
+                  ('errx2', np.float64),
+                  ('erry2', np.float64),
+                  ('errxy', np.float64),
                   ('a', np.float64),
                   ('flux_aper', np.float64),
                   ('fluxerr_aper', np.float64),
@@ -91,6 +97,11 @@ def test_vs_sextractor():
     assert_allclose(objs['x'], refobjs['x'] - 1., atol=1.e-3)
     assert_allclose(objs['y'], refobjs['y'] - 1., atol=1.e-3)
 
+    # Correct Variance and Variance Errors?
+    assert_allclose(objs['x2'], refobjs['x2'], atol=1.e-5)
+    assert_allclose(objs['y2'], refobjs['y2'], atol=1.e-5)
+    assert_allclose(objs['xy'], refobjs['xy'], atol=1.e-5)
+
     # Test aperture flux
     flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 5.,
                                          err=bkg.globalrms)
@@ -151,6 +162,7 @@ def test_vs_sextractor():
     # test winpos
     sig = 2. / 2.35 * fr[:, 1]  # flux_radius = 0.5
     xwin, ywin, flag = sep.winpos(data, objs['x'], objs['y'], sig)
+
     assert_allclose(xwin, refobjs["xwin"] - 1., rtol=0., atol=0.0025)
     assert_allclose(ywin, refobjs["ywin"] - 1., rtol=0., atol=0.0025)
 
@@ -231,12 +243,24 @@ def test_extract_with_noise_array():
     objects = sep.extract(data, 1.5*bkg.globalrms, filter_kernel=None)
     objects2 = sep.extract(data, 1.5*bkg.globalrms, err=np.ones_like(data),
                            filter_kernel=None)
+    names_to_remove = ['errx2', 'erry2', 'errxy']
+    names_to_keep = [i for i in objects.dtype.names if i not in names_to_remove]
+    objects = objects[names_to_keep]
+    objects2 = objects2[names_to_keep]
+
     assert_equal(objects, objects2)
 
     # Less trivial test where thresh is realistic. Still a flat noise map.
     noise = bkg.globalrms * np.ones_like(data)
     objects2 = sep.extract(data, 1.5, err=noise, filter_kernel=None)
+
+    names_to_remove = ['errx2', 'erry2', 'errxy']
+    names_to_keep = [i for i in objects.dtype.names if i not in names_to_remove]
+    objects = objects[names_to_keep]
+    objects2 = objects2[names_to_keep]
+
     assert_equal(objects, objects2)
+
 
 def test_extract_with_noise_convolution():
     """Test extraction when there is both noise and convolution.
