@@ -1012,6 +1012,7 @@ void free_catalog_fields(sep_catalog *catalog)
   free(catalog->cxx);
   free(catalog->cyy);
   free(catalog->cxy);
+  free(catalog->fwhm);
   free(catalog->cflux);
   free(catalog->flux);
   free(catalog->cpeak);
@@ -1083,6 +1084,7 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
   QMALLOC(cat->cxx, float, nobj, status);
   QMALLOC(cat->cyy, float, nobj, status);
   QMALLOC(cat->cxy, float, nobj, status);
+  QMALLOC(cat->fwhm, float, nobj, status);
   QMALLOC(cat->cflux, float, nobj, status);
   QMALLOC(cat->flux, float, nobj, status);
   QMALLOC(cat->cpeak, float, nobj, status);
@@ -1125,6 +1127,8 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
           cat->cxx[j] = obj->cxx;
           cat->cyy[j] = obj->cyy;
           cat->cxy[j] = obj->cxy;
+
+          cat->fwhm[j] = obj->fwhm;
 
           cat->cflux[j] = obj->fdflux; /* these change names */
           cat->flux[j] = obj->dflux;

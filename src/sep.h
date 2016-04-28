@@ -109,6 +109,7 @@ typedef struct {
   double *errx2, *erry2, *errxy;      /* second moment errors            */
   float	 *a, *b, *theta;    /* ellipse parameters                       */
   float	 *cxx, *cyy, *cxy;  /* ellipse parameters (alternative)         */
+  float  *fwhm;                 /* full-width at half max */
   float	 *cflux;                /* total flux of pixels (convolved im)      */
   float	 *flux;      		 /* total flux of pixels (unconvolved)       */
   float  *cpeak;                /* peak intensity (ADU) (convolved)         */

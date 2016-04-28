@@ -99,6 +99,63 @@ int analysemthresh(int objnb, objliststruct *objlist, int minarea,
   return status;
 }
 
+/********************************* fwhm **************************************/
+
+void compute_fwhm(int no, objliststruct *objlist) {
+
+    PIXTYPE	thresh0;
+    objstruct	*obj = &objlist->obj[no];
+    pliststruct	*pixel = objlist->plist, *pixt;
+    
+    thresh0 = obj->peak/5.0;
+    if (thresh0<obj->thresh)
+      thresh0 = obj->thresh;
+    if (thresh0>0.0)
+      {
+       double	mx,my, s,sx,sy,sxx,sxy, dx,dy,d2, lpix,pix, b, inverr2,
+		d, bmax;
+
+      mx = obj->mx;
+      my = obj->my;
+      s = sx = sy = sxx = sxy = 0.0;
+      for (pixt=pixel+obj->firstpix;pixt>=pixel;pixt=pixel+PLIST(pixt,nextpix))
+        {
+        pix = PLIST(pixt,value);
+        if (pix>thresh0)
+          {
+          dx = PLIST(pixt,x) - mx;
+          dy = PLIST(pixt,y) - my;
+          lpix = log(pix);
+          inverr2 = pix*pix;
+          s += inverr2;
+          d2 = dx*dx+dy*dy;
+          sx += d2*inverr2;
+          sxx += d2*d2*inverr2;
+          sy += lpix*inverr2;
+          sxy += lpix*d2*inverr2;
+          }
+        }
+      d = s*sxx-sx*sx;
+      if (fabs(d)>0.0)
+        {
+        b = -(s*sxy-sx*sy)/d;
+        if (b<(bmax = 1/(13*obj->a*obj->b)))	/* to have FWHM # 6 sigma */
+          b = bmax;
+        obj->fwhm = (float)(1.6651/sqrt(b));
+/*----- correction for undersampling effects (established from simulations) */
+        if (obj->fwhm>0.0)
+          obj->fwhm -= 1/(4*obj->fwhm);
+        }
+      else
+        obj->fwhm = 0.0;
+      }
+    else
+      obj->fwhm = 0.0;
+
+    return;
+}
+
+
 /************************* preanalyse **************************************/
 
 void  preanalyse(int no, objliststruct *objlist)
@@ -326,6 +383,8 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
       obj->abcor = 1.0;
     }
 
+  compute_fwhm(no, objlist);
+  
   return;
 
 }

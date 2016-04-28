@@ -34,6 +34,7 @@ IMAGECAT_DTYPE = [('number', np.int64),
                   ('erry2', np.float64),
                   ('errxy', np.float64),
                   ('a', np.float64),
+                  ('fwhm', np.float64),
                   ('flux_aper', np.float64),
                   ('fluxerr_aper', np.float64),
                   ('kron_radius', np.float64),
@@ -105,6 +106,14 @@ def test_vs_sextractor():
     assert_allclose(objs['erry2'], refobjs['erry2'], rtol=1.e-4)
     assert_allclose(objs['errxy'], refobjs['errxy'], rtol=1.e-3)
 
+    # FWHM (only reported to 0.01 by sextractor, so use atol)
+    print("fhwm:")
+    print("ref  sep  diff    sep_flag ref_flag ref_flux_aper")
+    for i in range(len(objs)):
+        print("%.2f %.2f %.4f %d %d %.4f" % (refobjs['fwhm'][i], objs['fwhm'][i],
+                                        objs['fwhm'][i] - refobjs['fwhm'][i], objs['flag'][i], refobjs['flags'][i], refobjs['flux_aper'][i]))
+    #assert_allclose(objs['fwhm'], refobjs['fwhm'], atol=0.02)
+    
     # Test aperture flux
     flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 5.,
                                          err=bkg.globalrms)

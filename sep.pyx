@@ -104,6 +104,7 @@ cdef extern from "sep.h":
         float  *cxx
         float  *cyy
         float  *cxy
+        float  *fwhm
         float  *cflux
         float  *flux
         float  *cpeak
@@ -551,6 +552,7 @@ cdef packed struct Object:
     np.float64_t cxx
     np.float64_t cyy
     np.float64_t cxy
+    np.float64_t fwhm
     np.float64_t cflux
     np.float64_t flux
     np.float64_t cpeak
@@ -654,6 +656,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
           described by Section 8.4.2 in "The Source Extractor Guide" or 
           Section 10.1.5-6 of v2.13 of SExtractor's User Manual.
         * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
+        * ``fwhm`` (float) Full width at half maximum.
         * ``cflux`` (float) Sum of member pixels in convolved data.
         * ``flux`` (float) Sum of member pixels in unconvolved data.
         * ``cpeak`` (float) Peak value in convolved data.
@@ -750,6 +753,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
                                       ('cxx', np.float64),
                                       ('cyy', np.float64),
                                       ('cxy', np.float64),
+                                      ('fwhm', np.float64),
                                       ('cflux', np.float64),
                                       ('flux', np.float64),
                                       ('cpeak', np.float64),
@@ -782,6 +786,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
         result['cxx'][i] = catalog.cxx[i]
         result['cyy'][i] = catalog.cyy[i]
         result['cxy'][i] = catalog.cxy[i]
+        result['fwhm'][i] = catalog.fwhm[i]
         result['cflux'][i] = catalog.cflux[i]
         result['flux'][i] = catalog.flux[i]
         result['cpeak'][i] = catalog.cpeak[i]
