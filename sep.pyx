@@ -473,7 +473,7 @@ cdef class Background:
         sep_dtype = _get_sep_dtype(dtype)
 
         result = np.empty((self.ptr.h, self.ptr.w), dtype=dtype)
-        buf = result.view(dtype=np.uint8)        
+        buf = result.view(dtype=np.uint8)
         status = sep_bkg_rmsarray(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 

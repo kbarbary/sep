@@ -211,6 +211,17 @@ def test_background_boxsize():
     bkg = sep.Background(data, bh=ny, bw=nx, fh=1, fw=1)
     bkg.back()
 
+
+def test_background_rms():
+    """Test that Background.rms() at least works"""
+
+    ny, nx = 1024, 1024
+    data = np.random.randn(ny, nx)
+    bkg = sep.Background(data)
+    rms = bkg.rms()
+    assert rms.dtype == np.float64
+    assert rms.shape == (ny, nx)
+
 # -----------------------------------------------------------------------------
 # Extract
 
