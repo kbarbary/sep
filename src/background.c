@@ -1005,8 +1005,8 @@ int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
       *(line++) = (float)*node;
 
  exit:
-  free(node);
-  free(dnode);
+  free(nodebuf);
+  free(dnodebuf);
   free(u);
   return status;
 }
