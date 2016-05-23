@@ -630,7 +630,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         * ``ymin``, ``ymax`` (int) Minimum, maximum y coordinates of pixels.
         * ``x``, ``y`` (float) object barycenter (first moments).
         * ``x2``, ``y2``, ``xy`` (float) Second moments.
-        * ``a``, ``b``, ``theta`` (float) Ellipse parameters.
+        * ``a``, ``b``, ``theta`` (float) Ellipse parameters, scalled as
+            described by Section 8.4.2 in "The Source Extractor Guide" or 
+            Section 10.1.5-6 of v2.13 of SExtractor's User Manual.
         * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
         * ``cflux`` (float) Sum of member pixels in convolved data.
         * ``flux`` (float) Sum of member pixels in unconvolved data.
