@@ -639,7 +639,7 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
         * ``cpeak`` (float) Peak value in convolved data.
         * ``peak`` (float) Peak value in unconvolved data.
         * ``xcpeak``, ``ycpeak`` (int) Coordinate of convolved peak pixel.
-        * ``xpeak``, ``ypeak`` (int) Coordinate of convolved peak pixel.
+        * ``xpeak``, ``ypeak`` (int) Coordinate of unconvolved peak pixel.
         * ``flag`` (int) Extraction flags.
 
     segmap : `~numpy.ndarray`, optional
