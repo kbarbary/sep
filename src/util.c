@@ -282,6 +282,10 @@ void sep_get_errmsg(int status, char *errtext)
       break;
    case RELTHRESH_NO_NOISE:
       strcpy(errtext, "relative threshold but image has noise_type of NONE");
+      break;
+    case UNKNOWN_NOISE_TYPE:
+      strcpy(errtext, "image has unknown noise_type");
+      break;
     default:
        strcpy(errtext, "unknown error status");
        break;

@@ -185,9 +185,9 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   int               co, i, luflag, pstop, xl, xl2, yl, cn;
   int               stacksize, convn, status;
   int               bufh;
-  int               isvarthresh;
+  int               isvarthresh, isvarnoise;
   short             trunflag;
-  PIXTYPE           relthresh, cdnewsymbol;
+  PIXTYPE           relthresh, cdnewsymbol, pixvar, pixsig;
   float             sum;
   pixstatus         cs, ps;
 
@@ -222,32 +222,53 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   h = image->h;
   isvarthresh = 0;
   relthresh = 0.0;
-
+  pixvar = 0.0;
+  pixsig = 0.0;
+  isvarnoise = 0;
+  
   mem_pixstack = sep_get_extract_pixstack();
 
   /* seed the random number generator consistently on each call to get
    * consistent results. rand() is used in deblending. */
   srand(1);
 
-  /* Deal with relative thresholding */
+  /* Noise characteristics of the image: None, scalar or variable? */
+  if (image->noise_type == SEP_NOISE_NONE) { } /* nothing to do */
+  else if (image->noise == NULL) {
+    /* noise is constant; we can set pixel noise now. */
+    if (image->noise_type == SEP_NOISE_STDDEV) {
+      pixsig = image->noiseval;
+      pixvar = pixsig * pixsig;
+    }
+    else if (image->noise_type == SEP_NOISE_VAR) {
+      pixvar = image->noiseval;
+      pixsig = sqrt(pixvar);
+    }
+    else {
+      return UNKNOWN_NOISE_TYPE;
+    }
+  }
+  else {
+    /* noise is variable; we deal with setting pixvar and pixsig at each
+     * pixel. */
+    isvarnoise = 1;
+  }
+
+  /* Deal with relative thresholding. (For an absolute threshold
+  *  nothing needs to be done, as `thresh` should already contain the constant
+  *  threshold, and `isvarthresh` is already 0.) */
   if (thresh_type == SEP_THRESH_REL) {
 
-    /* If threshold is relative, the image must have noise information */
+    /* The image must have noise information. */
     if (image->noise_type == SEP_NOISE_NONE) return RELTHRESH_NO_NOISE;
 
-    /* If we have a noise array, the threshold will be variable.
-     * We'll use `relthresh` below to set `thresh` for each pixel. */
-    if (image->noise != NULL) {
-      isvarthresh = 1;
-      relthresh = thresh;
+    isvarthresh = isvarnoise;  /* threshold is variable if noise is */
+    if (isvarthresh) {
+      relthresh = thresh; /* used below to set `thresh` for each pixel. */
     }
-
-    /* otherwise, noise is scalar, so we can set an absolute threshold. */
     else {
-      if (image->noise_type == SEP_NOISE_STDDEV)
-        thresh *= image->noiseval;
-      else if (image->noise_type == SEP_NOISE_VAR)
-        thresh *= sqrt(image->noiseval);
+      /* thresh is constant; convert relative threshold to absolute */
+      thresh *= pixsig;
     }
   }
 
@@ -277,7 +298,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   status = arraybuffer_init(&dbuf, image->data, image->dtype, w, h, stacksize,
                             bufh);
   if (status != RETURN_OK) goto exit;
-  if (isvarthresh) {
+  if (isvarnoise) {
       status = arraybuffer_init(&nbuf, image->noise, image->ndtype, w, h,
                                 stacksize, bufh);
       if (status != RETURN_OK) goto exit;
@@ -292,7 +313,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
    * processed. It might be the only line in the buffer, or it might be the 
    * middle line. */
   scan = dbuf.midline;
-  if (isvarthresh)
+  if (isvarnoise)
     wscan = nbuf.midline;
 
   /* More initializations */
@@ -318,7 +339,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
 
   /* Allocate memory for the pixel list */
-  plistinit((conv != NULL), isvarthresh);
+  plistinit((conv != NULL), (image->noise_type != SEP_NOISE_NONE));
   if (!(pixel = objlist.plist = malloc(nposize=mem_pixstack*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -335,7 +356,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
   /* can only use a matched filter when convolving and when there is a noise
    * array */
-  if (!(conv && isvarthresh))
+  if (!(conv && isvarnoise))
     filter_type = SEP_FILTER_CONV;
 
   if (conv)
@@ -378,12 +399,12 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
       else
 	{
           arraybuffer_readline(&dbuf);
-          if (isvarthresh)
+          if (isvarnoise)
             arraybuffer_readline(&nbuf);
           if (image->mask)
             {
               arraybuffer_readline(&mbuf);
-              apply_mask_line(&mbuf, &dbuf, (isvarthresh? &nbuf: NULL));
+              apply_mask_line(&mbuf, &dbuf, (isvarnoise? &nbuf: NULL));
             }
 
 	  /* filter the lines */
@@ -423,15 +444,27 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
 	  curpixinfo.flag = trunflag;
 
-          /* set "thresh" based on noise array. This is needed later, even
-           * if filter_type is SEP_FILTER_MATCHED */
-	  if (isvarthresh) {
-            if (xl == w || yl == h)
-              thresh = 0.0;
-            else if (image->noise_type == SEP_NOISE_VAR)
-              thresh = relthresh * sqrt(wscan[xl]);
-            else
-              thresh = relthresh * wscan[xl];
+          /* set pixel variance/noise based on noise array */
+          if (isvarnoise) {
+            if (xl == w || yl == h) {
+              pixsig = pixvar = 0.0;
+            }
+            else if (image->noise_type == SEP_NOISE_VAR) {
+              pixvar = wscan[xl];
+              pixsig = sqrt(pixvar);
+            }
+            else if (image->noise_type == SEP_NOISE_STDDEV) {
+              pixsig = wscan[xl];
+              pixvar = pixsig * pixsig;
+            }
+            else {
+              status = UNKNOWN_NOISE_TYPE;
+              goto exit;
+            }
+            
+            /* set `thresh` (This is needed later, even
+             * if filter_type is SEP_FILTER_MATCHED */
+            if (isvarthresh) thresh = relthresh * pixsig;
           }
 
           /* luflag: is pixel above thresh (Y/N)? */
@@ -460,7 +493,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	      if (PLISTEXIST(cdvalue))
 		PLISTPIX(pixt, cdvalue) = cdnewsymbol;
 	      if (PLISTEXIST(var))
-		PLISTPIX(pixt, var) = wscan[xl];  /* not currently used */
+		PLISTPIX(pixt, var) = pixvar;
 	      if (PLISTEXIST(thresh))
 		PLISTPIX(pixt, thresh) = thresh;
 
