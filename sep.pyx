@@ -478,7 +478,7 @@ cdef class Background:
         sep_dtype = _get_sep_dtype(dtype)
 
         result = np.empty((self.ptr.h, self.ptr.w), dtype=dtype)
-        buf = result.view(dtype=np.uint8)        
+        buf = result.view(dtype=np.uint8)
         status = sep_bkg_rmsarray(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 
@@ -649,14 +649,17 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
         * ``x``, ``y`` (float) object barycenter (first moments).
         * ``x2``, ``y2``, ``xy`` (float) Second moments.
         * ``errx2``, ``erry2``, ``errxy`` (float) Second moment errors.
-        * ``a``, ``b``, ``theta`` (float) Ellipse parameters.
+          Note that these will be zero if error is not given.
+        * ``a``, ``b``, ``theta`` (float) Ellipse parameters, scaled as
+          described by Section 8.4.2 in "The Source Extractor Guide" or 
+          Section 10.1.5-6 of v2.13 of SExtractor's User Manual.
         * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
         * ``cflux`` (float) Sum of member pixels in convolved data.
         * ``flux`` (float) Sum of member pixels in unconvolved data.
         * ``cpeak`` (float) Peak value in convolved data.
         * ``peak`` (float) Peak value in unconvolved data.
         * ``xcpeak``, ``ycpeak`` (int) Coordinate of convolved peak pixel.
-        * ``xpeak``, ``ypeak`` (int) Coordinate of convolved peak pixel.
+        * ``xpeak``, ``ypeak`` (int) Coordinate of unconvolved peak pixel.
         * ``flag`` (int) Extraction flags.
 
     segmap : `~numpy.ndarray`, optional
