@@ -308,36 +308,38 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask,
     im.data = <void*>&buf[0, 0]
 
     # Check if noise is error or variance.
+    noise = None  # will point to either error or variance.
     if err is not None:
         if var is not None:
             raise ValueError("Cannot specify both err and var")
+        noise = err
         im.noise_type = SEP_NOISE_STDDEV
     elif var is not None:
-        err = var
+        noise = var
         im.noise_type = SEP_NOISE_VAR
 
     # parse noise
-    if err is None:
+    if noise is None:
         im.noise = NULL
         im.noise_type = SEP_NOISE_NONE
         im.noiseval = 0.0
-    elif isinstance(err, np.ndarray):
-        if err.ndim == 0:
+    elif isinstance(noise, np.ndarray):
+        if noise.ndim == 0:
             im.noise = NULL
-            im.noiseval = err
-        elif err.ndim == 2:
-            _check_array_get_dims(err, &ew, &eh)
+            im.noiseval = noise
+        elif noise.ndim == 2:
+            _check_array_get_dims(noise, &ew, &eh)
             if ew != im.w or eh != im.h:
                 raise ValueError("size of error/variance array must match"
                                  " data")
-            im.ndtype = _get_sep_dtype(err.dtype)
-            ebuf = err.view(dtype=np.uint8)
+            im.ndtype = _get_sep_dtype(noise.dtype)
+            ebuf = noise.view(dtype=np.uint8)
             im.noise = <void*>&ebuf[0, 0]
         else:
             raise ValueError("error/variance array must be 0-d or 2-d")
     else:
         im.noise = NULL
-        im.noiseval = err
+        im.noiseval = noise
 
     # Optional input: mask
     if mask is None:
@@ -566,8 +568,9 @@ default_kernel = np.array([[1.0, 2.0, 1.0],
                            [2.0, 4.0, 2.0],
                            [1.0, 2.0, 1.0]], dtype=np.float32)
 
-def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
-            np.ndarray mask=None, int minarea=5,
+def extract(np.ndarray data not None, float thresh, err=None, var=None,
+            gain=None, np.ndarray mask=None, double maskthresh=0.0,
+            int minarea=5,
             np.ndarray filter_kernel=default_kernel, filter_type='matched',
             int deblend_nthresh=32, double deblend_cont=0.005,
             bint clean=True, double clean_param=1.0,
@@ -584,16 +587,25 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     data : `~numpy.ndarray`
         Data array (2-d).
     thresh : float
-        Threshold pixel value for detection. If an ``err`` array is not given,
-        this is interpreted as an absolute threshold. If ``err`` is
-        given, this is interpreted as a relative threshold: the absolute
-        threshold at pixel (j, i) will be ``thresh * err[j, i]``.
-    err : `~numpy.ndarray`, optional
-        Noise array for specifying a pixel-by-pixel detection threshold.
+        Threshold pixel value for detection. If an ``err`` or ``var`` array
+        is not given, this is interpreted as an absolute threshold. If ``err``
+        or ``var`` is given, this is interpreted as a relative threshold: the
+        absolute threshold at pixel (j, i) will be ``thresh * err[j, i]`` or
+        ``thresh * sqrt(var[j, i])``.
+    err, var : float or `~numpy.ndarray`, optional
+        Error *or* variance (specify at most one). This can be used to
+        specify a pixel-by-pixel detection threshold; see "thresh" argument.
+    gain : float, optional
+        Conversion factor between data array units and poisson counts. This
+        does not affect detection; it is used only in calculating Poisson
+        noise contribution to uncertainty parameters such as ``errx2``. If
+        not given, no Poisson noise will be added.
     mask : `~numpy.ndarray`, optional
-        Mask array. ``True`` values, or numeric values greater than 0,
-        are considered masked. Masking a pixel is equivalent to setting data
-        to zero and noise (if present) to infinity.
+        Mask array. ``True`` values, or numeric values greater than
+        ``maskthresh``, are considered masked. Masking a pixel is equivalent
+        to setting data to zero and noise (if present) to infinity.
+    maskthresh : float, optional
+        Threshold for a pixel to be masked. Default is ``0.0``.
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
     filter_kernel : `~numpy.ndarray` or None, optional
@@ -666,7 +678,10 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     cdef sep_image im
 
     # parse arrays
-    _parse_arrays(data, err, None, mask, &im)
+    _parse_arrays(data, err, var, mask, &im)
+    im.maskthresh = maskthresh
+    if gain is not None:
+        im.gain = gain
 
     # 'conv' has been renamed to filter_kernel. If the user has set it
     # explicitly, issue a warning. Don't use DeprecationWarning: no one will
@@ -695,9 +710,9 @@ def extract(np.ndarray data not None, float thresh, np.ndarray err=None,
     else:
         raise ValueError("unknown filter_type: {!r}".format(filter_type))
 
-    # If there is an error array, the threshold is relative, otherwise
-    # it is absolute
-    if im.noise == NULL:
+    # If image has error info, the threshold is relative, otherwise
+    # it is absolute.
+    if im.noise_type == SEP_NOISE_NONE:
         thresh_type = SEP_THRESH_ABS
     else:
         thresh_type = SEP_THRESH_REL

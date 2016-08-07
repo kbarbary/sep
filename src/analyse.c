@@ -170,15 +170,16 @@ void  preanalyse(int no, objliststruct *objlist)
   If robust = 1, you must have run previously with robust=0
 */
 
-void  analyse(int no, objliststruct *objlist, int robust)
+void  analyse(int no, objliststruct *objlist, int robust, double gain)
 {
   objstruct	*obj = &objlist->obj[no];
   pliststruct	*pixel = objlist->plist, *pixt;
   PIXTYPE	peak, val, cval;
   double	thresh,thresh2, t1t2,darea,
-                mx,my, mx2,my2,mxy, rv, tv,
+                mx,my, mx2,my2,mxy, rv, rv2, tv,
 		xm,ym, xm2,ym2,xym,
-		temp,temp2, theta,pmx2,pmy2, errx2, erry2, errxy, cvar;
+                temp,temp2, theta,pmx2,pmy2,
+                errx2, erry2, errxy, cvar, cvarsum;
   int		x, y, xmin, ymin, area2, dnpix;
 
   preanalyse(no, objlist);
@@ -186,10 +187,11 @@ void  analyse(int no, objliststruct *objlist, int robust)
   dnpix = 0;
   mx = my = tv = 0.0;
   mx2 = my2 = mxy = 0.0;
-  errx2 = erry2 = errxy = 0.0;
+  cvarsum = errx2 = erry2 = errxy = 0.0;
   thresh = obj->thresh;
   peak = obj->dpeak;
   rv = obj->fdflux;
+  rv2 = rv * rv;
   thresh2 = (thresh + peak)/2.0;
   area2 = 0;
   
@@ -201,7 +203,6 @@ void  analyse(int no, objliststruct *objlist, int robust)
       x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
       cval = PLISTPIX(pixt, cdvalue);
-      cvar = PLISTEXIST(var)? PLISTPIX(pixt, var): 0.0;
       tv += (val = PLISTPIX(pixt, value));
       if (val>thresh)
 	dnpix++;
@@ -248,15 +249,21 @@ void  analyse(int no, objliststruct *objlist, int robust)
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
 
       cvar = PLISTEXIST(var)? PLISTPIX(pixt, var): 0.0;
+      if (gain > 0.0) {  /* add poisson noise if given */
+        cval = PLISTPIX(pixt, cdvalue);
+        if (cval > 0.0) cvar += cval / gain;
+      }
+
       /* Note that this works for both blended and non-blended cases
        * because xm is set to xn above for the blended case. */
+      cvarsum += cvar;
       errx2 += cvar * (x - xm) * (x - xm);
       erry2 += cvar * (y - ym) * (y - ym);
       errxy += cvar * (x - xm) * (y - ym);
     }
-  errx2 /= rv;
-  erry2 /= rv;
-  errxy /= rv;
+  errx2 /= rv2;
+  erry2 /= rv2;
+  errxy /= rv2;
 
   /* Handle fully correlated x/y (which cause a singularity...) */
   if ((temp2=xm2*ym2-xym*xym)<0.00694)
@@ -265,8 +272,15 @@ void  analyse(int no, objliststruct *objlist, int robust)
       ym2 += 0.0833333;
       temp2 = xm2*ym2-xym*xym;
       obj->flag |= SEP_OBJ_SINGU;
+
+      /* handle it for the error parameters */
+      cvarsum *= 0.08333/rv2;
+      if (errx2*erry2 - errxy * errxy < cvarsum * cvarsum) {
+        errx2 += cvarsum;
+        erry2 += cvarsum;
+      }
     }
-  
+
   if ((fabs(temp=xm2-ym2)) > 0.0)
     theta = atan2(2.0 * xym, temp) / 2.0;
   else

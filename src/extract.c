@@ -53,7 +53,7 @@ size_t sep_get_extract_pixstack()
 
 int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   objliststruct *finalobjlist,
-	   int deblend_nthresh, double deblend_mincont);
+	   int deblend_nthresh, double deblend_mincont, double gain);
 void plistinit(int hasconv, int hasvar);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convert_to_catalog(objliststruct *objlist, int *survives,
@@ -624,7 +624,8 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
 			      status = sortit(&info[co], &objlist, minarea,
 					      finalobjlist,
-					      deblend_nthresh,deblend_cont);
+					      deblend_nthresh,deblend_cont,
+                                              image->gain);
 			      if (status != RETURN_OK)
 				goto exit;
 			    }
@@ -742,7 +743,7 @@ build the object structure.
 */
 int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   objliststruct *finalobjlist,
-	   int deblend_nthresh, double deblend_mincont)
+	   int deblend_nthresh, double deblend_mincont, double gain)
 {
   objliststruct	        objlistout, *objlist2;
   static objstruct	obj;
@@ -785,7 +786,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   /* Analyze the deblended objects and add to the final list */
   for (i=0; i<objlist2->nobj; i++)
     {
-      analyse(i, objlist2, 1);
+      analyse(i, objlist2, 1, gain);
 
       /* this does nothing if DETECT_MAXAREA is 0 (and it currently is) */
       if (DETECT_MAXAREA && objlist2->obj[i].fdnpix > DETECT_MAXAREA)

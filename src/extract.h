@@ -135,7 +135,7 @@ typedef struct
 int analysemthresh(int objnb, objliststruct *objlist, int minarea,
 		   PIXTYPE thresh);
 void preanalyse(int, objliststruct *);
-void analyse(int, objliststruct *, int);
+void analyse(int, objliststruct *, int, double);
 
 int  lutzalloc(int, int);
 void lutzfree(void);

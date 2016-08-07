@@ -265,7 +265,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
   QMALLOC(n, int, nobj, status);
 
   for (i=1; i<nobj; i++)
-    analyse(i, objlistin, 0);
+    analyse(i, objlistin, 0, 0.0);
 
   p[0] = 0.0;
   bmwidth = objin->xmax - (xs=objin->xmin) + 1;
