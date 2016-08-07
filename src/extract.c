@@ -1003,6 +1003,9 @@ void free_catalog_fields(sep_catalog *catalog)
   free(catalog->x2);
   free(catalog->y2);
   free(catalog->xy);
+  free(catalog->errx2);
+  free(catalog->erry2);
+  free(catalog->errxy);
   free(catalog->a);
   free(catalog->b);
   free(catalog->theta);
