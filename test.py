@@ -86,7 +86,7 @@ def test_vs_sextractor():
 
     # Extract objects (use deblend_cont=1.0 to disable deblending).
     bkg.subfrom(data)
-    objs = sep.extract(data, 1.5*bkg.globalrms, deblend_cont=1.0)
+    objs = sep.extract(data, 1.5, err=bkg.globalrms, deblend_cont=1.0)
     objs = np.sort(objs, order=['y'])
 
     # Read SExtractor result
@@ -98,9 +98,12 @@ def test_vs_sextractor():
     assert_allclose(objs['y'], refobjs['y'] - 1., atol=1.e-3)
 
     # Correct Variance and Variance Errors?
-    assert_allclose(objs['x2'], refobjs['x2'], atol=1.e-5)
-    assert_allclose(objs['y2'], refobjs['y2'], atol=1.e-5)
-    assert_allclose(objs['xy'], refobjs['xy'], atol=1.e-5)
+    assert_allclose(objs['x2'], refobjs['x2'], atol=1.e-4)
+    assert_allclose(objs['y2'], refobjs['y2'], atol=1.e-4)
+    assert_allclose(objs['xy'], refobjs['xy'], atol=1.e-4)
+    assert_allclose(objs['errx2'], refobjs['errx2'], rtol=1.e-4)
+    assert_allclose(objs['erry2'], refobjs['erry2'], rtol=1.e-4)
+    assert_allclose(objs['errxy'], refobjs['errxy'], rtol=1.e-3)
 
     # Test aperture flux
     flux, fluxerr, flag = sep.sum_circle(data, objs['x'], objs['y'], 5.,
