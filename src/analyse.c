@@ -201,7 +201,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
       x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
       cval = PLISTPIX(pixt, cdvalue);
-      cvar = PLISTPIX(pixt, var);
+      cvar = PLISTEXIST(var)? PLISTPIX(pixt, var): 0.0;
       tv += (val = PLISTPIX(pixt, value));
       if (val>thresh)
 	dnpix++;
@@ -247,7 +247,7 @@ void  analyse(int no, objliststruct *objlist, int robust)
       x = PLIST(pixt,x)-xmin;  /* avoid roundoff errors on big images */
       y = PLIST(pixt,y)-ymin;  /* avoid roundoff errors on big images */
 
-      cvar = PLISTPIX(pixt, var);
+      cvar = PLISTEXIST(var)? PLISTPIX(pixt, var): 0.0;
       /* Note that this works for both blended and non-blended cases
        * because xm is set to xn above for the blended case. */
       errx2 += cvar * (x - xm) * (x - xm);
