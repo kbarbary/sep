@@ -1666,7 +1666,8 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     return kr, flag 
 
 def winpos(np.ndarray data not None, xinit, yinit, sig,
-           np.ndarray mask=None, double maskthresh=0.0, int subpix=11):
+           np.ndarray mask=None, double maskthresh=0.0, int subpix=11,
+           double minsig=2.0/2.35*0.5):
     """winpos(data, xinit, yinit, sig, mask=None, maskthresh=0.0, subpix=11)
 
     Calculate more accurate object centroids using 'windowed' algorithm.
@@ -1700,10 +1701,16 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
     maskthresh : float, optional
         Pixels with mask > maskthresh will be ignored.
 
-    subpix : int
+    subpix : int, optional
         Subpixel sampling used to determine pixel overlap with
         aperture.  11 is used in Source Extractor. For exact overlap
         calculation, use 0.
+
+    minsig : float, optional
+        Minimum bound on `sig` parameter. ``sig`` values smaller than this are
+        increased to ``minsig`` to replicate Source Extractor behavior.
+        Source Extractor uses a minimum half-light radius of 0.5 pixels,
+        equivalent to a sigma of 0.5 * 2.0 / 2.35.
 
     Returns
     -------
@@ -1716,7 +1723,7 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
     """
 
     cdef int status
-    cdef double cxx, cyy, cxy
+    cdef double cxx, cyy, cxy, sigval
     cdef int niter = 0  # not currently returned
     cdef sep_image im
 
@@ -1737,10 +1744,13 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
 
     it = np.broadcast(xinit, yinit, sig, x, y, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
+        sigval = (<double*>np.PyArray_MultiIter_DATA(it, 2))[0]
+        if sigval < minsig:
+            sigval = minsig
         status = sep_windowed(&im,
                               (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                               (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                              (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                              sigval,
                               subpix, 0,
                               <double*>np.PyArray_MultiIter_DATA(it, 3),
                               <double*>np.PyArray_MultiIter_DATA(it, 4),

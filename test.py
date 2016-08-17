@@ -165,19 +165,8 @@ def test_vs_sextractor():
     # test winpos
     sig = 2. / 2.35 * fr[:, 1]  # flux_radius = 0.5
     xwin, ywin, flag = sep.winpos(data, objs['x'], objs['y'], sig)
-
-    # For some reason, one object doesn't match. It's very small
-    # and kron_radius is set to 0.0 in SExtractor, but 0.08 in sep.
-    # Could be due to a change in SExtractor between v2.8.6 (used to
-    # generate "truth" catalog) and v2.18.11 (from which sep was forked).
-    i = 56  # index is 59 when deblending is on.
-    # Note that index 53 also has issues with the windowed positions, but
-    # they are less severe.
-    xwin[i] = refobjs['xwin'][i] - 1
-    ywin[i] = refobjs['ywin'][i] - 1
-
-    assert_allclose(xwin, refobjs["xwin"] - 1., rtol=0., atol=0.05)
-    assert_allclose(ywin, refobjs["ywin"] - 1., rtol=0., atol=0.05)
+    assert_allclose(xwin, refobjs["xwin"] - 1., rtol=0., atol=0.0015)
+    assert_allclose(ywin, refobjs["ywin"] - 1., rtol=0., atol=0.0015)
 
 # -----------------------------------------------------------------------------
 # Background
