@@ -4,8 +4,7 @@ include AUTHORS.md
 include licenses/*
 
 # do not include sep.pyx (see setup.py).
-include src/*.[c,h]
-include src/*.c.inc
+include src/*.[c,h,i]
 
 recursive-include docs *
 prune docs/_build
