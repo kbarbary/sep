@@ -1669,7 +1669,8 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 def winpos(np.ndarray data not None, xinit, yinit, sig,
            np.ndarray mask=None, double maskthresh=0.0, int subpix=11,
            double minsig=2.0/2.35*0.5):
-    """winpos(data, xinit, yinit, sig, mask=None, maskthresh=0.0, subpix=11)
+    """winpos(data, xinit, yinit, sig, mask=None, maskthresh=0.0, subpix=11,
+              minsig=2.0/2.35*0.5)
 
     Calculate more accurate object centroids using 'windowed' algorithm.
 
@@ -1683,6 +1684,10 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
     iterations is reached. This is equivalent to ``XWIN_IMAGE`` and
     ``YWIN_IMAGE`` parameters in Source Extractor (for the correct choice
     of sigma for each object).
+
+    **Note:** One should be cautious about using windowed positions in
+    crowded fields or for sources with nearby neighbors, as the iterative
+    algorithm can fail catastrophically.
 
     Parameters
     ----------
