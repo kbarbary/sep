@@ -139,6 +139,15 @@ def test_vs_sextractor():
     assert_allclose(flux, refobjs['flux_auto'], rtol=0.0005)
     assert_allclose(fluxerr, refobjs['fluxerr_auto'], rtol=0.0005)
 
+    # Test using a mask in kron_radius and sum_ellipse.
+    for dtype in [np.bool, np.int32, np.float32, np.float64]:
+        mask = np.zeros_like(data, dtype=dtype)
+        kr2, flag = sep.kron_radius(data, objs['x'], objs['y'],
+                                    objs['a'], objs['b'], objs['theta'],
+                                    6.0, mask=mask)
+        kr2[i] = 0.
+        assert np.all(kr == kr2)
+    
     # Test ellipse representation conversion
     cxx, cyy, cxy = sep.ellipse_coeffs(objs['a'], objs['b'], objs['theta'])
     assert_allclose(cxx, objs['cxx'], rtol=1.e-4)

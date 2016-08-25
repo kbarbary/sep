@@ -45,6 +45,11 @@ PIXTYPE convert_int(void *ptr)
   return *(int *)ptr;
 }
 
+PIXTYPE convert_byt(void *ptr)
+{
+  return *(BYTE *)ptr;
+}
+
 /* return the correct converter depending on the datatype code */
 int get_converter(int dtype, converter *f, int *size)
 {
@@ -64,6 +69,11 @@ int get_converter(int dtype, converter *f, int *size)
     {
       *f = convert_dbl;
       *size = sizeof(double);
+    }
+  else if (dtype == SEP_TBYTE)
+    {
+      *f = convert_byt;
+      *size = sizeof(BYTE);
     }
   else
     {

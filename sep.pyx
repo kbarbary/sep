@@ -1654,13 +1654,14 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                            (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                            &cxx, &cyy, &cxy)
-        sep_kron_radius(&im,
-                        (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
-                        (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                        cxx, cyy, cxy,
-                        (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                        <double*>np.PyArray_MultiIter_DATA(it, 6),
-                        <short*>np.PyArray_MultiIter_DATA(it, 7))
+        status = sep_kron_radius(&im,
+                                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+                                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+                                 cxx, cyy, cxy,
+                                 (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                                 <double*>np.PyArray_MultiIter_DATA(it, 6),
+                                 <short*>np.PyArray_MultiIter_DATA(it, 7))
+        _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
     return kr, flag 
