@@ -3,3 +3,4 @@
 * Kyle Boone (@kboone) : Bugfix, matched filter
 * Thomas Robitaille (@astrofrog) : Exact aperture overlap code
 * Matt Craig (@mwcraig) : Windows & OS X support
+* Curtis McCully (@cmccully): Parameter uncertainties

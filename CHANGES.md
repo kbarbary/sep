@@ -1,12 +1,25 @@
 Python module versions
 
-v0.6.0 (unreleased)
-===================
+v0.6.0 (25 August 2016)
+=======================
 
-- Fix segfault in `Background.back()` when box size is same as image size.
-- Fix bug in creating long error messages on Python 3.
+* New, more coherent C API. This change should be transparent to users
+  of the Python module.
 
-v0.5.2 (4 January 2015)
+* Add variance uncertainty parameters `errx2`, `erry2` and `errxy` to
+  output of `sep.extract()`.
+
+* Add a minimum sigma to `sep.winpos()` to match Source Extractor
+  behavior.
+  
+* Fix use of boolean masks in `sep.kron_radius()`. Formerly, using a
+  boolean mask resulted in nonsense results.
+
+* Fix segfault in `Background.back()` when box size is same as image size.
+
+* Fix bug in creating long error messages on Python 3.
+
+v0.5.2 (4 January 2016)
 =======================
 
 Adds OS X and Windows support.
