@@ -690,8 +690,8 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
     # explicitly, issue a warning. Don't use DeprecationWarning: no one will
     # ever see it.
     if conv is not default_kernel:
-        warn("The 'conv' keyword argument is deprecated. Use the "
-             "'filter_kernel' keyword argument instead.")
+        warn("The 'conv' keyword argument is deprecated and will be removed "
+             "in sep v1.0. Use the 'filter_kernel' keyword argument instead.")
         if filter_kernel is default_kernel:
             filter_kernel = conv
 
@@ -1416,7 +1416,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     cdef double flux1, fluxerr1, x1, y1, r1, area1, rin1, rout1
     cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef size_t i
+    cdef int i
     cdef int status, fracn
     cdef short[:] flag
     cdef double[:, :] radius
@@ -1551,6 +1551,8 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
     # deprecated behavior
     elif ("cxx" in kwargs and "cyy" in kwargs and "cxy" in kwargs):
         if "scale" in kwargs:
+            warn("The 'scale' keyword has been renamed to 'r'. Using 'scale' "
+                 "will raise an error in sep v1.0.")
             r = kwargs["scale"]
         r = np.require(r, dtype=dt)
         cxx_ = np.require(kwargs["cxx"], dtype=dt)
@@ -1897,10 +1899,17 @@ def get_extract_pixstack():
 
 def istruncated(np.ndarray flag not None):
     """True where 'aperture truncated' flag is set."""
+    warn("istruncated() is deprecated and will be removed in sep v1.0. "
+         "Use '(flag & sep.APER_TRUNC) != 0' instead.")
     return (flag & APER_TRUNC) != 0
 
 def hasmasked(np.ndarray flag not None):
     """True where 'aperture has masked pixel(s)' flag is set."""
+    warn("hasmasked() is deprecated and will be removed in sep v1.0. "
+         "Use '(flag & sep.APER_HASMASKED) != 0' instead.")
     return (flag & APER_HASMASKED) != 0
 
-apercirc = sum_circle
+def apercirc(*args, **kwargs):
+    warn("apercirc() has been renamed to sum_circle(). apercirc() will be "
+         "removed in sep v1.0.")
+    return sum_circle(*args, **kwargs)
