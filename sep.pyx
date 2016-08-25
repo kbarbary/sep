@@ -12,11 +12,10 @@ from libc.math cimport sqrt
 cimport cython
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from cpython.version cimport PY_MAJOR_VERSION
-from warnings import warn
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "0.6.0"
+__version__ = "1.0.0"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -574,7 +573,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
             np.ndarray filter_kernel=default_kernel, filter_type='matched',
             int deblend_nthresh=32, double deblend_cont=0.005,
             bint clean=True, double clean_param=1.0,
-            segmentation_map=False, np.ndarray conv=default_kernel):
+            segmentation_map=False):
     """extract(data, thresh, err=None, mask=None, minarea=5,
                filter_kernel=default_kernel, filter_type='matched',
                deblend_nthresh=32, deblend_cont=0.005, clean=True,
@@ -685,15 +684,6 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
-
-    # 'conv' has been renamed to filter_kernel. If the user has set it
-    # explicitly, issue a warning. Don't use DeprecationWarning: no one will
-    # ever see it.
-    if conv is not default_kernel:
-        warn("The 'conv' keyword argument is deprecated and will be removed "
-             "in sep v1.0. Use the 'filter_kernel' keyword argument instead.")
-        if filter_kernel is default_kernel:
-            filter_kernel = conv
 
     # Parse filter input
     if filter_kernel is None:
@@ -1482,7 +1472,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
-                 r=1.0, **kwargs):
+                 r=1.0, cxx=None, cyy=None, cxy=None):
     """mask_ellipse(arr, x, y, a, b, theta, r=1.0)
 
     Mask ellipse(s) in an array.
@@ -1505,15 +1495,18 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
         Input array to be masked. Array is updated in-place.
     x, y : array_like
         Center of ellipse(s).
-    a, b, theta : array_like
+    a, b, theta : array_like, optional
         Parameters defining the extent of the ellipe(s).
+    cxx, cyy, cxy : array_like, optional
+        Alternative ellipse representation. Can be used as
+        ``mask_ellipse(arr, x, y, cxx=..., cyy=..., cxy=...)``.
     r : array_like, optional
         Scale factor of ellipse(s). Default is 1.
     """
 
     cdef int w, h
     cdef np.uint8_t[:,:] buf
-    cdef double cxx, cyy, cxy
+    cdef double cxx_, cyy_, cxy_
 
     dt = np.dtype(np.double)
 
@@ -1526,10 +1519,10 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
 
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
-
-    # New Behavior:
+    r = np.require(r, dtype=dt)
+    
+    # a, b, theta representation
     if (a is not None and b is not None and theta is not None):
-        r = np.require(r, dtype=dt)
         a = np.require(a, dtype=dt)
         b = np.require(b, dtype=dt)
         theta = np.require(theta, dtype=dt)
@@ -1539,27 +1532,22 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
             sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
                                (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                                (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
-                               &cxx, &cyy, &cxy)
+                               &cxx_, &cyy_, &cxy_)
             sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
                             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                             (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
-                            cxx, cyy, cxy,
+                            cxx_, cyy_, cxy_,
                             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
                             1)
             np.PyArray_MultiIter_NEXT(it)
 
-    # deprecated behavior
-    elif ("cxx" in kwargs and "cyy" in kwargs and "cxy" in kwargs):
-        if "scale" in kwargs:
-            warn("The 'scale' keyword has been renamed to 'r'. Using 'scale' "
-                 "will raise an error in sep v1.0.")
-            r = kwargs["scale"]
-        r = np.require(r, dtype=dt)
-        cxx_ = np.require(kwargs["cxx"], dtype=dt)
-        cyy_ = np.require(kwargs["cyy"], dtype=dt)
-        cxy_ = np.require(kwargs["cxy"], dtype=dt)
+    # cxx, cyy, cxy representation
+    elif (cxx is not None and cyy is not None and cxy is not None):
+        cxx = np.require(cxx, dtype=dt)
+        cyy = np.require(cyy, dtype=dt)
+        cxy = np.require(cxy, dtype=dt)
 
-        it = np.broadcast(x, y, cxx_, cyy_, cxy_, r)
+        it = np.broadcast(x, y, cxx, cyy, cxy, r)
         while np.PyArray_MultiIter_NOTDONE(it):
             sep_set_ellipse(<unsigned char *>&buf[0, 0], w, h,
                             (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -1571,7 +1559,8 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
                             1)
             np.PyArray_MultiIter_NEXT(it)
     else:
-        raise ValueError("Must specify a, b and theta")
+        raise ValueError("Must specify either a, b and theta or "
+                         "cxx, cyy and cxy.")
 
 
 def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
@@ -1893,23 +1882,3 @@ def get_extract_pixstack():
     Get the size in pixels of the internal pixel buffer used in extract().
     """
     return sep_get_extract_pixstack()
-
-# -----------------------------------------------------------------------------
-# deprecated stuff
-
-def istruncated(np.ndarray flag not None):
-    """True where 'aperture truncated' flag is set."""
-    warn("istruncated() is deprecated and will be removed in sep v1.0. "
-         "Use '(flag & sep.APER_TRUNC) != 0' instead.")
-    return (flag & APER_TRUNC) != 0
-
-def hasmasked(np.ndarray flag not None):
-    """True where 'aperture has masked pixel(s)' flag is set."""
-    warn("hasmasked() is deprecated and will be removed in sep v1.0. "
-         "Use '(flag & sep.APER_HASMASKED) != 0' instead.")
-    return (flag & APER_HASMASKED) != 0
-
-def apercirc(*args, **kwargs):
-    warn("apercirc() has been renamed to sum_circle(). apercirc() will be "
-         "removed in sep v1.0.")
-    return sum_circle(*args, **kwargs)
