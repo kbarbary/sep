@@ -1713,8 +1713,8 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
         calculation, use 0.
 
     minsig : float, optional
-        Minimum bound on `sig` parameter. ``sig`` values smaller than this are
-        increased to ``minsig`` to replicate Source Extractor behavior.
+        Minimum bound on ``sig`` parameter. ``sig`` values smaller than this
+        are increased to ``minsig`` to replicate Source Extractor behavior.
         Source Extractor uses a minimum half-light radius of 0.5 pixels,
         equivalent to a sigma of 0.5 * 2.0 / 2.35.
 
