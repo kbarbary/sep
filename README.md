@@ -40,7 +40,7 @@ pip install sep
 
 **Install development version:**
 
-Bulding the development verion (from github) requires Cython (v0.16 or
+Building the development version (from github) requires Cython (v0.16 or
 higher).  Build and install in the usual place:
 
 ```
@@ -56,12 +56,9 @@ present.
 C Library
 ---------
 
-_Note: The C library should not yet be considered stable. (To my knowledge,
-no one is using it directly.)_
-
 _Note: The build process only works on Linux and OS X._
 
-**Build:** To build the C library from source, you must have
+**Build:** To build the C library from source:
 
 ```
 make
@@ -103,7 +100,7 @@ If you use SEP in a publication, please cite the following DOI. The link provide
 
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.15669.svg)](http://dx.doi.org/10.5281/zenodo.15669)
 
-You may also wish to cite the original SourceExtractor paper (Bertin 1996).
+You may also wish to cite the original Source Extractor paper (Bertin 1996).
 
 FAQ
 ---
@@ -156,14 +153,14 @@ win.
 
 **What happens when Source Extractor is updated in the future?**
 
-SEP can be considered a fork of the Source Extractor codebase: it's
+SEP can be considered a fork of the Source Extractor code base: it's
 development will not track that of Source Extractor in any automated
 way. However, the algorithms implemented so far in SEP are stable in
 Source Extractor: the SEP code was forked from v2.18.11, yet it is tested
 against the results of v2.8.6. This indicates that the algorithms have
 not changed in SExtractor over the last few years.
 
-**In the Python interface, why do I have to byteswap data when using
+**In the Python interface, why do I have to byte swap data when using
 astropy.io.fits?**
 
 This occurs because FITS files have big-endian [byte
@@ -176,20 +173,20 @@ returning numpy arrays in native (little-endian) byte order. However,
 astropy.io.fits does not (for reasons having to do with memory
 mapping). Most of the time you never notice this because when you do
 any numpy operations on such arrays, numpy uses an intermediate buffer
-to byteswap the array behind the scenes and returns the result as a
+to byte swap the array behind the scenes and returns the result as a
 native byte order array. Internally, SEP is not using numpy
 operations; it's just getting a pointer to the data in the array and
 passing it to C code. As the C code does not include functionality to
 do buffered byte swapping, the input array must already be in native
 byte order.
 
-It would be possible to add buffered byteswapping capability to the
+It would be possible to add buffered byte swapping capability to the
 SEP code, but it would increase the code complexity. A simpler
-alternative would be to make a byteswapped copy of the entire input
+alternative would be to make a byte swapped copy of the entire input
 array, whenever necessary. However, this would significantly increase
 memory use, and would have to be done repeatedly in multiple SEP
 functions: `Background`, `extract`, `sum_circle`, etc. Each would make
 a copy of the entire data array. Given these considerations, it seemed
-best to just explicitly tell the user to do the byteswap operation
+best to just explicitly tell the user to do the byte swap operation
 themselves so they could just do it once, immediately after reading in
 the data.
