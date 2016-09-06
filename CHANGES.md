@@ -1,5 +1,10 @@
 Python module versions
 
+v1.0.0 (unreleased)
+===================
+
+Remove features deprecated in v0.x series.
+
 v0.6.0 (25 August 2016)
 =======================
 
