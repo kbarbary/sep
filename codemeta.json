@@ -1,0 +1,23 @@
+{
+  "@context": "https://raw.githubusercontent.com/mbjones/codemeta/master/codemeta.jsonld",
+  "@type": "Code",
+  "author": [
+    {
+      "@id": "http://orcid.org/0000-0002-2532-3696",
+      "@type": "Person",
+      "email": "kylebarbary@gmail.com",
+      "name": "Kyle Barbary",
+      "affiliation": "University of California, Berkeley"
+    }
+  ],
+  "identifier": "http://dx.doi.org/10.5281/zenodo.44299",
+  "codeRepository": "https://github.com/kbarbary/sep",
+  "datePublished": "2016-09-06",
+  "dateModified": "2016-09-06",
+  "dateCreated": "2016-09-06",
+  "description": "Python and C library for Source Extraction and Photometry",
+  "keywords": "astronomy, Python, image analysis",
+  "license": "LGPL v3.0",
+  "title": "SEP",
+  "version": "v0.6.0"
+}
