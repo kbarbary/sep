@@ -35,7 +35,7 @@ to produce results compatible with Source Extractor whenever possible.
 SEP consists of a C library with no dependencies outside the standard
 library, and a Python module that wraps the C library in a Pythonic
 API. The Python wrapper operates on NumPy arrays with NumPy as its
-only dependency. It is generated ysing Cython.
+only dependency. It is generated using Cython.
 
 From Source Extractor, SEP includes background estimation, image
 segmentation (including on-the-fly filtering and source deblending),
@@ -52,7 +52,7 @@ Extractor have been added:
 - Masking of elliptical regions on images.
 
 Finally, note that SEP is essentially a fork of Source Extractor that
-has already diverged significantly from the original codebase. One
+has already diverged significantly from the original code base. One
 might ask why SEP is not part of Source Extractor itself: the
 command-line interface in Source Extractor could be built on top of
 such a library. The answer is that a vast array of changes were
