@@ -12,12 +12,12 @@ bibliography: paper.bib
 
 # Summary
 
-Source Extractor [@sextractor] is a widely used command-line program for
-segmentation and analysis of astronomical images. It reads in FITS
-format files, performs a configurable series of tasks, including
-background estimation, source detection, deblending and a wide array
-of source measurements, and finally outputs a FITS format catalog
-file.
+Source Extractor [@bertin96; @sextractor] is a widely used
+command-line program for segmentation and analysis of astronomical
+images. It reads in FITS format files, performs a configurable series
+of tasks, including background estimation, source detection,
+deblending and a wide array of source measurements, and finally
+outputs a FITS format catalog file.
 
 While Source Extractor is highly useful, the fact that it can only be
 used as an executable -- reading input files, producing output files
