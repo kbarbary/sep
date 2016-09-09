@@ -87,11 +87,13 @@ and header file in `/path/to/prefix/include`. The default prefix is
 License
 -------
 
-The license for all parts of the code derived from SExtractor is
-LGPLv3. The license for code not derived from SExtractor is MIT. The
-license for the library as a whole is therefore LGPLv3. The license
-for each file is explicitly stated at the top of each file and the
-full text of the licenses can be found in `licenses`.
+The license for all parts of the code derived from Source Extractor is
+LGPLv3. The license for code derived from photutils (`src/overlap.h`)
+is BSD 3-clause. Finally, the license for the Python wrapper
+(`sep.pyx`) is MIT. The license for the library as a whole is
+therefore LGPLv3. The license for each file is explicitly stated at
+the top of the file and the full text of each license can be found in
+`licenses`.
 
 Citation
 --------
