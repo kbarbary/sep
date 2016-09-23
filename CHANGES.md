@@ -3,7 +3,9 @@ Python module versions
 v1.0.0 (unreleased)
 ===================
 
-Remove features deprecated in v0.x series.
+* Remove features deprecated in previous versions.
+
+* Fix bug in Background.rms() giving nonsensical results.
 
 v0.6.0 (25 August 2016)
 =======================
