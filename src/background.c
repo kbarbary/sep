@@ -758,9 +758,13 @@ float sep_bkg_pix(sep_bkg *bkg, int x, int y)
 
 /*****************************************************************************/
 
-int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
+int bkg_line_flt_internal(sep_bkg *bkg, float *values, float *dvalues, int y,
+                          float *line)
 /* Interpolate background at line y (bicubic spline interpolation between
- * background map vertices) and save to line */
+ * background map vertices) and save to line.
+ * (values, dvalues) is either (bkg->back, bkg->dback) or
+ * (bkg->sigma, bkg->dsigma) depending on whether the background value or rms
+ * is being evaluated. */
 {
   int i,j,x,yl, nbx,nbxm1,nby, nx,width, ystep, changepoint, status;
   float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
@@ -795,9 +799,9 @@ int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
       dy3 = (dy*dy*dy-dy);
       cdy3 = (cdy*cdy*cdy-cdy);
       ystep = nbx*yl;
-      blo = bkg->back + ystep;
+      blo = values + ystep;
       bhi = blo + nbx;
-      dblo = bkg->dback + ystep;
+      dblo = dvalues + ystep;
       dbhi = dblo + nbx;
       QMALLOC(nodebuf, float, nbx, status);  /* Interpolated background */
       nodep = node = nodebuf;
@@ -834,8 +838,8 @@ int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
   else
     {
       /*-- No interpolation and no new 2nd derivatives needed along y */
-      node = bkg->back;
-      dnode = bkg->dback;
+      node = values;
+      dnode = dvalues;
     }
 
   /*-- Interpolation along x */
@@ -885,130 +889,20 @@ int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
   return status;
 }
 
+int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line) 
+/* Interpolate background at line y (bicubic spline interpolation between
+ * background map vertices) and save to line */
+{
+  return bkg_line_flt_internal(bkg, bkg->back, bkg->dback, y, line);
+}
 
 /*****************************************************************************/
 
 int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
-/* Bicubic-spline interpolation of the background noise along the current
- * scanline (y). NOTE: Most of the code is a copy of subbackline(), for
- * optimization reasons.
- */
+/* Interpolate background rms at line y (bicubic spline interpolation between
+ * background map vertices) and save to line */
 {
-  int i,j,x,yl, nbx,nbxm1,nby, nx, width, ystep, changepoint, status;
-  float	dx,dx0,dy,dy3, cdx,cdy,cdy3, temp, xstep;
-  float *nodebuf, *dnodebuf, *u;
-  float *node, *nodep, *dnode, *blo, *bhi, *dblo, *dbhi;
-  status = RETURN_OK;
-  nodebuf = node = NULL;
-  dnodebuf = dnode = NULL;
-  u = NULL;
-
-  width = bkg->w;
-  nbx = bkg->nx;
-  nbxm1 = nbx - 1;
-  nby = bkg->ny;
-  if (nby > 1)
-    {
-      dy = (float)y/bkg->bh - 0.5;
-      dy -= (yl = (int)dy);
-      if (yl<0)
-	{
-	  yl = 0;
-	  dy -= 1.0;
-	}
-      else if (yl>=nby-1)
-	{
-	  yl = nby<2 ? 0 : nby-2;
-	  dy += 1.0;
-	}
-      /*-- Interpolation along y for each node */
-      cdy = 1 - dy;
-      dy3 = (dy*dy*dy-dy);
-      cdy3 = (cdy*cdy*cdy-cdy);
-      ystep = nbx*yl;
-      blo = bkg->sigma + ystep;
-      bhi = blo + nbx;
-      dblo = bkg->dsigma + ystep;
-      dbhi = dblo + nbx;
-      QMALLOC(nodebuf, float, nbx, status); /* Interpolated background */
-      nodep = node = nodebuf;
-      for (x=nbx; x--;)
-	*(nodep++) = cdy**(blo++)+dy**(bhi++)+cdy3**(dblo++)+dy3**(dbhi++);
-
-      /*-- Computation of 2nd derivatives along x */
-      QMALLOC(dnodebuf, float, nbx, status); /* 2nd derivative along x */
-      dnode = dnodebuf;
-      if (nbx>1)
-	{
-	  QMALLOC(u, float, nbxm1, status);	/* temporary array */
-	  *dnode = *u = 0.0;	/* "natural" lower boundary condition */
-	  nodep = node+1;
-	  for (x=nbxm1; --x; nodep++)
-	    {
-	      temp = -1/(*(dnode++)+4);
-	      *dnode = temp;
-	      temp *= *(u++) - 6*(*(nodep+1)+*(nodep-1)-2**nodep);
-	      *u = temp;
-	    }
-	  *(++dnode) = 0.0;	/* "natural" upper boundary condition */
-	  for (x=nbx-2; x--;)
-	    {
-	      temp = *(dnode--);
-	      *dnode = (*dnode*temp+*(u--))/6.0;
-	    }
-	  free(u);
-	  u = NULL;
-	  dnode--;
-	}
-    }
-  else
-    {
-      /*-- No interpolation and no new 2nd derivatives needed along y */
-      node = bkg->sigma;
-      dnode = bkg->dsigma;
-    }
-  
-  /*-- Interpolation along x */
-  if (nbx>1)
-    {
-      nx = bkg->bw;
-      xstep = 1.0/nx;
-      changepoint = nx/2;
-      dx  = (xstep - 1)/2;	/* dx of the first pixel in the row */
-      dx0 = ((nx+1)%2)*xstep/2;	/* dx of the 1st pixel right to a bkgnd node */
-      blo = node;
-      bhi = node + 1;
-      dblo = dnode;
-      dbhi = dnode + 1;
-      for (x=i=0,j=width; j--; i++, dx += xstep)
-	{
-	  if (i==changepoint && x>0 && x<nbxm1)
-	    {
-	      blo++;
-	      bhi++;
-	      dblo++;
-	      dbhi++;
-	      dx = dx0;
-	    }
-	  cdx = 1 - dx;
-	  *(line++) = (float)(cdx*(*blo+(cdx*cdx-1)**dblo)
-			      + dx*(*bhi+(dx*dx-1)**dbhi));
-	  if (i==nx)
-	    {
-	      x++;
-	      i = 0;
-	    }
-	}
-    }
-  else
-    for (j=width; j--;)
-      *(line++) = (float)*node;
-
- exit:
-  free(nodebuf);
-  free(dnodebuf);
-  free(u);
-  return status;
+  return bkg_line_flt_internal(bkg, bkg->sigma, bkg->dsigma, y, line);
 }
 
 /*****************************************************************************/
