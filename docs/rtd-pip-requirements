@@ -1,7 +1,6 @@
 numpy
 Cython
 nbsphinx
-ipython
 matplotlib
 numpydoc
-jupyter_client
+jupyter
