@@ -4,3 +4,4 @@ nbsphinx
 ipython
 matplotlib
 numpydoc
+jupyter_client
