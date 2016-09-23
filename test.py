@@ -21,6 +21,7 @@ except:
 
 IMAGE_FNAME = os.path.join("data", "image.fits")
 BACKIMAGE_FNAME = os.path.join("data", "back.fits")
+RMSIMAGE_FNAME = os.path.join("data", "rms.fits")
 IMAGECAT_FNAME = os.path.join("data", "image.cat")
 IMAGECAT_DTYPE = [('number', np.int64),
                   ('x', np.float64),
@@ -59,7 +60,7 @@ def assert_allclose_structured(x, y):
 if not NO_FITS:
     image_data = getdata(IMAGE_FNAME)
     image_refback = getdata(BACKIMAGE_FNAME)
-
+    image_refrms = getdata(RMSIMAGE_FNAME)
 # -----------------------------------------------------------------------------
 # Test versus Source Extractor results
 
@@ -83,6 +84,10 @@ def test_vs_sextractor():
     # Test that SExtractor background is same as SEP:
     bkgarr = bkg.back(dtype=np.float32)
     assert_allclose(bkgarr, image_refback, rtol=1.e-5)
+
+        # Test that SExtractor background rms is same as SEP:
+    rmsarr = bkg.rms(dtype=np.float32)
+    assert_allclose(rmsarr, image_refrms, rtol=1.e-4)
 
     # Extract objects (use deblend_cont=1.0 to disable deblending).
     bkg.subfrom(data)

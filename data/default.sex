@@ -59,11 +59,13 @@ BACKPHOTO_TYPE   GLOBAL         # can be GLOBAL or LOCAL
  
 #------------------------------ Check Image ----------------------------------
  
-CHECKIMAGE_TYPE  BACKGROUND     # can be NONE, BACKGROUND, BACKGROUND_RMS,
+CHECKIMAGE_TYPE  BACKGROUND,BACKGROUND_RMS
+                                # can be NONE, BACKGROUND, BACKGROUND_RMS,
                                 # MINIBACKGROUND, MINIBACK_RMS, -BACKGROUND,
                                 # FILTERED, OBJECTS, -OBJECTS, SEGMENTATION,
                                 # or APERTURES
-CHECKIMAGE_NAME  back.fits      # Filename for the check-image
+CHECKIMAGE_NAME  back.fits,rms.fits
+                                # Filename for the check-image
  
 #--------------------- Memory (change with caution!) -------------------------
  

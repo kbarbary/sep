@@ -903,6 +903,7 @@ int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
   dnodebuf = dnode = NULL;
   u = NULL;
 
+  width = bkg->w;
   nbx = bkg->nx;
   nbxm1 = nbx - 1;
   nby = bkg->ny;
@@ -936,7 +937,7 @@ int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
 
       /*-- Computation of 2nd derivatives along x */
       QMALLOC(dnodebuf, float, nbx, status); /* 2nd derivative along x */
-      dnode = nodebuf;
+      dnode = dnodebuf;
       if (nbx>1)
 	{
 	  QMALLOC(u, float, nbxm1, status);	/* temporary array */
@@ -968,7 +969,6 @@ int sep_bkg_rmsline_flt(sep_bkg *bkg, int y, float *line)
     }
   
   /*-- Interpolation along x */
-  width = bkg->w;
   if (nbx>1)
     {
       nx = bkg->bw;
