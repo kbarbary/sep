@@ -2,5 +2,6 @@ numpy
 Cython
 nbsphinx
 matplotlib
+fitsio
 numpydoc
 jupyter
