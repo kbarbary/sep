@@ -3,3 +3,4 @@ Cython
 nbsphinx
 ipython
 matplotlib
+numpydoc
