@@ -1,2 +1,5 @@
 numpy
 Cython
+nbsphinx
+ipython
+matplotlib

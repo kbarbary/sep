@@ -44,10 +44,12 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
-    'numpydoc'
+    'numpydoc',
+    'nbsphinx',
+    'IPython.sphinxext.ipython_console_highlighting'
 ]
 numpydoc_show_class_members = False
-autosummary_generate = True
+autosummary_generate = ["reference.rst"]
 autoclass_content = "class"
 autodoc_default_flags = ["members", "no-special-members"]
 
@@ -89,7 +91,7 @@ release = sep.__version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = ['_build', '**.ipynb_checkpoints']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

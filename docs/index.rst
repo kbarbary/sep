@@ -74,7 +74,7 @@ Usage Guide
 .. toctree::
    :maxdepth: 1
 
-   detection
+   tutorial
    filter
    apertures
 
