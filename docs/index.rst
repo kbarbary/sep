@@ -75,6 +75,7 @@ Usage Guide
    :maxdepth: 1
 
    detection
+   filter
    apertures
 
 .. toctree::
