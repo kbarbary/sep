@@ -64,7 +64,7 @@ if not NO_FITS:
 # -----------------------------------------------------------------------------
 # Test versus Source Extractor results
 
-@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader")
 def test_vs_sextractor():
     """Test behavior of sep versus sextractor.
 
@@ -215,6 +215,7 @@ def test_masked_background():
     assert_allclose(sky.back(), 0.1 * np.ones((6, 6)))
 
 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader")
 def test_background_special():
     """Test special methods of Background"""
 
@@ -253,7 +254,7 @@ def test_background_rms():
 # -----------------------------------------------------------------------------
 # Extract
 
-@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader")
 def test_extract_with_noise_array():
 
     # Get some background-subtracted test data:
@@ -330,7 +331,7 @@ def test_extract_with_noise_convolution():
     assert_approx_equal(objects[1]['y'], 3.)
 
 
-@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader")
 def test_extract_with_mask():
 
     # Get some background-subtracted test data:
@@ -351,7 +352,7 @@ def test_extract_with_mask():
     assert np.all(objects['y'] < ylim)
 
 
-@pytest.mark.skipif(NO_FITS, reason="no FITS reader") 
+@pytest.mark.skipif(NO_FITS, reason="no FITS reader")
 def test_extract_segmentation_map():
 
     # Get some background-subtracted test data:

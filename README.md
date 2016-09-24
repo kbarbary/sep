@@ -81,10 +81,10 @@ higher).  Build and install in the usual place:
 ./setup.py install
 ```
 
-**Run tests:** To run the tests, execute `./test.py` in the top-level
-directory.  Requires the `pytest` package. Some tests require a FITS
-reader (either fitsio or astropy) and will be skipped if neither is
-present.
+**Run tests:** Tests require the [pytest](http://pytest.org) Python
+package. To run the tests, execute `./test.py` in the top-level
+directory. Some tests require a FITS reader (either fitsio or astropy)
+and will be skipped if neither is present.
 
 
 C Library
