@@ -137,7 +137,7 @@ Citation
 If you use SEP in a publication, please cite the following DOI. The
 link provides a variety of citation styles and BibTeX export.
 
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.61658.svg)](http://dx.doi.org/10.5281/zenodo.61658)
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.159035.svg)](http://dx.doi.org/10.5281/zenodo.159035)
 
 Please also cite the original Source Extractor paper ([Bertin & Arouts
 1996](http://adsabs.harvard.edu/abs/1996A%26AS..117..393B)).

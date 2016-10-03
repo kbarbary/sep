@@ -105,7 +105,7 @@ The license for SEP is the Lesser GNU Public License (LGPL), granted
 with the permission from the original author of Source Extractor.
 
 If you use SEP in a publication, please cite the DOI
-`10.5281/zenodo.61658 <http://dx.doi.org/10.5281/zenodo.61658>`_. The
+`10.5281/zenodo.159035 <http://dx.doi.org/10.5281/zenodo.159035>`_. The
 link provides a variety of citation styles and BibTeX export.
 
 Please also cite the original Source Extractor paper: `Bertin &
