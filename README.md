@@ -6,6 +6,7 @@ Python and C library for Source Extraction and Photometry
 [![Build Status](http://img.shields.io/travis/kbarbary/sep.svg?style=flat-square&label=linux)](https://travis-ci.org/kbarbary/sep)
 [![Build status](https://img.shields.io/appveyor/ci/kbarbary/sep.svg?style=flat-square&label=windows)](https://ci.appveyor.com/project/kbarbary/sep/branch/master)
 [![PyPI](https://img.shields.io/pypi/v/sep.svg?style=flat-square)](https://pypi.python.org/pypi/sep)
+[![JOSS](http://joss.theoj.org/papers/10.21105/joss.00058/status.svg)](http://dx.doi.org/10.21105/joss.00058)
 
 *"... [it's] an SEP: Somebody Else's Problem."  
 "Oh, good. I can relax then."*
@@ -134,14 +135,16 @@ discussing the change first.
 Citation
 --------
 
-If you use SEP in a publication, please cite the following DOI. The
-link provides a variety of citation styles and BibTeX export.
+If you use SEP in a publication, please cite the following article in the Journal of Open Source Software:
 
-[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.159035.svg)](http://dx.doi.org/10.5281/zenodo.159035)
+[![JOSS](http://joss.theoj.org/papers/10.21105/joss.00058/status.svg)](http://dx.doi.org/10.21105/joss.00058)
 
-Please also cite the original Source Extractor paper ([Bertin & Arouts
+Please also cite the original Source Extractor paper ([Bertin & Arnouts
 1996](http://adsabs.harvard.edu/abs/1996A%26AS..117..393B)).
 
+The DOI for the sep v1.0.0 code release is:
+
+[![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.159035.svg)](http://dx.doi.org/10.5281/zenodo.159035)
 
 License
 -------
