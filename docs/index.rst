@@ -52,7 +52,18 @@ instructions.
 Installation
 ------------
 
-SEP can be installed with `pip <https://pip.pypa.io>`_. After ensuring
+with conda
+..........
+
+SEP can be installed with conda from the ``openastronomy`` channel::
+
+    conda install -c openastronomy sep
+
+
+with pip
+........
+
+SEP can also be installed with `pip <https://pip.pypa.io>`_. After ensuring
 that numpy is installed, run ::
 
     pip install --no-deps sep
