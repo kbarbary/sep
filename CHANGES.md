@@ -1,5 +1,12 @@
 Python module versions
 
+v1.0.1 (10 July 2017)
+=====================
+
+* Fix bug when using masked filter and noise array where objects with member
+  pixels at end of image (maximum y coordinate) were erroneously missed.
+
+
 v1.0.0 (30 September 2016)
 ==========================
 

@@ -44,6 +44,16 @@ IMAGECAT_DTYPE = [('number', np.int64),
                   ('flags', np.int64)]
 SUPPORTED_IMAGE_DTYPES = [np.float64, np.float32, np.int32]
 
+# If we have a FITS reader, read in the necessary test images
+if not NO_FITS:
+    image_data = getdata(IMAGE_FNAME)
+    image_refback = getdata(BACKIMAGE_FNAME)
+    image_refrms = getdata(RMSIMAGE_FNAME)
+
+
+# -----------------------------------------------------------------------------
+# Helpers
+
 def assert_allclose_structured(x, y):
     """Assert that two structured arrays are close.
 
@@ -56,11 +66,62 @@ def assert_allclose_structured(x, y):
         else:
             assert_equal(x[name], y[name])
 
-# If we have a FITS reader, read in the necessary test images
-if not NO_FITS:
-    image_data = getdata(IMAGE_FNAME)
-    image_refback = getdata(BACKIMAGE_FNAME)
-    image_refrms = getdata(RMSIMAGE_FNAME)
+
+def matched_filter_snr(data, noise, kernel):
+    """Super slow implementation of matched filter SNR for testing.
+
+    At each pixel, value is
+
+        sum(data[i] * kernel[i] / noise[i]^2)
+        -------------------------------------
+        sqrt(sum(kernel[i]^2 / noise[i]^2))
+    """
+    ctr = kernel.shape[0] // 2, kernel.shape[1] // 2
+    kslice = ((0 - ctr[0], kernel.shape[0] - ctr[0]),  # range in axis 0
+              (0 - ctr[1], kernel.shape[1] - ctr[1]))  # range in axis 1
+    out = np.empty_like(data)
+
+    for y in range(data.shape[0]):
+        jmin = y + kslice[0][0] # min and max indicies to sum over
+        jmax = y + kslice[0][1]
+        kjmin = 0               # min and max kernel indicies to sum over
+        kjmax = kernel.shape[0]
+
+        # if we're over the edge of the image, limit extent
+        if jmin < 0:
+            offset = -jmin
+            jmin += offset
+            kjmin += offset
+        if jmax > data.shape[0]:
+            offset = data.shape[0] - jmax
+            jmax += offset
+            kjmax += offset
+
+        for x in range(data.shape[1]):
+            imin = x + kslice[1][0] # min and max indicies to sum over
+            imax = x + kslice[1][1]
+            kimin = 0               # min and max kernel indicies to sum over
+            kimax = kernel.shape[1]
+
+            # if we're over the edge of the image, limit extent
+            if imin < 0:
+                offset = -imin
+                imin += offset
+                kimin += offset
+            if imax > data.shape[1]:
+                offset = data.shape[1] - imax
+                imax += offset
+                kimax += offset
+
+            d = data[jmin:jmax, imin:imax]
+            n = noise[jmin:jmax, imin:imax]
+            w = 1. / n**2
+            k = kernel[kjmin:kjmax, kimin:kimax]
+            out[y, x] = np.sum(d * k * w) / np.sqrt(np.sum(k**2 * w))
+
+    return out
+
+
 # -----------------------------------------------------------------------------
 # Test versus Source Extractor results
 
@@ -329,6 +390,24 @@ def test_extract_with_noise_convolution():
 
     assert_approx_equal(objects[1]['x'], 17.)
     assert_approx_equal(objects[1]['y'], 3.)
+
+
+def test_extract_matched_filter_at_edge():
+    """Exercise bug where bright star at end of image not detected
+    with noise array and matched filter on."""
+
+    data = np.zeros((20, 20))
+    err = np.ones_like(data)
+    kernel = np.array([[1., 2., 1.],
+                       [2., 4., 2.],
+                       [1., 2., 1.]])
+
+    data[18:20, 9:12] = kernel[0:2, :]
+
+    objects, pix = sep.extract(data, 2.0, err=err, filter_kernel=kernel,
+                               filter_type="matched", segmentation_map=True)
+    assert len(objects) == 1
+    assert objects["npix"][0] == 6
 
 
 @pytest.mark.skipif(NO_FITS, reason="no FITS reader")

@@ -1,9 +1,9 @@
 
 OS ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 
-SOMAJOR = 0
-SOMINOR = 6
-SOBUGFIX = 0
+SOMAJOR = 1
+SOMINOR = 0
+SOBUGFIX = 1
 
 ifeq ($(OS), darwin)
 SONAME = libsep.dylib

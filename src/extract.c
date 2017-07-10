@@ -392,6 +392,13 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	    {
 	      free(cdscan);
 	      cdscan = NULL;
+              if (filter_type == SEP_FILTER_MATCHED)
+              {
+                  for (xl=0; xl<stacksize; xl++)
+                  {
+                      sigscan[xl] = -BIG;
+                  }
+              }
 	    }
 	  cdscan = dummyscan;
 	}
@@ -445,7 +452,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	  curpixinfo.flag = trunflag;
 
           /* set pixel variance/noise based on noise array */
-          if (isvarnoise) {
+          if (isvarthresh) {
             if (xl == w || yl == h) {
               pixsig = pixvar = 0.0;
             }
@@ -464,7 +471,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
             
             /* set `thresh` (This is needed later, even
              * if filter_type is SEP_FILTER_MATCHED */
-            if (isvarthresh) thresh = relthresh * pixsig;
+            thresh = relthresh * pixsig;
           }
 
           /* luflag: is pixel above thresh (Y/N)? */
