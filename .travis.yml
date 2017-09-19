@@ -46,3 +46,5 @@ install:
 script:
     - if [[ $LANG == python ]]; then ./test.py; fi
     - if [[ $LANG == c ]]; then make test; fi
+    - if [[ $LANG == c ]]; then make PREFIX=$(pwd) install; fi
+    - if [[ $LANG == c ]]; then make PREFIX=$(pwd) uninstall; fi

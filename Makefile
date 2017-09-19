@@ -3,12 +3,11 @@ OS ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 
 SOMAJOR = 1
 SOMINOR = 0
-SOBUGFIX = 1
+SOBUGFIX = 2
 
 ifeq ($(OS), darwin)
 SONAME = libsep.dylib
 SONAME_MAJOR = libsep.$(SOMAJOR).dylib
-SONAME_MAJORMINOR = libsep.$(SOMAJOR).$(SOMINOR).dylib
 SONAME_FULL = libsep.$(SOMAJOR).$(SOMINOR).$(SOBUGFIX).dylib
 SONAME_FLAG = -install_name
 LDPATHENV = DYLD_LIBRARY_PATH
@@ -16,7 +15,6 @@ else
 ifeq ($(OS), linux)
 SONAME = libsep.so
 SONAME_MAJOR = libsep.so.$(SOMAJOR)
-SONAME_MAJORMINOR = libsep.so.$(SOMAJOR).$(SOMINOR)
 SONAME_FULL = libsep.so.$(SOMAJOR).$(SOMINOR).$(SOBUGFIX)
 SONAME_FLAG = -soname
 LDPATHENV = LD_LIBRARY_PATH
@@ -55,27 +53,27 @@ src/aperture.o: src/aperture.c src/aperture.i src/overlap.h src/sepcore.h src/se
 src/background.o src/util.o: src/%.o: src/%.c src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/$*.c -o $@
 
-src/$(SONAME): $(OBJS)
+src/$(SONAME_FULL): $(OBJS)
 	$(CC) $(LDFLAGS_LIB) $^ -lm -o src/$(SONAME_FULL)
-	ln -sf $(SONAME_FULL) src/$(SONAME_MAJORMINOR)
 	ln -sf $(SONAME_FULL) src/$(SONAME_MAJOR)
 	ln -sf $(SONAME_FULL) src/$(SONAME)
 
 src/libsep.a: $(OBJS)
 	$(AR) rcs src/libsep.a $^
 
-install: library
-	$(INSTALL) -D src/sep.h $(DESTDIR)$(INCLUDEDIR)/sep.h
-	$(INSTALL) -D src/$(SONAME_FULL) $(DESTDIR)$(LIBDIR)/$(SONAME_FULL)
-	$(INSTALL) -D src/$(SONAME_MAJORMINOR) $(DESTDIR)$(LIBDIR)/$(SONAME_MAJORMINOR)
-	$(INSTALL) -D src/$(SONAME_MAJOR) $(DESTDIR)$(LIBDIR)/$(SONAME_MAJOR)
-	$(INSTALL) -D src/$(SONAME) $(DESTDIR)$(LIBDIR)/$(SONAME)
-	$(INSTALL) -D src/libsep.a $(DESTDIR)$(LIBDIR)/libsep.a
+install: all
+	$(INSTALL) -d $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL) -m u=rw,g=r,o=r src/sep.h $(DESTDIR)$(INCLUDEDIR)
+
+	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
+	$(INSTALL) -m u=rwx,g=rx,o=rx src/$(SONAME_FULL) $(DESTDIR)$(LIBDIR)
+	ln -sf $(SONAME_FULL) $(DESTDIR)$(LIBDIR)/$(SONAME_MAJOR)
+	ln -sf $(SONAME_FULL) $(DESTDIR)$(LIBDIR)/$(SONAME)
+	$(INSTALL)  -m u=rw,g=r,o=r src/libsep.a $(DESTDIR)$(LIBDIR)
 
 uninstall:
 	rm $(DESTDIR)$(INCLUDEDIR)/sep.h
 	rm $(DESTDIR)$(LIBDIR)/$(SONAME_FULL)
-	rm $(DESTDIR)$(LIBDIR)/$(SONAME_MAJORMINOR)
 	rm $(DESTDIR)$(LIBDIR)/$(SONAME_MAJOR)
 	rm $(DESTDIR)$(LIBDIR)/$(SONAME)
 	rm $(DESTDIR)$(LIBDIR)/libsep.a
@@ -90,6 +88,6 @@ ctest/test_image: ctest/test_image.c src/$(SONAME)
 clean:
 	rm -f src/*.o src/*.a src/libsep.* ctest/test_image
 
-all: src/$(SONAME) src/libsep.a
+all: src/$(SONAME_FULL) src/libsep.a
 
 .PHONY: all test clean library install uninstall

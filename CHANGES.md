@@ -1,4 +1,8 @@
-Python module versions
+v1.0.2 (19 September 2017)
+==========================
+
+* Fix makefile so that `make install` works on OS X for the C library.
+  Python module and C code are unchanged.
 
 v1.0.1 (10 July 2017)
 =====================
