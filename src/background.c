@@ -628,10 +628,10 @@ int filterback(sep_bkg *bkg, int fw, int fh, double fthresh)
   return status;
 
  exit:
-  free(bmask);
-  free(smask);
-  free(back2);
-  free(sigma2);
+  if (bmask) free(bmask);
+  if (smask) free(smask);
+  if (back2) free(back2);
+  if (sigma2) free(sigma2);
   return status;
 }
 
@@ -683,7 +683,7 @@ int makebackspline(sep_bkg *bkg, float *map, float *dmap)
   return status;
 
  exit: 
-  free(u);
+  if (u) free(u);
   return status;
 }
 
@@ -883,9 +883,9 @@ int bkg_line_flt_internal(sep_bkg *bkg, float *values, float *dvalues, int y,
       }
 
  exit:
-  free(nodebuf);
-  free(dnodebuf);
-  free(u);
+  if (nodebuf) free(nodebuf);
+  if (dnodebuf) free(dnodebuf);
+  if (u) free(u);
   return status;
 }
 
