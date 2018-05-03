@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 import os
+import sys
 from glob import glob
 from distutils.core import setup
 from distutils.extension import Extension
+from distutils.dist import Distribution
 import re
 
-import numpy
 
 if os.path.exists("sep.pyx"):
     USE_CYTHON = True
@@ -14,14 +15,24 @@ else:
     USE_CYTHON = False
     fname = "sep.c"
 
-sourcefiles = [fname] + glob(os.path.join("src", "*.c"))
-headerfiles = glob(os.path.join("src", "*.h"))
-include_dirs=[numpy.get_include(), "src"]
-extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
-                        depends=headerfiles)]
-if USE_CYTHON:
-    from Cython.Build import cythonize
-    extensions = cythonize(extensions)
+if (any('--' + opt in sys.argv for opt in Distribution.display_option_names +
+        ['help-commands', 'help']) or len(sys.argv) == 1
+    or sys.argv[1] in ('egg_info', 'clean', 'help')):
+    extensions=[]
+else:
+    try:
+        import numpy
+    except ImportError:
+        raise SystemExit("NumPy is required for '{}'".format(sys.argv[1]))
+
+    sourcefiles = [fname] + glob(os.path.join("src", "*.c"))
+    headerfiles = glob(os.path.join("src", "*.h"))
+    include_dirs=[numpy.get_include(), "src"]
+    extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
+                            depends=headerfiles)]
+    if USE_CYTHON:
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
 
 # Synchronize version from code.
 version = re.findall(r"__version__ = \"(.*?)\"", open(fname).read())[0]
@@ -38,7 +49,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research"]
 
-setup(name="sep", 
+setup(name="sep",
       version=version,
       description=description,
       long_description=long_description,
@@ -47,4 +58,5 @@ setup(name="sep",
       url="https://github.com/kbarbary/sep",
       author="Kyle Barbary",
       author_email="kylebarbary@gmail.com",
+      install_requires=['numpy'],
       ext_modules=extensions)
