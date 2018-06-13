@@ -1,3 +1,14 @@
+v1.0.3 (12 June 2018)
+=====================
+
+* Fix double-free bug in sep_extract() arising when an error status occurs
+  and convolution is on. (#56)
+
+* Work around numpy dependency in setup. (#59)
+
+
+
+
 v1.0.2 (19 September 2017)
 ==========================
 

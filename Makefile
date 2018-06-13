@@ -3,7 +3,7 @@ OS ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 
 SOMAJOR = 1
 SOMINOR = 0
-SOBUGFIX = 2
+SOBUGFIX = 3
 
 ifeq ($(OS), darwin)
 SONAME = libsep.dylib
