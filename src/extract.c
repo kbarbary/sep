@@ -390,8 +390,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	{
 	  if (conv)
 	    {
-	      free(cdscan);
-	      cdscan = NULL;
+              free(cdscan);  // cdscan set to dummyscan below
               if (filter_type == SEP_FILTER_MATCHED)
               {
                   for (xl=0; xl<stacksize; xl++)
@@ -732,8 +731,9 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   if (status != RETURN_OK)
     {
       /* free cdscan if we didn't do it on the last `yl` line */
-      if ((cdscan != NULL) && (cdscan != dummyscan))
+      if (conv && (cdscan != dummyscan))
         free(cdscan);
+
       /* clean up catalog if it was allocated */
       sep_catalog_free(cat);
       cat = NULL;
