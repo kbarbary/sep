@@ -952,9 +952,10 @@ def sum_circle(np.ndarray data not None, x, y, r,
                 1, SEP_MASK_IGNORE, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
-            flux1 -= bkgflux / bkgarea * area1
-            bkgfluxerr = bkgfluxerr / bkgarea * area1
-            fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
+            if area1 > 0:
+              flux1 -= bkgflux / bkgarea * area1
+              bkgfluxerr = bkgfluxerr / bkgarea * area1
+              fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0] = flux1
             (<double*>np.PyArray_MultiIter_DATA(it, 6))[0] = fluxerr1
             (<short*>np.PyArray_MultiIter_DATA(it, 7))[0] = flag1
@@ -1222,9 +1223,10 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 subpix, 0, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
-            flux1 -= bkgflux / bkgarea * area1
-            bkgfluxerr = bkgfluxerr / bkgarea * area1
-            fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
+            if area1 > 0:
+              flux1 -= bkgflux / bkgarea * area1
+              bkgfluxerr = bkgfluxerr / bkgarea * area1
+              fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
 
             (<double*>np.PyArray_MultiIter_DATA(it, 8))[0] = flux1
             (<double*>np.PyArray_MultiIter_DATA(it, 9))[0] = fluxerr1
