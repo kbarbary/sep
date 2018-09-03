@@ -1,5 +1,5 @@
 /*
-	Adding (void *) pointers is a GNU C extension, not part of standard C.
+	Adding (void *) pointers is a GNU C extension, not part of standard C. 
 	When compiling on Windows with MS Visual C compiler need to cast the
 	(void *) to something the size of one byte.
 */
@@ -113,7 +113,7 @@ int APER_NAME(sep_image *im,
 	      else
 		/* definitely fully in aperture */
 		overlap = 1.0;
-
+	      
 	      pix = convert(datat);
 
 	      if (errisarray)
@@ -124,7 +124,7 @@ int APER_NAME(sep_image *im,
 		}
 
 	      if (im->mask && (mconvert(maskt) > im->maskthresh))
-		{
+		{ 
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;
 		}
@@ -137,7 +137,7 @@ int APER_NAME(sep_image *im,
 	      totarea += overlap;
 
 	    } /* closes "if pixel might be within aperture" */
-
+	  
 	  /* increment pointers by one element */
 	  datat += size;
 	  if (errisarray)
@@ -162,16 +162,8 @@ int APER_NAME(sep_image *im,
   if (im->gain > 0.0 && tv>0.0)
     sigtv += tv / im->gain;
 
-  if (totarea > 0.0)
-  {
-    *sum = tv;
-    *sumerr = sqrt(sigtv);
-  }
-  else
-  {
-    *sum = NAN;
-    *sumerr = NAN;
-  }
+  *sum = tv;
+  *sumerr = sqrt(sigtv);
   *area = totarea;
 
   return status;
