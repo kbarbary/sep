@@ -315,7 +315,7 @@ int main(int argc, char **argv)
   t0 = gettime_ns();
   for (i=0; i<catalog->nobj; i++, fluxt++, fluxerrt++, flagt++, areat++)
     sep_sum_circle(&im,
-		   catalog->x[i], catalog->y[i], 5.0, 5, 0,
+		   catalog->x[i], catalog->y[i], 5.0, 0, 5, 0,
 		   fluxt, fluxerrt, areat, flagt);
   t1 = gettime_ns();
   printf("sep_sum_circle() [r= 5.0]  %6.3f us/aperture\n",
@@ -333,7 +333,7 @@ int main(int argc, char **argv)
   for (i=0; i<catalog->nobj; i++)
     {
       fprintf(catout, "%3d %#11.7g %#11.7g %#11.7g %#11.7g\n",
-	      i, catalog->x[i], catalog->y[i], flux[i], fluxerr[i]);
+	      i+1, catalog->x[i], catalog->y[i], flux[i], fluxerr[i]);
     }
   fclose(catout);
 
