@@ -161,6 +161,24 @@ of 0.5 and a normalizing flux of ``FLUX_AUTO``. The equivalent here is::
     xwin, ywin, flag = sep.winpos(data, objs['x'], objs['y'], sig)
 
 
+Segmentation-masked image measurements
+--------------------------------------
+
+SourceExtractor provides a mechanism for measuring the "AUTO" and "FLUX_RADIUS" parameters for a given object including a mask for neighboring sources.  In addition to the mask, setting the SourceExtractor parameter ``MASK_TYPE=CORRECT`` further fills the masked pixels of a given source with "good" pixel values reflected opposite of the masked pixels.  The ``SEP`` photometry and measurement functions provide an option for simple masking without reflection or subtracting neighbor flux.  
+
+For example, using a segmentation array provided by ``sep.extract``, we can compute the masked ``flux_radius`` that could otherwise be artificially large due to flux from nearby sources::
+
+    # list of object id numbers that correspond to the segments
+    objs['id'] = np.arange(len(objs), dtype=np.int32)
+    
+    r, flag = sep.flux_radius(data, objs['x'], objs['y'], 6.*objs['a'], 0.5,
+                              seg_id=objs['id'], seg=seg, 
+                              normflux=flux, subpix=5)
+
+To enforce that a given measurement **only** includes pixels within a segment, provide negative values in the ``seg_id`` list.  Otherwise the mask for a given object will be pixels with ``(seg == 0) | (seg_id == id_i)``.
+
+The following functions include the segmentation masking: ``sum_circle``, ``sum_circann``, ``sum_ellipse``, ``sum_ellipann``, ``flux_radius`` , and ``kron_radius`` (``winpos`` **currently does not**). 
+
 Masking image regions
 ---------------------
 

@@ -49,7 +49,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research"]
 
-setup(name="sepx",
+setup(name="sep",
       version=version,
       description=description,
       long_description=long_description,

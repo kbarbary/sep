@@ -15,7 +15,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
@@ -857,6 +857,16 @@ def sum_circle(np.ndarray data not None, x, y, r,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+        
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
         "background annulus". If supplied, the background is estimated
@@ -1007,10 +1017,10 @@ def sum_circle(np.ndarray data not None, x, y, r,
 @cython.wraparound(False)
 def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
-                seg_id=None, np.ndarray seg=None, 
-                double maskthresh=0.0, int subpix=5):
+                double maskthresh=0.0, seg_id=None, np.ndarray seg=None, 
+                int subpix=5):
     """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
-                   maskthresh=0.0, gain=None, subpix=5)
+                   maskthresh=0.0, seg_id=None, seg=None, gain=None, subpix=5)
 
     Sum data in circular annular aperture(s).
 
@@ -1037,6 +1047,16 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+            
     gain : float, optional
         Conversion factor between data array units and poisson counts,
         used in calculating poisson noise in aperture sum. If ``None``
@@ -1121,8 +1141,9 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 var=None, err=None, gain=None, np.ndarray mask=None,
+                double maskthresh=0.0, 
                 seg_id=None, np.ndarray seg=None, 
-                double maskthresh=0.0, bkgann=None, int subpix=5):
+                bkgann=None, int subpix=5):
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
                    maskthresh=0.0, bkgann=None, gain=None, subpix=5)
 
@@ -1164,6 +1185,16 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+    
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
         "background annulus". If supplied, the background is estimated
@@ -1319,8 +1350,9 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 @cython.wraparound(False)
 def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
                  var=None, err=None, gain=None, np.ndarray mask=None,
+                 double maskthresh=0.0, 
                  seg_id=None, np.ndarray seg=None, 
-                 double maskthresh=0.0, int subpix=5):
+                 int subpix=5):
     """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
 
@@ -1361,6 +1393,16 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         used in calculating poisson noise in aperture sum. If ``None``
         (default), do not add poisson noise.
 
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+            
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1484,6 +1526,16 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+    
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1678,10 +1730,9 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
 
 
 def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
-                np.ndarray mask=None, 
-                seg_id=None, np.ndarray seg=None, 
-                double maskthresh=0.0):
-    """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0)
+                np.ndarray mask=None, double maskthresh=0.0,
+                seg_id=None, np.ndarray seg=None):
+    """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0, seg_id=None, seg=None)
 
     Calculate Kron "radius" within an ellipse.
 
@@ -1723,7 +1774,17 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     maskthresh : float, optional
         Pixels with mask > maskthresh will be ignored.
-
+    
+    seg : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    
+    seg_id : array_like, optional
+        Array of segmentation ids that correspond to the dimensions of `x` 
+        and `y`.  If the values in seg_id are negative, then the mask is 
+        generated requiring pixels within the segment.  Otherwise, mask 
+        pixels in `seg` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `seg`.
+            
     Returns
     -------
     kronrad : array_like
