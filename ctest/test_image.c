@@ -272,7 +272,7 @@ int main(int argc, char **argv)
 
   /* background estimation */
   t0 = gettime_ns();
-  sep_image im = {data, NULL, NULL, SEP_TFLOAT, 0, 0, nx, ny, 0.0, SEP_NOISE_NONE, 1.0, 0.0};
+  sep_image im = {data, NULL, NULL, NULL, SEP_TFLOAT, 0, 0, 0, nx, ny, 0.0, SEP_NOISE_NONE, 1.0, 0.0};
   status = sep_background(&im, 64, 64, 3, 3, 0.0, &bkg);
   t1 = gettime_ns();
   if (status) goto exit;
