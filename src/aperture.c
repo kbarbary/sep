@@ -326,18 +326,20 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * that it doesn't quite make sense to use aperture.i.
  */
 int sep_sum_circann_multi(sep_image *im,
-                          double x, double y, double rmax, int n, int subpix,
+                          double x, double y, double rmax, int n, 
+                          int id, 
+                          int subpix,
                           short inflag,
                           double *sum, double *sumvar, double *area,
                           double *maskarea, short *flag)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp, rpix2;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize, ssize;
   long pos;
   short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
+  BYTE *datat, *errort, *maskt, *segt;
+  converter convert, econvert, mconvert, sconvert;
   double rpix, r_out, r_out2, d, prevbinmargin, nextbinmargin, step, stepdens;
   int j, ismasked;
 
@@ -356,7 +358,7 @@ int sep_sum_circann_multi(sep_image *im,
 
   /* initializations */
   size = esize = msize = 0;
-  datat = maskt = NULL;
+  datat = maskt = segt = NULL;
   errort = im->noise;
   *flag = 0;
   varpix = 0.0;
@@ -380,6 +382,8 @@ int sep_sum_circann_multi(sep_image *im,
   if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
+    return status;
+  if (im->seg && (status = get_converter(im->sdtype, &sconvert, &ssize)))
     return status;
 
   /* get image noise */
@@ -413,6 +417,8 @@ int sep_sum_circann_multi(sep_image *im,
         errort = MSVC_VOID_CAST im->noise + pos*esize;
       if (im->mask)
         maskt = MSVC_VOID_CAST im->mask + pos*msize;
+      if (im->seg)
+        segt = MSVC_VOID_CAST im->seg + pos*ssize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -430,6 +436,8 @@ int sep_sum_circann_multi(sep_image *im,
                   if (errisstd)
                     varpix *= varpix;
                 }
+              
+              ismasked = 0;
               if (im->mask)
                 {
                   if (mconvert(maskt) > im->maskthresh)
@@ -437,10 +445,35 @@ int sep_sum_circann_multi(sep_image *im,
                       *flag |= SEP_APER_HASMASKED;
                       ismasked = 1;
                     }
-                  else
-                    ismasked = 0;
                 }
 
+              /* Segmentation image:  
+
+    	           If `id` is negative, require segmented pixels within the 
+    	           aperture.
+
+    	           If `id` is positive, mask pixels with nonzero segment ids
+    	           not equal to `id`.
+
+    	      */ 
+    	      if (im->seg)
+      	        {
+      	          if (id > 0) 
+      	            {
+      	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
+      	                {
+                          *flag |= SEP_APER_HASMASKED;
+      	                  ismasked = 1;
+      	                }
+      	            } else {
+    	              if (sconvert(segt) != -1*id)
+    	                {
+                          *flag |= SEP_APER_HASMASKED;
+    	                  ismasked = 1;
+    	                }  	            
+      	            }
+      	        }
+      	        
               /* check if oversampling is needed (close to bin boundary?) */
               rpix = sqrt(rpix2);
               d = fmod(rpix, step);
@@ -492,6 +525,7 @@ int sep_sum_circann_multi(sep_image *im,
           if (errisarray)
             errort += esize;
           maskt += msize;
+          segt += ssize;
         }
     }
 
@@ -550,7 +584,8 @@ static double inverse(double xmax, double *y, int n, double ytarg)
 }
 
 int sep_flux_radius(sep_image *im,
-                    double x, double y, double rmax, int subpix, short inflag,
+                    double x, double y, double rmax, int id, 
+                    int subpix, short inflag,
                     double *fluxtot, double *fluxfrac, int n, double *r,
                     short *flag)
 {
@@ -564,7 +599,7 @@ int sep_flux_radius(sep_image *im,
 
   /* measure FLUX_RADIUS_BUFSIZE annuli out to rmax. */
   status = sep_sum_circann_multi(im, x, y, rmax,
-                                 FLUX_RADIUS_BUFSIZE, subpix, inflag,
+                                 FLUX_RADIUS_BUFSIZE, id, subpix, inflag,
                                  sumbuf, sumvarbuf, areabuf, maskareabuf,
                                  flag);
 
@@ -585,29 +620,32 @@ int sep_flux_radius(sep_image *im,
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
 int sep_kron_radius(sep_image *im, double x, double y,
-                    double cxx, double cyy, double cxy, double r,
+                    double cxx, double cyy, double cxy, double r, int id, 
                     double *kronrad, short *flag)
 {
   float pix;
   double r1, v1, r2, area, rpix2, dx, dy;
-  int ix, iy, xmin, xmax, ymin, ymax, status, size, msize;
+  int ix, iy, xmin, xmax, ymin, ymax, status, size, msize, ssize;
   long pos;
-  BYTE *datat, *maskt;
-  converter convert, mconvert;
+  int ismasked;
+  
+  BYTE *datat, *maskt, *segt;
+  converter convert, mconvert, sconvert;
 
   r2 = r*r;
   r1 = v1 = 0.0;
   area = 0.0;
   *flag = 0;
-  datat = maskt = NULL;
-  size = msize = 0;
+  datat = maskt = segt = NULL;
+  size = msize = ssize = 0;
 
   /* get data converter(s) for input array(s) */
   if ((status = get_converter(im->dtype, &convert, &size)))
     return status;
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
       return status;
-
+  if (im->seg && (status = get_converter(im->sdtype, &sconvert, &ssize)))
+      return status;
 
   /* get extent of ellipse in x and y */
   boxextent_ellipse(x, y, cxx, cyy, cxy, r, im->w, im->h,
@@ -621,6 +659,8 @@ int sep_kron_radius(sep_image *im, double x, double y,
       datat = MSVC_VOID_CAST im->data + pos*size;
       if (im->mask)
         maskt = MSVC_VOID_CAST im->mask + pos*msize;
+      if (im->seg)
+        segt = MSVC_VOID_CAST im->seg + pos*ssize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -631,7 +671,36 @@ int sep_kron_radius(sep_image *im, double x, double y,
           if (rpix2 <= r2)
             {
               pix = convert(datat);
+              ismasked = 0;
               if ((pix < -BIG) || (im->mask && mconvert(maskt) > im->maskthresh))
+                ismasked = 1;
+
+              /* Segmentation image:  
+
+    	           If `id` is negative, require segmented pixels within the 
+    	           aperture.
+
+    	           If `id` is positive, mask pixels with nonzero segment ids
+    	           not equal to `id`.
+
+    	      */ 
+    	      if (im->seg)
+      	        {
+      	          if (id > 0) 
+      	            {
+      	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
+      	                {
+      	                  ismasked = 1;
+      	                }
+      	            } else {
+    	              if (sconvert(segt) != -1*id)
+    	                {
+    	                  ismasked = 1;
+    	                }  	            
+      	            }
+      	        }
+                
+              if (ismasked > 0)
                 {
                   *flag |= SEP_APER_HASMASKED;
                 }
@@ -646,6 +715,7 @@ int sep_kron_radius(sep_image *im, double x, double y,
           /* increment pointers by one element */
           datat += size;
           maskt += msize;
+          segt += ssize;
         }
     }
 

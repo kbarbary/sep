@@ -63,9 +63,11 @@ typedef struct {
   void *data;        /* data array                */
   void *noise;       /* noise array (can be NULL) */
   void *mask;        /* mask array (can be NULL)  */
+  void *seg;         /* seg array (can be NULL)  */
   int dtype;         /* element type of image     */
   int ndtype;        /* element type of noise     */
   int mdtype;        /* element type of mask      */
+  int sdtype;        /* element type of seg      */
   int w;             /* array width               */
   int h;             /* array height              */
   double noiseval;   /* scalar noise value; used only if noise == NULL */
@@ -256,6 +258,7 @@ int sep_sum_circle(sep_image *image,
 		   double x,          /* center of aperture in x */
 		   double y,          /* center of aperture in y */
 		   double r,          /* radius of aperture */
+		   int id,            /* optional id to test against seg array */
 		   int subpix,        /* subpixel sampling */
 		   short inflags,     /* input flags (see below) */
 		   double *sum,       /* OUTPUT: sum */
@@ -266,17 +269,17 @@ int sep_sum_circle(sep_image *image,
 
 int sep_sum_circann(sep_image *image,
                     double x, double y, double rin, double rout,
-                    int subpix, short inflags,
+                    int id, int subpix, short inflags,
 		    double *sum, double *sumerr, double *area, short *flag);
 
 int sep_sum_ellipse(sep_image *image,
 		    double x, double y, double a, double b, double theta,
-		    double r, int subpix, short inflags,
+		    double r, int id, int subpix, short inflags,
 		    double *sum, double *sumerr, double *area, short *flag);
 
 int sep_sum_ellipann(sep_image *image,
 		     double x, double y, double a, double b, double theta,
-		     double rin, double rout, int subpix, short inflags,
+		     double rin, double rout, int id, int subpix, short inflags,
 		     double *sum, double *sumerr, double *area, short *flag);
 
 /* sep_sum_circann_multi()
@@ -296,7 +299,7 @@ int sep_sum_ellipann(sep_image *image,
  * flag:     Output flag (non-array).
  */
 int sep_sum_circann_multi(sep_image *im,
-			  double x, double y, double rmax, int n, int subpix,
+			  double x, double y, double rmax, int n, int id, int subpix,
                           short inflag,
 			  double *sum, double *sumvar, double *area,
 			  double *maskarea, short *flag);
@@ -316,7 +319,7 @@ int sep_sum_circann_multi(sep_image *im,
  * flag : (output) scalar flag
  */
 int sep_flux_radius(sep_image *im,
-		    double x, double y, double rmax, int subpix, short inflag,
+		    double x, double y, double rmax, int id, int subpix, short inflag,
 		    double *fluxtot, double *fluxfrac, int n,
 		    double *r, short *flag);
 
@@ -337,7 +340,7 @@ int sep_flux_radius(sep_image *im,
  *                        kronrad = 0.
  */
 int sep_kron_radius(sep_image *im, double x, double y,
-		    double cxx, double cyy, double cxy, double r,
+		    double cxx, double cyy, double cxy, double r, int id, 
 		    double *kronrad, short *flag);
 
 

@@ -64,9 +64,11 @@ cdef extern from "sep.h":
         void *data
         void *noise
         void *mask
+        void *seg
         int dtype
         int ndtype
         int mdtype
+        int sdtype
         int w
         int h
         double noiseval
@@ -144,36 +146,38 @@ cdef extern from "sep.h":
     void sep_catalog_free(sep_catalog *catalog)
 
     int sep_sum_circle(sep_image *image,
-                       double x, double y, double r, int subpix, short inflags,
+                       double x, double y, double r, 
+                       int id, int subpix, short inflags,
                        double *sum, double *sumerr, double *area, short *flag)
 
     int sep_sum_circann(sep_image *image,
                         double x, double y, double rin, double rout,
-                        int subpix, short inflags,
+                        int id, int subpix, short inflags,
                         double *sum, double *sumerr, double *area, short *flag)
 
     int sep_sum_ellipse(sep_image *image,
                         double x, double y, double a, double b, double theta,
-                        double r, int subpix, short inflags,
+                        double r, int id, int subpix, short inflags,
                         double *sum, double *sumerr, double *area,
                         short *flag)
 
     int sep_sum_ellipann(sep_image *image,
                          double x, double y, double a, double b,
-                         double theta, double rin, double rout, int subpix,
+                         double theta, double rin, double rout, 
+                         int id, int subpix,
                          short inflags,
                          double *sum, double *sumerr, double *area,
                          short *flag)
 
     int sep_flux_radius(sep_image *image,
-                        double x, double y, double rmax, int subpix,
+                        double x, double y, double rmax, int id, int subpix,
                         short inflag,
                         double *fluxtot, double *fluxfrac, int n,
                         double *r, short *flag)
 
     int sep_kron_radius(sep_image *image,
                         double x, double y, double cxx, double cyy,
-                        double cxy, double r,
+                        double cxy, double r, int id, 
                         double *kronrad, short *flag)
 
     int sep_windowed(sep_image *image,
@@ -282,17 +286,18 @@ cdef int _assert_ok(int status) except -1:
     raise Exception(msg)
 
 
-cdef int _parse_arrays(np.ndarray data, err, var, mask,
+cdef int _parse_arrays(np.ndarray data, err, var, mask, seg, 
                        sep_image *im) except -1:
-    """Helper function for functions accepting data, error & mask arrays.
+    """Helper function for functions accepting data, error, mask & seg arrays.
     Fills in an sep_image struct."""
 
-    cdef int ew, eh, mw, mh
-    cdef np.uint8_t[:,:] buf, ebuf, mbuf
+    cdef int ew, eh, mw, mh, sw, sh
+    cdef np.uint8_t[:,:] buf, ebuf, mbuf, sbuf
 
     # Clear im fields we might not touch (everything besides data, dtype, w, h)
     im.noise = NULL
     im.mask = NULL
+    im.seg = NULL
     im.ndtype = 0
     im.mdtype = 0
     im.noiseval = 0.0
@@ -351,6 +356,17 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask,
         mbuf = mask.view(dtype=np.uint8)
         im.mask = <void*>&mbuf[0, 0]
 
+    # Optional input: seg
+    if seg is None:
+        im.seg = NULL
+    else:
+        _check_array_get_dims(seg, &sw, &sh)
+        if sw != im.w or sh != im.h:
+            raise ValueError("size of seg array must match data")
+        im.sdtype = _get_sep_dtype(seg.dtype)
+        sbuf = seg.view(dtype=np.uint8)
+        im.seg = <void*>&sbuf[0, 0]
+        
 # -----------------------------------------------------------------------------
 # Background Estimation
 
@@ -393,7 +409,7 @@ cdef class Background:
         cdef int status
         cdef sep_image im
 
-        _parse_arrays(data, None, None, mask, &im)
+        _parse_arrays(data, None, None, mask, None, &im)
         im.maskthresh = maskthresh
         status = sep_background(&im, bw, bh, fw, fh, fthresh, &self.ptr)
         _assert_ok(status)
@@ -680,7 +696,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
     cdef sep_image im
 
     # parse arrays
-    _parse_arrays(data, err, var, mask, &im)
+    _parse_arrays(data, err, var, mask, None, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -810,8 +826,11 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
 @cython.wraparound(False)
 def sum_circle(np.ndarray data not None, x, y, r,
                var=None, err=None, gain=None, np.ndarray mask=None,
-               double maskthresh=0.0, bkgann=None, int subpix=5):
+               double maskthresh=0.0, 
+               seg_id=None, np.ndarray seg=None, 
+               bkgann=None, int subpix=5):
     """sum_circle(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
+                  seg=None, seg_id=None, 
                   bkgann=None, gain=None, subpix=5)
 
     Sum data in circular aperture(s).
@@ -873,8 +892,13 @@ def sum_circle(np.ndarray data not None, x, y, r,
     cdef int status
     cdef np.broadcast it
     cdef sep_image im
-
-    _parse_arrays(data, err, var, mask, &im)
+            
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, err, var, mask, seg, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -887,10 +911,20 @@ def sum_circle(np.ndarray data not None, x, y, r,
     #
     # docs.scipy.org/doc/numpy/reference/c-api.iterator.html#NpyIter_MultiNew
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
+    
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
-
+    
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+            
     if bkgann is None:
 
         # allocate ouput arrays
@@ -899,18 +933,21 @@ def sum_circle(np.ndarray data not None, x, y, r,
         sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, r, sum, sumerr, flag)
+        it = np.broadcast(x, y, r, seg_id, sum, sumerr, flag)
+        
         while np.PyArray_MultiIter_NOTDONE(it):
+            
             status = sep_sum_circle(
                 &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 subpix, 0,
-                <double*>np.PyArray_MultiIter_DATA(it, 3),
                 <double*>np.PyArray_MultiIter_DATA(it, 4),
+                <double*>np.PyArray_MultiIter_DATA(it, 5),
                 &area1,
-                <short*>np.PyArray_MultiIter_DATA(it, 5))
+                <short*>np.PyArray_MultiIter_DATA(it, 6))
             _assert_ok(status)
 
             # Advance the iterator
@@ -931,13 +968,14 @@ def sum_circle(np.ndarray data not None, x, y, r,
         sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, r, rin, rout, sum, sumerr, flag)
+        it = np.broadcast(x, y, r, rin, rout, seg_id, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_circle(
                 &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 5))[0],
                 subpix, 0, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
                 
@@ -949,6 +987,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
                 (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 5))[0],
                 1, SEP_MASK_IGNORE, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
@@ -956,9 +995,9 @@ def sum_circle(np.ndarray data not None, x, y, r,
               flux1 -= bkgflux / bkgarea * area1
               bkgfluxerr = bkgfluxerr / bkgarea * area1
               fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
-            (<double*>np.PyArray_MultiIter_DATA(it, 5))[0] = flux1
-            (<double*>np.PyArray_MultiIter_DATA(it, 6))[0] = fluxerr1
-            (<short*>np.PyArray_MultiIter_DATA(it, 7))[0] = flag1
+            (<double*>np.PyArray_MultiIter_DATA(it, 6))[0] = flux1
+            (<double*>np.PyArray_MultiIter_DATA(it, 7))[0] = fluxerr1
+            (<short*>np.PyArray_MultiIter_DATA(it, 8))[0] = flag1
 
             np.PyArray_MultiIter_NEXT(it)
 
@@ -968,6 +1007,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
 @cython.wraparound(False)
 def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
+                seg_id=None, np.ndarray seg=None, 
                 double maskthresh=0.0, int subpix=5):
     """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
                    maskthresh=0.0, gain=None, subpix=5)
@@ -1023,25 +1063,41 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    _parse_arrays(data, err, var, mask, &im)
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, err, var, mask, seg, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
 
     # convert inputs to double arrays
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     rin = np.require(rin, dtype=dt)
     rout = np.require(rout, dtype=dt)
 
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+    
     # allocate ouput arrays
     shape = np.broadcast(x, y, rin, rout).shape
     sum = np.empty(shape, dt)
     sumerr = np.empty(shape, dt)
     flag = np.empty(shape, np.short)
 
-    it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
+    # it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
+    it = np.broadcast(x, y, rin, rout, seg_id, sum, sumerr, flag)
+    
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_circann(
             &im,
@@ -1049,11 +1105,12 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
             (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+            (<int*>np.PyArray_MultiIter_DATA(it, 4))[0],
             subpix, 0,
-            <double*>np.PyArray_MultiIter_DATA(it, 4),
             <double*>np.PyArray_MultiIter_DATA(it, 5),
+            <double*>np.PyArray_MultiIter_DATA(it, 6),
             &area1,
-            <short*>np.PyArray_MultiIter_DATA(it, 6))
+            <short*>np.PyArray_MultiIter_DATA(it, 7))
 
         _assert_ok(status)
 
@@ -1064,6 +1121,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 var=None, err=None, gain=None, np.ndarray mask=None,
+                seg_id=None, np.ndarray seg=None, 
                 double maskthresh=0.0, bkgann=None, int subpix=5):
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
                    maskthresh=0.0, bkgann=None, gain=None, subpix=5)
@@ -1142,13 +1200,19 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     cdef np.broadcast it
     cdef sep_image im
 
-    _parse_arrays(data, err, var, mask, &im)
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, err, var, mask, seg, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     a = np.require(a, dtype=dt)
@@ -1156,6 +1220,14 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     theta = np.require(theta, dtype=dt)
     r = np.require(r, dtype=dt)
 
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+    
     if bkgann is None:
 
         # allocate ouput arrays
@@ -1164,7 +1236,8 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, a, b, theta, r, sum, sumerr, flag)
+        #it = np.broadcast(x, y, a, b, theta, r, sum, sumerr, flag)
+        it = np.broadcast(x, y, a, b, theta, r, seg_id, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_ellipse(
                 &im,
@@ -1174,11 +1247,12 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 6))[0],
                 subpix, 0,
-                <double*>np.PyArray_MultiIter_DATA(it, 6),
                 <double*>np.PyArray_MultiIter_DATA(it, 7),
+                <double*>np.PyArray_MultiIter_DATA(it, 8),
                 &area1,
-                <short*>np.PyArray_MultiIter_DATA(it, 8))
+                <short*>np.PyArray_MultiIter_DATA(it, 9))
             _assert_ok(status)
 
             np.PyArray_MultiIter_NEXT(it)
@@ -1198,7 +1272,8 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         sumerr = np.empty(shape, dt)
         flag = np.empty(shape, np.short)
 
-        it = np.broadcast(x, y, a, b, theta, r, rin, rout, sum, sumerr, flag)
+        # it = np.broadcast(x, y, a, b, theta, r, rin, rout, sum, sumerr, flag)
+        it = np.broadcast(x, y, a, b, theta, r, rin, rout, seg_id, sum, sumerr, flag)
         while np.PyArray_MultiIter_NOTDONE(it):
             status = sep_sum_ellipse(
                 &im,
@@ -1208,6 +1283,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 8))[0],
                 subpix, 0, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
 
@@ -1220,6 +1296,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
                 (<double*>np.PyArray_MultiIter_DATA(it, 7))[0],
+                (<int*>np.PyArray_MultiIter_DATA(it, 8))[0],
                 subpix, 0, &bkgflux, &bkgfluxerr, &bkgarea, &bkgflag)
             _assert_ok(status)
 
@@ -1228,9 +1305,9 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
               bkgfluxerr = bkgfluxerr / bkgarea * area1
               fluxerr1 = sqrt(fluxerr1*fluxerr1 + bkgfluxerr*bkgfluxerr)
 
-            (<double*>np.PyArray_MultiIter_DATA(it, 8))[0] = flux1
-            (<double*>np.PyArray_MultiIter_DATA(it, 9))[0] = fluxerr1
-            (<short*>np.PyArray_MultiIter_DATA(it, 10))[0] = flag1
+            (<double*>np.PyArray_MultiIter_DATA(it, 9))[0] = flux1
+            (<double*>np.PyArray_MultiIter_DATA(it, 10))[0] = fluxerr1
+            (<short*>np.PyArray_MultiIter_DATA(it, 11))[0] = flag1
 
             #PyArray_MultiIter_NEXT is used to advance the iterator
             np.PyArray_MultiIter_NEXT(it)
@@ -1242,6 +1319,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 @cython.wraparound(False)
 def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
                  var=None, err=None, gain=None, np.ndarray mask=None,
+                 seg_id=None, np.ndarray seg=None, 
                  double maskthresh=0.0, int subpix=5):
     """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
@@ -1306,13 +1384,20 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    _parse_arrays(data, err, var, mask, &im)
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, err, var, mask, seg, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
 
     # Require that inputs are float64 arrays. See note in circular aperture.
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
+    
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     a = np.require(a, dtype=dt)
@@ -1321,13 +1406,21 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     rin = np.require(rin, dtype=dt)
     rout = np.require(rout, dtype=dt)
 
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+    
     # allocate ouput arrays
     shape = np.broadcast(x, y, a, b, theta, rin, rout).shape
     sum = np.empty(shape, dt)
     sumerr = np.empty(shape, dt)
     flag = np.empty(shape, np.short)
 
-    it = np.broadcast(x, y, a, b, theta, rin, rout, sum, sumerr, flag)
+    it = np.broadcast(x, y, a, b, theta, rin, rout, seg_id, sum, sumerr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_ellipann(
             &im,
@@ -1338,11 +1431,12 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
             (<double*>np.PyArray_MultiIter_DATA(it, 4))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
             (<double*>np.PyArray_MultiIter_DATA(it, 6))[0],
+            (<int*>np.PyArray_MultiIter_DATA(it, 7))[0],
             subpix, 0,
-            <double*>np.PyArray_MultiIter_DATA(it, 7),
             <double*>np.PyArray_MultiIter_DATA(it, 8),
+            <double*>np.PyArray_MultiIter_DATA(it, 9),
             &area1,
-            <short*>np.PyArray_MultiIter_DATA(it, 9))
+            <short*>np.PyArray_MultiIter_DATA(it, 10))
         _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
@@ -1351,7 +1445,9 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
-                np.ndarray mask=None, double maskthresh=0.0, int subpix=5):
+                np.ndarray mask=None, double maskthresh=0.0, 
+                seg_id=None, np.ndarray seg=None,
+                int subpix=5):
     """flux_radius(data, x, y, rmax, frac, normflux=None, mask=None,
                    maskthresh=0.0, subpix=5)
 
@@ -1420,13 +1516,20 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     cdef double *normfluxptr
     cdef sep_image im
 
-    _parse_arrays(data, None, None, mask, &im)
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, None, None, mask, seg, &im)
     im.maskthresh = maskthresh
 
     # Require that inputs are float64 arrays with same shape. See note in
     # circular aperture.
     # Also require that frac is a contiguous array.
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
+
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     rmax = np.require(rmax, dtype=dt)
@@ -1436,10 +1539,18 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     if (y.shape != inshape or rmax.shape != inshape):
         raise ValueError("shape of x, y, and r must match")
 
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+
     # Convert input arrays to 1-d for correct looping and indexing.
     xtmp = np.ravel(x)
     ytmp = np.ravel(y)
     rtmp = np.ravel(rmax)
+    itmp = np.ravel(seg_id)
     fractmp = np.ravel(np.ascontiguousarray(frac))
     fracn = len(fractmp)
 
@@ -1462,7 +1573,8 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
         if normfluxptr != NULL:
             normfluxptr = &normfluxbuf[i]
         status = sep_flux_radius(&im,
-                                 xtmp[i], ytmp[i], rtmp[i], subpix, 0,
+                                 xtmp[i], ytmp[i], rtmp[i], itmp[i], 
+                                 subpix, 0,
                                  normfluxptr, &fractmp[0], fracn,
                                  &radius[i, 0], &flag[i])
         _assert_ok(status)
@@ -1566,7 +1678,9 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
 
 
 def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
-                np.ndarray mask=None, double maskthresh=0.0):
+                np.ndarray mask=None, 
+                seg_id=None, np.ndarray seg=None, 
+                double maskthresh=0.0):
     """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0)
 
     Calculate Kron "radius" within an ellipse.
@@ -1624,11 +1738,18 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     cdef double cxx, cyy, cxy
     cdef sep_image im
 
-    _parse_arrays(data, None, None, mask, &im)
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # without seg.
+    if (seg is not None) & (seg_id is None):
+        raise ValueError('`seg` supplied but not `seg_id`.')
+        
+    _parse_arrays(data, None, None, mask, seg, &im)
     im.maskthresh = maskthresh
 
     # See note in apercirc on requiring specific array type
     dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
+
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     a = np.require(a, dtype=dt)
@@ -1636,12 +1757,20 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     theta = np.require(theta, dtype=dt)
     r = np.require(r, dtype=dt)
 
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+        
     # allocate output arrays
     shape = np.broadcast(x, y, a, b, theta, r).shape
     kr = np.empty(shape, np.float)
     flag = np.empty(shape, np.short)
 
-    it = np.broadcast(x, y, a, b, theta, r, kr, flag)
+    it = np.broadcast(x, y, a, b, theta, r, seg_id, kr, flag)
     while np.PyArray_MultiIter_NOTDONE(it):
         sep_ellipse_coeffs((<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
                            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
@@ -1652,8 +1781,9 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
                                  (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
                                  cxx, cyy, cxy,
                                  (<double*>np.PyArray_MultiIter_DATA(it, 5))[0],
-                                 <double*>np.PyArray_MultiIter_DATA(it, 6),
-                                 <short*>np.PyArray_MultiIter_DATA(it, 7))
+                                 (<int*>np.PyArray_MultiIter_DATA(it, 6))[0],
+                                 <double*>np.PyArray_MultiIter_DATA(it, 7),
+                                 <short*>np.PyArray_MultiIter_DATA(it, 8))
         _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
@@ -1726,7 +1856,7 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
     cdef int niter = 0  # not currently returned
     cdef sep_image im
 
-    _parse_arrays(data, None, None, mask, &im)
+    _parse_arrays(data, None, None, mask, None, &im)
     im.maskthresh = maskthresh
 
     # See note in apercirc on requiring specific array type
