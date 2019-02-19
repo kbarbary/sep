@@ -1145,7 +1145,8 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 seg_id=None, np.ndarray seg=None, 
                 bkgann=None, int subpix=5):
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
-                   maskthresh=0.0, bkgann=None, gain=None, subpix=5)
+                   maskthresh=0.0, seg_id=None, seg=None, bkgann=None, 
+                   gain=None, subpix=5)
 
     Sum data in elliptical aperture(s).
 
