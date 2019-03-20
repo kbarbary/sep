@@ -169,7 +169,7 @@ SourceExtractor provides a mechanism for measuring the "AUTO" and "FLUX_RADIUS" 
 For example, using a segmentation array provided by ``sep.extract``, we can compute the masked ``flux_radius`` that could otherwise be artificially large due to flux from nearby sources::
 
     # list of object id numbers that correspond to the segments
-    objs['id'] = np.arange(len(objs), dtype=np.int32)
+    objs['id'] = np.arange(1, len(objs)+1, dtype=np.int32)
     
     r, flag = sep.flux_radius(data, objs['x'], objs['y'], 6.*objs['a'], 0.5,
                               seg_id=objs['id'], seg=seg, 
