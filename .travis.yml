@@ -17,12 +17,13 @@ matrix:
         - os: osx
           env: LANG=c
         - env: LANG=python PYTHON_VERSION=2.6 NUMPY_VERSION=1.9
-        - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.6
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.7
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.8
         - env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=3.3 NUMPY_VERSION=1.9
         - env: LANG=python PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
+        - env: LANG=python PYTHON_VERSION=3.5 NUMPY_VERSION=1.14
+        - env: LANG=python PYTHON_VERSION=3.6 NUMPY_VERSION=1.16
         - os: osx
           env: LANG=python PYTHON_VERSION=2.7 NUMPY_VERSION=1.9
                MINICONDA_URL=http://repo.continuum.io/miniconda/Miniconda-3.7.3-MacOSX-x86_64.sh
