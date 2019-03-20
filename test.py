@@ -570,7 +570,74 @@ def test_aperture_bkgann_ones():
     f, _, _ = sep.sum_ellipse(data, x, y, 2., 1., np.pi/4., r, bkgann=bkgann)
     assert_allclose(f, 0., rtol=0., atol=1.e-13)
 
+def test_masked_segmentation_measurements():
+    """Test measurements with segmentation masking"""
+    
+    NX = 100
+    data = np.zeros((NX*2,NX*2))
+    yp, xp = np.indices(data.shape)
+    
+    ####
+    # Make two 2D gaussians that slightly overlap
+    
+    # width of the 2D objects
+    gsigma = 10.  
+      
+    # offset between two gaussians in sigmas
+    off = 4 
 
+    for xy in [[NX,NX], [NX+off*gsigma, NX+off*gsigma]]:
+        R = np.sqrt((xp-xy[0])**2+(yp-xy[1])**2)
+        g_i = np.exp(-R**2/2/gsigma**2)
+        data += g_i
+    
+    # Absolute total
+    total_exact = g_i.sum()
+    
+    # Add some noise
+    rms = 0.02
+    np.random.seed(1)
+    data += np.random.normal(size=data.shape)*rms
+    
+    # Run source detection
+    objs, segmap = sep.extract(data, thresh=1.2, err=rms, mask=None,
+                               segmentation_map=True)
+    
+    seg_id = np.arange(1, len(objs)+1, dtype=np.int32)
+    
+    # Compute Kron/Auto parameters
+    x, y, a, b = objs['x'], objs['y'], objs['a'], objs['b']
+    theta = objs['theta']
+    
+    kronrad, krflag = sep.kron_radius(data, x, y, a, b, theta, 6.0)
+    
+    flux_auto, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta,
+                                               2.5*kronrad, 
+                                               segmap=segmap, seg_id=seg_id, 
+                                               subpix=1)
+    
+    # Test total flux
+    assert_allclose(flux_auto, total_exact, rtol=5.e-2)
+        
+    # Flux_radius
+    for flux_fraction in [0.2, 0.5]:
+    
+        # Exact solution
+        rhalf_exact = np.sqrt(-np.log(1-flux_fraction)*gsigma**2*2)
+    
+        # Masked measurement
+        flux_radius, flag = sep.flux_radius(data, x, y, 6.*a, flux_fraction,
+                                        seg_id=seg_id, segmap=segmap, 
+                                        normflux=flux_auto, subpix=5)
+        
+        # Test flux fraction
+        assert_allclose(flux_radius, rhalf_exact, rtol=5.e-2)
+    
+    if False:
+        print('test_masked_flux_radius')
+        print(total_exact, flux_auto)
+        print(rhalf_exact, flux_radius)
+    
 def test_mask_ellipse():
     arr = np.zeros((20, 20), dtype=np.bool)
 

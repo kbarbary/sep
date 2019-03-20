@@ -10,17 +10,18 @@
 #endif
 
 int APER_NAME(sep_image *im,
-	      double x, double y, APER_ARGS, int subpix, short inflag,
+	      double x, double y, APER_ARGS, int id, int subpix, short inflag,
 	      double *sum, double *sumerr, double *area, short *flag)
 {
   PIXTYPE pix, varpix;
   double dx, dy, dx1, dy2, offset, scale, scale2, tmp;
   double tv, sigtv, totarea, maskarea, overlap, rpix2;
-  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize;
+  int ix, iy, xmin, xmax, ymin, ymax, sx, sy, status, size, esize, msize, ssize;
+  int ismasked;
   long pos;
   short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt;
-  converter convert, econvert, mconvert;
+  BYTE *datat, *errort, *maskt, *segt;
+  converter convert, econvert, mconvert, sconvert;
   APER_DECL;
 
   /* input checks */
@@ -29,10 +30,10 @@ int APER_NAME(sep_image *im,
     return ILLEGAL_SUBPIX;
 
   /* initializations */
-  size = esize = msize = 0;
+  size = esize = msize = ssize = 0;
   tv = sigtv = 0.0;
   overlap = totarea = maskarea = 0.0;
-  datat = maskt = NULL;
+  datat = maskt = segt = NULL;
   errort = im->noise;
   *flag = 0;
   varpix = 0.0;
@@ -50,6 +51,9 @@ int APER_NAME(sep_image *im,
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
+  if (im->segmap && (status = get_converter(im->sdtype, &sconvert, &ssize)))
+    return status;
+      
   /* get image noise */
   if (im->noise_type != SEP_NOISE_NONE)
     {
@@ -68,7 +72,7 @@ int APER_NAME(sep_image *im,
 
   /* get extent of box */
   APER_BOXEXTENT;
-
+  
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
     {
@@ -79,7 +83,9 @@ int APER_NAME(sep_image *im,
 	errort = MSVC_VOID_CAST im->noise + pos*esize;
       if (im->mask)
 	maskt = MSVC_VOID_CAST im->mask + pos*msize;
-
+      if (im->segmap)
+  	segt = MSVC_VOID_CAST im->segmap + pos*ssize;
+  	
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
 	{
@@ -122,9 +128,40 @@ int APER_NAME(sep_image *im,
 		  if (errisstd)
 		    varpix *= varpix;
 		}
-
+              
+              ismasked = 0;
 	      if (im->mask && (mconvert(maskt) > im->maskthresh))
-		{ 
+	        {
+	          ismasked = 1;
+	        }
+	      
+	      /* Segmentation image:  
+	           
+	           If `id` is negative, require segmented pixels within the 
+	           aperture.
+	           
+	           If `id` is positive, mask pixels with nonzero segment ids
+	           not equal to `id`.
+	           
+	      */ 
+	      if (im->segmap)
+  	        {
+  	          if (id > 0) 
+  	            {
+  	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
+  	                {
+  	                  ismasked = 1;
+  	                }
+  	            } else {
+	              if (sconvert(segt) != -1*id)
+	                {
+	                  ismasked = 1;
+	                }  	            
+  	            }
+  	        }
+  	      
+	      if (ismasked > 0) 
+	      	{ 
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;
 		}
@@ -143,6 +180,7 @@ int APER_NAME(sep_image *im,
 	  if (errisarray)
 	    errort += esize;
 	  maskt += msize;
+	  segt += ssize;
 	}
     }
 
