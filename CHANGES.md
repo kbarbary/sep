@@ -1,3 +1,8 @@
+v1.10.0 (20 March 2019)
+=======================
+
+* Add segmentation masking to the photometry and kron/auto functions (#69).
+
 v1.0.3 (12 June 2018)
 =====================
 
