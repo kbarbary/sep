@@ -857,17 +857,21 @@ def sum_circle(np.ndarray data not None, x, y, r,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-    
+            
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
         
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
@@ -1050,17 +1054,21 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
             
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
             
     gain : float, optional
         Conversion factor between data array units and poisson counts,
@@ -1191,17 +1199,21 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
             
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
     
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
@@ -1401,18 +1413,22 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         used in calculating poisson noise in aperture sum. If ``None``
         (default), do not add poisson noise.
 
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
             
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
-            
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
+    
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1536,18 +1552,22 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
             
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
-    
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
+        
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1787,17 +1807,21 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     maskthresh : float, optional
         Pixels with mask > maskthresh will be ignored.
     
-    segmap : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.int32`.
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
             
     seg_id : array_like, optional
-        Array of segmentation ids that correspond to the dimensions of `x` 
-        and `y`.  If the values in seg_id are negative, then the mask is 
-        generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `segmap` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `segmap`.
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        ``segmap` is provided.
             
     Returns
     -------
