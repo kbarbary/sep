@@ -63,11 +63,11 @@ typedef struct {
   void *data;        /* data array                */
   void *noise;       /* noise array (can be NULL) */
   void *mask;        /* mask array (can be NULL)  */
-  void *seg;         /* seg array (can be NULL)  */
+  void *segmap;      /* segmap array (can be NULL)  */
   int dtype;         /* element type of image     */
   int ndtype;        /* element type of noise     */
   int mdtype;        /* element type of mask      */
-  int sdtype;        /* element type of seg      */
+  int sdtype;        /* element type of segmap    */
   int w;             /* array width               */
   int h;             /* array height              */
   double noiseval;   /* scalar noise value; used only if noise == NULL */
@@ -258,7 +258,7 @@ int sep_sum_circle(sep_image *image,
 		   double x,          /* center of aperture in x */
 		   double y,          /* center of aperture in y */
 		   double r,          /* radius of aperture */
-		   int id,            /* optional id to test against seg array */
+		   int id,            /* optional id to test against segmap array */
 		   int subpix,        /* subpixel sampling */
 		   short inflags,     /* input flags (see below) */
 		   double *sum,       /* OUTPUT: sum */

@@ -600,7 +600,9 @@ def test_masked_segmentation_measurements():
     data += np.random.normal(size=data.shape)*rms
     
     # Run source detection
-    objs, seg = sep.extract(data, thresh=1.2, err=rms, mask=None, segmentation_map=True)
+    objs, segmap = sep.extract(data, thresh=1.2, err=rms, mask=None,
+                               segmentation_map=True)
+    
     seg_id = np.arange(1, len(objs)+1, dtype=np.int32)
     
     # Compute Kron/Auto parameters
@@ -611,7 +613,7 @@ def test_masked_segmentation_measurements():
     
     flux_auto, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta,
                                                2.5*kronrad, 
-                                               seg=seg, seg_id=seg_id, 
+                                               segmap=segmap, seg_id=seg_id, 
                                                subpix=1)
     
     # Test total flux
@@ -625,7 +627,7 @@ def test_masked_segmentation_measurements():
     
         # Masked measurement
         flux_radius, flag = sep.flux_radius(data, x, y, 6.*a, flux_fraction,
-                                        seg_id=seg_id, seg=seg, 
+                                        seg_id=seg_id, segmap=segmap, 
                                         normflux=flux_auto, subpix=5)
         
         # Test flux fraction

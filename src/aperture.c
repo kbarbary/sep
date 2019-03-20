@@ -383,7 +383,7 @@ int sep_sum_circann_multi(sep_image *im,
     return status;
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
-  if (im->seg && (status = get_converter(im->sdtype, &sconvert, &ssize)))
+  if (im->segmap && (status = get_converter(im->sdtype, &sconvert, &ssize)))
     return status;
 
   /* get image noise */
@@ -417,8 +417,8 @@ int sep_sum_circann_multi(sep_image *im,
         errort = MSVC_VOID_CAST im->noise + pos*esize;
       if (im->mask)
         maskt = MSVC_VOID_CAST im->mask + pos*msize;
-      if (im->seg)
-        segt = MSVC_VOID_CAST im->seg + pos*ssize;
+      if (im->segmap)
+        segt = MSVC_VOID_CAST im->segmap + pos*ssize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -456,7 +456,7 @@ int sep_sum_circann_multi(sep_image *im,
     	           not equal to `id`.
 
     	      */ 
-    	      if (im->seg)
+    	      if (im->segmap)
       	        {
       	          if (id > 0) 
       	            {
@@ -644,7 +644,7 @@ int sep_kron_radius(sep_image *im, double x, double y,
     return status;
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
       return status;
-  if (im->seg && (status = get_converter(im->sdtype, &sconvert, &ssize)))
+  if (im->segmap && (status = get_converter(im->sdtype, &sconvert, &ssize)))
       return status;
 
   /* get extent of ellipse in x and y */
@@ -659,8 +659,8 @@ int sep_kron_radius(sep_image *im, double x, double y,
       datat = MSVC_VOID_CAST im->data + pos*size;
       if (im->mask)
         maskt = MSVC_VOID_CAST im->mask + pos*msize;
-      if (im->seg)
-        segt = MSVC_VOID_CAST im->seg + pos*ssize;
+      if (im->segmap)
+        segt = MSVC_VOID_CAST im->segmap + pos*ssize;
 
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -684,7 +684,7 @@ int sep_kron_radius(sep_image *im, double x, double y,
     	           not equal to `id`.
 
     	      */ 
-    	      if (im->seg)
+    	      if (im->segmap)
       	        {
       	          if (id > 0) 
       	            {

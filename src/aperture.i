@@ -51,7 +51,7 @@ int APER_NAME(sep_image *im,
   if (im->mask && (status = get_converter(im->mdtype, &mconvert, &msize)))
     return status;
 
-  if (im->seg && (status = get_converter(im->sdtype, &sconvert, &ssize)))
+  if (im->segmap && (status = get_converter(im->sdtype, &sconvert, &ssize)))
     return status;
       
   /* get image noise */
@@ -83,8 +83,8 @@ int APER_NAME(sep_image *im,
 	errort = MSVC_VOID_CAST im->noise + pos*esize;
       if (im->mask)
 	maskt = MSVC_VOID_CAST im->mask + pos*msize;
-      if (im->seg)
-  	segt = MSVC_VOID_CAST im->seg + pos*ssize;
+      if (im->segmap)
+  	segt = MSVC_VOID_CAST im->segmap + pos*ssize;
   	
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
@@ -144,7 +144,7 @@ int APER_NAME(sep_image *im,
 	           not equal to `id`.
 	           
 	      */ 
-	      if (im->seg)
+	      if (im->segmap)
   	        {
   	          if (id > 0) 
   	            {

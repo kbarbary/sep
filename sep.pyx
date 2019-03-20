@@ -64,7 +64,7 @@ cdef extern from "sep.h":
         void *data
         void *noise
         void *mask
-        void *seg
+        void *segmap
         int dtype
         int ndtype
         int mdtype
@@ -286,9 +286,9 @@ cdef int _assert_ok(int status) except -1:
     raise Exception(msg)
 
 
-cdef int _parse_arrays(np.ndarray data, err, var, mask, seg, 
+cdef int _parse_arrays(np.ndarray data, err, var, mask, segmap, 
                        sep_image *im) except -1:
-    """Helper function for functions accepting data, error, mask & seg arrays.
+    """Helper function for functions accepting data, error, mask & segmap arrays.
     Fills in an sep_image struct."""
 
     cdef int ew, eh, mw, mh, sw, sh
@@ -297,7 +297,7 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask, seg,
     # Clear im fields we might not touch (everything besides data, dtype, w, h)
     im.noise = NULL
     im.mask = NULL
-    im.seg = NULL
+    im.segmap = NULL
     im.ndtype = 0
     im.mdtype = 0
     im.noiseval = 0.0
@@ -356,16 +356,16 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask, seg,
         mbuf = mask.view(dtype=np.uint8)
         im.mask = <void*>&mbuf[0, 0]
 
-    # Optional input: seg
-    if seg is None:
-        im.seg = NULL
+    # Optional input: segmap
+    if segmap is None:
+        im.segmap = NULL
     else:
-        _check_array_get_dims(seg, &sw, &sh)
+        _check_array_get_dims(segmap, &sw, &sh)
         if sw != im.w or sh != im.h:
-            raise ValueError("size of seg array must match data")
-        im.sdtype = _get_sep_dtype(seg.dtype)
-        sbuf = seg.view(dtype=np.uint8)
-        im.seg = <void*>&sbuf[0, 0]
+            raise ValueError("size of segmap array must match data")
+        im.sdtype = _get_sep_dtype(segmap.dtype)
+        sbuf = segmap.view(dtype=np.uint8)
+        im.segmap = <void*>&sbuf[0, 0]
         
 # -----------------------------------------------------------------------------
 # Background Estimation
@@ -827,10 +827,10 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
 def sum_circle(np.ndarray data not None, x, y, r,
                var=None, err=None, gain=None, np.ndarray mask=None,
                double maskthresh=0.0, 
-               seg_id=None, np.ndarray seg=None, 
+               seg_id=None, np.ndarray segmap=None, 
                bkgann=None, int subpix=5):
     """sum_circle(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
-                  seg=None, seg_id=None, 
+                  segmap=None, seg_id=None, 
                   bkgann=None, gain=None, subpix=5)
 
     Sum data in circular aperture(s).
@@ -857,15 +857,17 @@ def sum_circle(np.ndarray data not None, x, y, r,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
     
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
         
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
@@ -903,12 +905,12 @@ def sum_circle(np.ndarray data not None, x, y, r,
     cdef np.broadcast it
     cdef sep_image im
             
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # Test for map without seg_id.  Nothing happens if seg_id supplied but 
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, err, var, mask, seg, &im)
+    _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -1017,10 +1019,11 @@ def sum_circle(np.ndarray data not None, x, y, r,
 @cython.wraparound(False)
 def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
-                double maskthresh=0.0, seg_id=None, np.ndarray seg=None, 
+                double maskthresh=0.0, seg_id=None, np.ndarray segmap=None, 
                 int subpix=5):
     """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
-                   maskthresh=0.0, seg_id=None, seg=None, gain=None, subpix=5)
+                   maskthresh=0.0, seg_id=None, segmap=None, gain=None,
+                   subpix=5)
 
     Sum data in circular annular aperture(s).
 
@@ -1047,15 +1050,17 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
-    
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+            
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
             
     gain : float, optional
         Conversion factor between data array units and poisson counts,
@@ -1083,12 +1088,12 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, err, var, mask, seg, &im)
+    _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -1142,10 +1147,10 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 var=None, err=None, gain=None, np.ndarray mask=None,
                 double maskthresh=0.0, 
-                seg_id=None, np.ndarray seg=None, 
+                seg_id=None, np.ndarray segmap=None, 
                 bkgann=None, int subpix=5):
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
-                   maskthresh=0.0, seg_id=None, seg=None, bkgann=None, 
+                   maskthresh=0.0, seg_id=None, segmap=None, bkgann=None, 
                    gain=None, subpix=5)
 
     Sum data in elliptical aperture(s).
@@ -1186,15 +1191,17 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
-    
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+            
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
     
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
@@ -1233,11 +1240,11 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     cdef sep_image im
 
     # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, err, var, mask, seg, &im)
+    _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -1352,7 +1359,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
                  var=None, err=None, gain=None, np.ndarray mask=None,
                  double maskthresh=0.0, 
-                 seg_id=None, np.ndarray seg=None, 
+                 seg_id=None, np.ndarray segmap=None, 
                  int subpix=5):
     """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
@@ -1394,15 +1401,17 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         used in calculating poisson noise in aperture sum. If ``None``
         (default), do not add poisson noise.
 
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
-    
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+            
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
             
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
@@ -1427,12 +1436,12 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, err, var, mask, seg, &im)
+    _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
         im.gain = gain
@@ -1489,7 +1498,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 @cython.wraparound(False)
 def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
                 np.ndarray mask=None, double maskthresh=0.0, 
-                seg_id=None, np.ndarray seg=None,
+                seg_id=None, np.ndarray segmap=None,
                 int subpix=5):
     """flux_radius(data, x, y, rmax, frac, normflux=None, mask=None,
                    maskthresh=0.0, subpix=5)
@@ -1527,15 +1536,17 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
-    
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+            
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
     
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
@@ -1569,12 +1580,12 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     cdef double *normfluxptr
     cdef sep_image im
 
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, None, None, mask, seg, &im)
+    _parse_arrays(data, None, None, mask, segmap, &im)
     im.maskthresh = maskthresh
 
     # Require that inputs are float64 arrays with same shape. See note in
@@ -1732,8 +1743,8 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
 
 def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
                 np.ndarray mask=None, double maskthresh=0.0,
-                seg_id=None, np.ndarray seg=None):
-    """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0, seg_id=None, seg=None)
+                seg_id=None, np.ndarray segmap=None):
+    """kron_radius(data, x, y, a, b, theta, r, mask=None, maskthresh=0.0, seg_id=None, segmap=None)
 
     Calculate Kron "radius" within an ellipse.
 
@@ -1776,15 +1787,17 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     maskthresh : float, optional
         Pixels with mask > maskthresh will be ignored.
     
-    seg : `numpy.ndarray`, optional
-        Segmentation image with dimensions of `data` and dtype `np.float32`.
-    
+    segmap : `numpy.ndarray`, optional
+        Segmentation image with dimensions of `data` and dtype `np.int32`.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+            
     seg_id : array_like, optional
         Array of segmentation ids that correspond to the dimensions of `x` 
         and `y`.  If the values in seg_id are negative, then the mask is 
         generated requiring pixels within the segment.  Otherwise, mask 
-        pixels in `seg` with nonzero values different from `seg_id` for a 
-        given object in the list.  Must be provided along with `seg`.
+        pixels in `segmap` with nonzero values different from `seg_id` for a 
+        given object in the list.  Must be provided along with `segmap`.
             
     Returns
     -------
@@ -1800,12 +1813,12 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     cdef double cxx, cyy, cxy
     cdef sep_image im
 
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
-    # without seg.
-    if (seg is not None) & (seg_id is None):
-        raise ValueError('`seg` supplied but not `seg_id`.')
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # without segmap.
+    if (segmap is not None) & (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
         
-    _parse_arrays(data, None, None, mask, seg, &im)
+    _parse_arrays(data, None, None, mask, segmap, &im)
     im.maskthresh = maskthresh
 
     # See note in apercirc on requiring specific array type
