@@ -911,7 +911,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
             
     # Test for map without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, err, var, mask, segmap, &im)
@@ -1098,7 +1098,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
     # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, err, var, mask, segmap, &im)
@@ -1253,7 +1253,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 
     # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, err, var, mask, segmap, &im)
@@ -1454,7 +1454,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 
     # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, err, var, mask, segmap, &im)
@@ -1602,7 +1602,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
 
     # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, None, None, mask, segmap, &im)
@@ -1839,7 +1839,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
     # without segmap.
-    if (segmap is not None) & (seg_id is None):
+    if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
         
     _parse_arrays(data, None, None, mask, segmap, &im)
