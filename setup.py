@@ -29,7 +29,7 @@ else:
     headerfiles = glob(os.path.join("src", "*.h"))
     include_dirs=[numpy.get_include(), "src"]
     extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
-                            depends=headerfiles)]
+                            depends=headerfiles, extra_compile_args=['-g0'])]
     if USE_CYTHON:
         from Cython.Build import cythonize
         extensions = cythonize(extensions)
