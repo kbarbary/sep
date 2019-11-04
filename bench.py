@@ -18,11 +18,11 @@ try:
     from fitsio import read as getdata
     HAVE_FITS = True
     NEED_BYTESWAP = False
-except:
+except ImportError:
     try:
         from astropy.io.fits import getdata
         HAVE_FITS = True
-    except:
+    except ImportError:
         HAVE_FITS = False
 
 CONDENSED = True
