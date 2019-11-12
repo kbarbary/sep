@@ -18,11 +18,11 @@ try:
     from fitsio import read as getdata
     HAVE_FITS = True
     NEED_BYTESWAP = False
-except:
+except ImportError:
     try:
         from astropy.io.fits import getdata
         HAVE_FITS = True
-    except:
+    except ImportError:
         HAVE_FITS = False
 
 CONDENSED = True
@@ -30,12 +30,12 @@ CONDENSED = True
 if HAVE_FITS:
     rawdata = getdata(join("data", "image.fits"))  # original is 256 x 256
     data = np.tile(rawdata, (4, 4))
-    
+
     print("test image shape:", data.shape)
     print("test image dtype:", data.dtype)
 
     t0 = time.time()
-    bkg = sep.Background(data) # estimate background
+    bkg = sep.Background(data)  # estimate background
     t1 = time.time()
     print("measure background: {0:6.2f} ms".format((t1-t0) * 1.e3))
 
@@ -93,7 +93,10 @@ for ntile in [4]:
 
     if HAVE_PHOTUTILS:
         t0 = time.time()
-        bkg = photutils.Background(data, (64, 64)) # estimate background
+        try:
+            bkg = photutils.Background(data, (64, 64))  # estimate background
+        except AttributeError:
+            bkg = photutils.Background2D(data, (64, 64))  # estimate background
         t1 = time.time()
         t_pu = (t1-t0) * 1.e3
         line += "      {0:7.2f} ms | {1:6.2f} |".format(t_pu, t_pu/t_sep)
