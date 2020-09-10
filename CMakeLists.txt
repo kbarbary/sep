@@ -4,7 +4,7 @@ project(sep C)
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/")
 
-set(SOURCES main.cpp
+set(SOURCES
    ${CMAKE_SOURCE_DIR}/src/analyse.c
    ${CMAKE_SOURCE_DIR}/src/convolve.c
    ${CMAKE_SOURCE_DIR}/src/deblend.c
@@ -19,7 +19,9 @@ include_directories(${CMAKE_INCLUDE_PATH} ${CMAKE_SOURCE_DIR}/dsp/ ${CMAKE_SOURC
 
 link_directories(${CMAKE_LIBRARY_PATH} ${CMAKE_SOURCE_DIR}/sep/src)
 
-add_library(sep ${SOURCES})
+add_library(sep SHARED ${SOURCES})
+set_target_properties(sep PROPERTIES OUTPUT_NAME sep)
 
 target_link_libraries(sep m)
-install(TARGETS sep RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+
+install(TARGETS sep LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
