@@ -93,6 +93,16 @@ C Library
 
 _Note: The build process only works on Linux and OS X._
 
+**CMake:** To build using CMake, enter these commands:
+
+```
+cd sep
+mkdir -p build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr ../
+```
+and follow next steps from the build folder
+
 **Build:** To build the C library from source:
 
 ```
