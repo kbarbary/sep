@@ -4,9 +4,6 @@ include AUTHORS.md
 include licenses/*
 include pyproject.toml
 
-# do not include sep.pyx (see setup.py).
 include src/*.[c,h,i]
-
-recursive-include docs *
-prune docs/_build
-prune docs/api
+include sep.pyx
+exclude sep.c

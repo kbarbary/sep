@@ -55,9 +55,9 @@ Installation
 with conda
 ..........
 
-SEP can be installed with conda from the ``openastronomy`` channel::
+SEP can be installed with conda from the ``conda-forge`` channel::
 
-    conda install -c openastronomy sep
+    conda install -c conda-forge sep
 
 
 with pip
@@ -66,14 +66,14 @@ with pip
 SEP can also be installed with `pip <https://pip.pypa.io>`_. After ensuring
 that numpy is installed, run ::
 
-    pip install --no-deps sep
+    pip install sep
 
 If you get an error about permissions, you are probably using your
 system Python. In this case, I recommend using `pip's "user install"
 <https://pip.pypa.io/en/latest/user_guide/#user-installs>`_ option to
 install sep into your user directory ::
 
-    pip install --no-deps --user sep
+    pip install --user sep
 
 Do **not** install sep or other third-party Python packages using ``sudo``
 unless you are fully aware of the risks.
