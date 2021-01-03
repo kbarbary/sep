@@ -701,7 +701,7 @@ def test_set_sub_object_limit():
     """Ensure that setting the sub-object deblending limit works."""
     old = sep.get_sub_object_limit()
     new = old * 2
-    sep.set_sub_object_limit()
+    sep.set_sub_object_limit(new)
     assert new == sep.get_sub_object_limit()
     sep.set_sub_object_limit(old)
 
