@@ -26,20 +26,21 @@ sep-*.tar.gz
 # -------------------------------------------
 # Python
 
-*.pyc
+__pycache__
 
 docs/_build
 docs/api
 build/
 
 MANIFEST
+*.egg-info
+
+# pytest
+.pytest_cache
+.cache
 
 # generated C file
 sep.c
-
-# pytest cache
-.cache
-__pycache__
 
 # PyCharm
 .idea
@@ -48,4 +49,8 @@ __pycache__
 # Eclipse
 .pydevproject
 
+# Jupyter
 .ipynb_checkpoints
+
+# tox
+.tox

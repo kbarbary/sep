@@ -1,7 +1,17 @@
-v1.10.0 (20 March 2019)
+v1.1.0 (3 January 2021)
 =======================
 
 * Add segmentation masking to the photometry and kron/auto functions (#69).
+
+* Add functions `sep.set_sub_object_limit(limit)` and `sep.get_sub_object_limit()`
+  for modifying and retrieving the sub-object deblending limit. Previously this
+  parameter was hard-coded to 1024. 1024 is now the default value.
+
+* This and future versions are now Python 3 only. Python 2 is no longer
+  supported.
+
+* Modernize setup.py with pyproject.toml
+
 
 v1.0.3 (12 June 2018)
 =====================
@@ -12,13 +22,12 @@ v1.0.3 (12 June 2018)
 * Work around numpy dependency in setup. (#59)
 
 
-
-
 v1.0.2 (19 September 2017)
 ==========================
 
 * Fix makefile so that `make install` works on OS X for the C library.
   Python module and C code are unchanged.
+
 
 v1.0.1 (10 July 2017)
 =====================

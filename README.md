@@ -48,25 +48,24 @@ Python
 
 **Requirements:**
 
-- Tested on Python 2.6, 2.7, 3.3, 3.4, 3.5
+- Python 3.5+
 - numpy
 
 **Install release version:**
 
-SEP can be installed with [pip](https://pip.pypa.io). After ensuring
-that numpy is installed, run
+SEP can be installed with [pip](https://pip.pypa.io):
 
 ```
-pip install --no-deps sep
+pip install sep
 ```
 
 If you get an error about permissions, you are probably using your
-system Python. In this case, I recommend using [pip's "user
+system Python. In this case, we recommend using [pip's "user
 install"](https://pip.pypa.io/en/latest/user_guide/#user-installs)
 option to install sep into your user directory:
 
 ```
-pip install --no-deps --user sep
+pip install --user sep
 ```
 
 Do **not** install sep or other third-party Python packages using
@@ -75,8 +74,8 @@ Do **not** install sep or other third-party Python packages using
 
 **Install development version:**
 
-Building the development version (from github) requires Cython (v0.16 or
-higher).  Build and install in the usual place:
+Building the development version (from github) requires Cython.
+Build and install in the usual place:
 
 ```
 ./setup.py install
@@ -133,13 +132,14 @@ and header file in `/path/to/prefix/include`. The default prefix is
 Contributing
 ------------
 
-Report a bug or documentation issue: http://github.com/kbarbary/sep/issues
+- Report a bug or documentation issue: http://github.com/kbarbary/sep/issues
+- Ask (or answer) a question: https://github.com/kbarbary/sep/discussions/categories/q-a
 
 Development of SEP takes place on GitHub at
 http://github.com/kbarbary/sep.  Contributions of bug fixes,
 documentation improvements and minor feature additions are welcome via
-GitHub pull requests. For major features, it is best to open an issue
-discussing the change first.
+GitHub pull requests. For major features, it is best to discuss the change first
+via [GitHub Discussions](https://github.com/kbarbary/sep/discussions/).
 
 
 Citation
@@ -256,3 +256,7 @@ a copy of the entire data array. Given these considerations, it seemed
 best to just explicitly tell the user to do the byte swap operation
 themselves so they could just do it once, immediately after reading in
 the data.
+
+**I have more questions!**
+
+Open a discussion on the [GitHub Discussions page](https://github.com/kbarbary/sep/discussions/categories/q-a)!

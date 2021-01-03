@@ -5,3 +5,4 @@
 * Matt Craig (@mwcraig) : Windows & OS X support
 * Curtis McCully (@cmccully): Parameter uncertainties
 * Evert Rol (@evertrol): setup.py fixes
+* Joe Lyman (@lyalpha): Make deblending limit settable
