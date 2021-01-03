@@ -39,6 +39,8 @@ Reference/API
 
    sep.get_extract_pixstack
    sep.set_extract_pixstack
+   sep.get_sub_object_limit
+   sep.set_sub_object_limit
 
 **Flags**
 

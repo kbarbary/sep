@@ -31,10 +31,20 @@
 #ifndef	RAND_MAX
 #define	RAND_MAX 2147483647
 #endif
-#define	NSONMAX	1024  /* max. number per level */
-#define NSONMAX_STR "1024" /* just for error message */
 #define	NBRANCH	16    /* starting number per branch */
 
+nsonmax	= 1024;  /* max. number sub-objects per level */
+
+/* get and set pixstack */
+void sep_set_sub_object_limit(int val)
+{
+  nsonmax = val;
+}
+
+int sep_get_sub_object_limit()
+{
+  return nsonmax;
+}
 
 
 int belong(int, objliststruct *, int, objliststruct *);
@@ -108,7 +118,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	thresh0*pow(thresh/thresh0,(double)k/xn) : thresh0;
       
       /*--------- Build tree (bottom->up) */
-      if (objlist[k-1].nobj>=NSONMAX)
+      if (objlist[k-1].nobj>=nsonmax)
 	{
 	  status = DEBLEND_OVERFLOW;
 	  goto exit;
@@ -129,22 +139,22 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		    != RETURN_OK)
 		  goto exit;
 		m = objlist[k].nobj - 1;
-		if (m>=NSONMAX)
+		if (m>=nsonmax)
 		  {
 		    status = DEBLEND_OVERFLOW;
 		    goto exit;
 		  }
 		if (h>=nbm-1)
 		  if (!(son = (short *)
-			realloc(son,xn*NSONMAX*(nbm+=16)*sizeof(short))))
+			realloc(son,xn*nsonmax*(nbm+=16)*sizeof(short))))
 		    {
 		      status = MEMORY_ALLOC_ERROR;
 		      goto exit;
 		    }
-		son[k-1+xn*(i+NSONMAX*(h++))] = (short)m;
+		son[k-1+xn*(i+nsonmax*(h++))] = (short)m;
 		ok[k+xn*m] = (short)1;
 	      }
-	  son[k-1+xn*(i+NSONMAX*h)] = (short)-1;
+	  son[k-1+xn*(i+nsonmax*h)] = (short)-1;
 	}
     }
   
@@ -154,7 +164,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       obj = objlist[k+1].obj;
       for (i=0; i<objlist[k].nobj; i++)
 	{
-	  for (m=h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+	  for (m=h=0; (j=(int)son[k+xn*(i+nsonmax*h)])!=-1; h++)
 	    {
 	      if (obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		m++;
@@ -162,7 +172,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    }
 	  if (m>1)	
 	    {
-	      for (h=0; (j=(int)son[k+xn*(i+NSONMAX*h)])!=-1; h++)
+	      for (h=0; (j=(int)son[k+xn*(i+nsonmax*h)])!=-1; h++)
 		if (ok[k+1+xn*j] &&
 		    obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		  {
@@ -183,9 +193,9 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   
  exit:
   if (status == DEBLEND_OVERFLOW)
-    put_errdetail("limit of " NSONMAX_STR " sub-objects reached while "
-		  "deblending. Decrease number of deblending thresholds "
-		  "or increase the detection threshold.");
+    put_errdetail("limit of sub-objects reached while deblending. Increase "
+          "it with sep.set_sub_object_limit(), decrease number of deblending "
+          "thresholds ,or increase the detection threshold.");
 
   free(submap);
   submap = NULL;
@@ -212,8 +222,8 @@ Allocate the memory allocated by global pointers in refine.c
 int allocdeblend(int deblend_nthresh)
 {
   int status=RETURN_OK;
-  QMALLOC(son, short,  deblend_nthresh*NSONMAX*NBRANCH, status);
-  QMALLOC(ok, short,  deblend_nthresh*NSONMAX, status);
+  QMALLOC(son, short,  deblend_nthresh*nsonmax*NBRANCH, status);
+  QMALLOC(ok, short,  deblend_nthresh*nsonmax, status);
   QMALLOC(objlist, objliststruct, deblend_nthresh, status);
 
   return status;

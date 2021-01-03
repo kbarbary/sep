@@ -232,6 +232,10 @@ int sep_extract(sep_image *image,
 void sep_set_extract_pixstack(size_t val);
 size_t sep_get_extract_pixstack(void);
 
+/* set and get the number of sub-objects limit when deblending in extract() */
+void sep_set_sub_object_limit(int val);
+int sep_get_sub_object_limit(void);
+
 /* free memory associated with a catalog */
 void sep_catalog_free(sep_catalog *catalog);
 

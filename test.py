@@ -697,6 +697,15 @@ def test_set_pixstack():
     sep.set_extract_pixstack(old)
 
 
+def test_set_sub_object_limit():
+    """Ensure that setting the sub-object deblending limit works."""
+    old = sep.get_sub_object_limit()
+    new = old * 2
+    sep.set_sub_object_limit()
+    assert new == sep.get_sub_object_limit()
+    sep.set_sub_object_limit(old)
+
+
 def test_long_error_msg():
     """Ensure that the error message is created successfully when
     there is an error detail."""
