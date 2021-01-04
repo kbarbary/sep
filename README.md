@@ -3,9 +3,8 @@ SEP
 
 Python and C library for Source Extraction and Photometry
 
-[![Build Status](http://img.shields.io/travis/kbarbary/sep.svg?style=flat-square&label=linux)](https://travis-ci.org/kbarbary/sep)
-[![Build status](https://img.shields.io/appveyor/ci/kbarbary/sep.svg?style=flat-square&label=windows)](https://ci.appveyor.com/project/kbarbary/sep/branch/master)
-[![PyPI](https://img.shields.io/pypi/v/sep.svg?style=flat-square)](https://pypi.python.org/pypi/sep)
+![Build Status](https://github.com/kbarbary/sep/workflows/Python%20package/badge.svg)
+[![PyPI](https://img.shields.io/pypi/v/sep.svg)](https://pypi.python.org/pypi/sep)
 [![JOSS](http://joss.theoj.org/papers/10.21105/joss.00058/status.svg)](http://dx.doi.org/10.21105/joss.00058)
 
 *"... [it's] an SEP: Somebody Else's Problem."  
