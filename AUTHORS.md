@@ -6,3 +6,4 @@
 * Curtis McCully (@cmccully): Parameter uncertainties
 * Evert Rol (@evertrol): setup.py fixes
 * Joe Lyman (@lyalpha): Make deblending limit settable
+* Michael Wuertenberger (@mworion): PyPI wheels

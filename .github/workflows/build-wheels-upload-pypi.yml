@@ -1,31 +1,18 @@
-#
 # GitHub action for building the distribution and wheels of the sep package
 # and uploading them to the PyPI package index.
-#
-# v0.1, Michael Wuertenberger
-#
 
-name: Build_Wheels_Upload_PyPI
+name: build-wheels-upload-pypi
 
 on:
   push:
-    # Run this action on the trigger event when a tag is pushed
+    # Run this action on the trigger event when *any* tag is pushed
     tags:
        - '*'
-    # Other setups if pushes in master only if setup changed or the workflow
-    # itself. As the version number is generated automatically, this might
-    # not make sense.
-
-    # branches:
-    #   - master
-    # paths:
-    #   - 'setup.py'
-    #   - '.github/workflows/Build_Wheels_Upload_PyPI.yml'
 
 jobs:
 
   # This action is split into three jobs:
-  # - Building the distribution
+  # - Building the source distribution
   # - Building the wheels for the distribution
   # - Uploading the artifacts to PyPI package
   # The first and second job run in parallel.
@@ -33,9 +20,8 @@ jobs:
 
   build_sdist:
 
-    # First the distribution is done on ubuntu. This is not related to any
-    # operating system, so we could do it on the default os og GitHub.
-    # Python 3.9 is chosen as it is the actual version your could work with.
+    # First the source distribution is done on ubuntu. This is not related
+    # to any operating system, so we could do it on the default os.
 
     runs-on: ubuntu-latest
 
@@ -48,23 +34,23 @@ jobs:
         with:
           python-version: '3.9'
 
-      # For the build, sep needs numpy and cython and I add twine and wheel
+      # For the build, sep needs numpy and cython and we add twine and wheel
       # for better testing and checking.
 
-      - name: install_dependencies
+      - name: Install dependencies
         run: python -m pip install twine numpy wheel cython
 
-      - name: build_sdist
+      - name: Build sdist
         run: python setup.py sdist
 
-      - name: show_files
+      - name: Show files
         run: ls -lh dist
         shell: bash
 
-      - name: check_metadata
+      - name: Check metadata
         run: twine check dist/*
 
-      - name: upload_sdist
+      - name: Upload sdist
         uses: actions/upload-artifact@v2
         with:
           name: dist
@@ -73,14 +59,11 @@ jobs:
   build_wheels:
 
     # Second the wheels are build for different OS and python versions. This is
-    # done with the help of <cibuildwheel> package. Again, beside this package
-    # numpy, cython is needed, adding certify and wheel for build.
+    # done with the help of the `cibuildwheel` package.
     #
-    # The wheels are build for Windows, Linux and MacOS and the python versions
-    # 3.5 - 3.9
-    # Please check if there are constraints of the manylinux configuration I
-    # have chosen so far! This is related to the binary package you are
-    # developing.
+    # The wheels are built for Windows, Linux and MacOS and the python versions
+    # 3.5 - 3.9.
+    #
     # The three operating system could be done in parallel.
 
     runs-on: ${{ matrix.os }}
@@ -94,15 +77,15 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
 
-      - name: Setup_Python_${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: install_deps
-        run: python -m pip install cibuildwheel wheel cython numpy certifi
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==1.7.4
 
-      - name: build
+      - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: "cp3*"
@@ -111,15 +94,15 @@ jobs:
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
           CIBW_BUILD_VERBOSITY: 1
 
-      - name: show_files
+      - name: Show files
         run: ls -lh wheelhouse
         shell: bash
 
-      - name: upload_wheels
+      - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
           name: dist
-          path: wheelhouse
+          path: ./wheelhouse/*.whl
 
   upload_to_pypi:
 
@@ -143,26 +126,9 @@ jobs:
         name: dist
         path: dist
 
-    # Actually I only have the test version of PyPI running. The secret token
-    # name I have chosen from my test repo is <PYPI_TEST>. This will not work
-    # in your repo. Please take care of it.
-    #
-    # For the activation of the real index, please add a secret token from PyPI to
-    # the GitHub repo, give it a name and replace in the password reference the
-    # <pypi_password> with the name of the secret's name you have chosen for the
-    # PyPI token.
-
-    - name: upload_to_test_PyPI
+    - name: upload_to_pypi
       uses: pypa/gh-action-pypi-publish@v1.4.1
       with:
         user: __token__
-        password: ${{ secrets.PYPI_TEST }}
+        password: ${{ secrets.PYPI_TOKEN }}
         skip_existing: true
-        repository_url: https://test.pypi.org/legacy/
-
-    # - name: upload_to_PyPI
-    #   uses: pypa/gh-action-pypi-publish@v1.4.1
-    #   with:
-    #     user: __token__
-    #     password: ${{ secrets.pypi_password }}
-    #     skip_existing: true
