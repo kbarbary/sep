@@ -1,3 +1,10 @@
+v1.1.1 (6 January 2021)
+=======================
+
+* Same as v1.1.0 but with wheels built and uploaded to PyPI. Please report if you
+  have problems with wheels.
+
+
 v1.1.0 (3 January 2021)
 =======================
 
