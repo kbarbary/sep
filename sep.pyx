@@ -15,7 +15,7 @@ from cpython.version cimport PY_MAJOR_VERSION
 
 np.import_array()  # To access the numpy C-API.
 
-__version__ = "1.1.0"
+__version__ = "1.1.0rc1"
 
 # -----------------------------------------------------------------------------
 # Definitions from the SEP C library
