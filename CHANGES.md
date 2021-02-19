@@ -1,3 +1,8 @@
+unreleased
+==========
+
+* Changed `numpy.float` and `numpy.int` types for deprecations in numpy 1.20 (#96).
+
 v1.1.1 (6 January 2021)
 =======================
 
@@ -61,7 +66,7 @@ v0.6.0 (25 August 2016)
 
 * Add a minimum sigma to `sep.winpos()` to match Source Extractor
   behavior.
-  
+
 * Fix use of boolean masks in `sep.kron_radius()`. Formerly, using a
   boolean mask resulted in nonsense results.
 

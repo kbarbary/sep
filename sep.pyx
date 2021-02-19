@@ -37,7 +37,7 @@ DEF SEP_FILTER_MATCHED = 1
 
 # Threshold types
 DEF SEP_THRESH_REL = 0
-DEF SEP_THRESH_ABS = 1 
+DEF SEP_THRESH_ABS = 1
 
 # input flags for aperture photometry
 DEF SEP_MASK_IGNORE = 0x0004
@@ -81,7 +81,7 @@ cdef extern from "sep.h":
         int h
         float globalback
         float globalrms
-    
+
     ctypedef struct sep_catalog:
         int    nobj
         float  *thresh
@@ -146,7 +146,7 @@ cdef extern from "sep.h":
     void sep_catalog_free(sep_catalog *catalog)
 
     int sep_sum_circle(sep_image *image,
-                       double x, double y, double r, 
+                       double x, double y, double r,
                        int id, int subpix, short inflags,
                        double *sum, double *sumerr, double *area, short *flag)
 
@@ -163,7 +163,7 @@ cdef extern from "sep.h":
 
     int sep_sum_ellipann(sep_image *image,
                          double x, double y, double a, double b,
-                         double theta, double rin, double rout, 
+                         double theta, double rin, double rout,
                          int id, int subpix,
                          short inflags,
                          double *sum, double *sumerr, double *area,
@@ -177,7 +177,7 @@ cdef extern from "sep.h":
 
     int sep_kron_radius(sep_image *image,
                         double x, double y, double cxx, double cyy,
-                        double cxy, double r, int id, 
+                        double cxy, double r, int id,
                         double *kronrad, short *flag)
 
     int sep_windowed(sep_image *image,
@@ -289,7 +289,7 @@ cdef int _assert_ok(int status) except -1:
     raise Exception(msg)
 
 
-cdef int _parse_arrays(np.ndarray data, err, var, mask, segmap, 
+cdef int _parse_arrays(np.ndarray data, err, var, mask, segmap,
                        sep_image *im) except -1:
     """Helper function for functions accepting data, error, mask & segmap arrays.
     Fills in an sep_image struct."""
@@ -369,7 +369,7 @@ cdef int _parse_arrays(np.ndarray data, err, var, mask, segmap,
         im.sdtype = _get_sep_dtype(segmap.dtype)
         sbuf = segmap.view(dtype=np.uint8)
         im.segmap = <void*>&sbuf[0, 0]
-        
+
 # -----------------------------------------------------------------------------
 # Background Estimation
 
@@ -464,7 +464,7 @@ cdef class Background:
         sep_dtype = _get_sep_dtype(dtype)
 
         result = np.empty((self.ptr.h, self.ptr.w), dtype=dtype)
-        buf = result.view(dtype=np.uint8)        
+        buf = result.view(dtype=np.uint8)
         status = sep_bkg_array(self.ptr, &buf[0, 0], sep_dtype)
         _assert_ok(status)
 
@@ -514,7 +514,7 @@ cdef class Background:
         ----------
         data : `~numpy.ndarray`
             Input array, which will be updated in-place. Shape must match
-            that of the original image used to measure the background. 
+            that of the original image used to measure the background.
         """
 
         cdef int w, h, status, sep_dtype
@@ -669,7 +669,7 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
         * ``errx2``, ``erry2``, ``errxy`` (float) Second moment errors.
           Note that these will be zero if error is not given.
         * ``a``, ``b``, ``theta`` (float) Ellipse parameters, scaled as
-          described by Section 8.4.2 in "The Source Extractor Guide" or 
+          described by Section 8.4.2 in "The Source Extractor Guide" or
           Section 10.1.5-6 of v2.13 of SExtractor's User Manual.
         * ``cxx``, ``cyy``, ``cxy`` (float) Alternative ellipse parameters.
         * ``cflux`` (float) Sum of member pixels in convolved data.
@@ -739,12 +739,12 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
     # Allocate result record array and fill it
     result = np.empty(catalog.nobj,
                       dtype=np.dtype([('thresh', np.float64),
-                                      ('npix', np.int),
-                                      ('tnpix', np.int),
-                                      ('xmin', np.int),
-                                      ('xmax', np.int),
-                                      ('ymin', np.int),
-                                      ('ymax', np.int),
+                                      ('npix', np.int_),
+                                      ('tnpix', np.int_),
+                                      ('xmin', np.int_),
+                                      ('xmax', np.int_),
+                                      ('ymin', np.int_),
+                                      ('ymax', np.int_),
                                       ('x', np.float64),
                                       ('y', np.float64),
                                       ('x2', np.float64),
@@ -763,11 +763,11 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
                                       ('flux', np.float64),
                                       ('cpeak', np.float64),
                                       ('peak', np.float64),
-                                      ('xcpeak', np.int),
-                                      ('ycpeak', np.int),
-                                      ('xpeak', np.int),
-                                      ('ypeak', np.int),
-                                      ('flag', np.int)]))
+                                      ('xcpeak', np.int_),
+                                      ('ycpeak', np.int_),
+                                      ('xpeak', np.int_),
+                                      ('ypeak', np.int_),
+                                      ('flag', np.int_)]))
 
     for i in range(catalog.nobj):
         result['thresh'][i] = catalog.thresh[i]
@@ -829,11 +829,11 @@ def extract(np.ndarray data not None, float thresh, err=None, var=None,
 @cython.wraparound(False)
 def sum_circle(np.ndarray data not None, x, y, r,
                var=None, err=None, gain=None, np.ndarray mask=None,
-               double maskthresh=0.0, 
-               seg_id=None, np.ndarray segmap=None, 
+               double maskthresh=0.0,
+               seg_id=None, np.ndarray segmap=None,
                bkgann=None, int subpix=5):
     """sum_circle(data, x, y, r, err=None, var=None, mask=None, maskthresh=0.0,
-                  segmap=None, seg_id=None, 
+                  segmap=None, seg_id=None,
                   bkgann=None, gain=None, subpix=5)
 
     Sum data in circular aperture(s).
@@ -844,7 +844,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
         2-d array to be summed.
 
     x, y, r : array_like
-        Center coordinates and radius (radii) of aperture(s). 
+        Center coordinates and radius (radii) of aperture(s).
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
@@ -864,7 +864,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -873,9 +873,9 @@ def sum_circle(np.ndarray data not None, x, y, r,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-        
+
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
         "background annulus". If supplied, the background is estimated
@@ -911,12 +911,12 @@ def sum_circle(np.ndarray data not None, x, y, r,
     cdef int status
     cdef np.broadcast it
     cdef sep_image im
-            
-    # Test for map without seg_id.  Nothing happens if seg_id supplied but 
+
+    # Test for map without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
@@ -931,11 +931,11 @@ def sum_circle(np.ndarray data not None, x, y, r,
     # docs.scipy.org/doc/numpy/reference/c-api.iterator.html#NpyIter_MultiNew
     dt = np.dtype(np.double)
     dint = np.dtype(np.int32)
-    
+
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
-    
+
     # Segmentation image and ids with same dimensions as x, y, etc.
     if seg_id is not None:
         seg_id = np.require(seg_id, dtype=dint)
@@ -943,7 +943,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
             raise ValueError('Shapes of `x` and `seg_id` do not match')
     else:
         seg_id = np.zeros(len(x), dtype=dint)
-            
+
     if bkgann is None:
 
         # allocate ouput arrays
@@ -953,9 +953,9 @@ def sum_circle(np.ndarray data not None, x, y, r,
         flag = np.empty(shape, np.short)
 
         it = np.broadcast(x, y, r, seg_id, sum, sumerr, flag)
-        
+
         while np.PyArray_MultiIter_NOTDONE(it):
-            
+
             status = sep_sum_circle(
                 &im,
                 (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
@@ -997,7 +997,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
                 (<int*>np.PyArray_MultiIter_DATA(it, 5))[0],
                 subpix, 0, &flux1, &fluxerr1, &area1, &flag1)
             _assert_ok(status)
-                
+
             # background subtraction
             # Note that background output flags are not used.
             status = sep_sum_circann(
@@ -1026,7 +1026,7 @@ def sum_circle(np.ndarray data not None, x, y, r,
 @cython.wraparound(False)
 def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
-                double maskthresh=0.0, seg_id=None, np.ndarray segmap=None, 
+                double maskthresh=0.0, seg_id=None, np.ndarray segmap=None,
                 int subpix=5):
     """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
                    maskthresh=0.0, seg_id=None, segmap=None, gain=None,
@@ -1040,7 +1040,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         2-d array to be summed.
 
     x, y, rin, rout : array_like
-        Center coordinates and inner and outer radii of aperture(s). 
+        Center coordinates and inner and outer radii of aperture(s).
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
@@ -1061,7 +1061,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -1070,9 +1070,9 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-            
+
     gain : float, optional
         Conversion factor between data array units and poisson counts,
         used in calculating poisson noise in aperture sum. If ``None``
@@ -1099,11 +1099,11 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
@@ -1124,7 +1124,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
             raise ValueError('Shapes of `x` and `seg_id` do not match')
     else:
         seg_id = np.zeros(len(x), dtype=dint)
-    
+
     # allocate ouput arrays
     shape = np.broadcast(x, y, rin, rout).shape
     sum = np.empty(shape, dt)
@@ -1133,7 +1133,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
     # it = np.broadcast(x, y, rin, rout, sum, sumerr, flag)
     it = np.broadcast(x, y, rin, rout, seg_id, sum, sumerr, flag)
-    
+
     while np.PyArray_MultiIter_NOTDONE(it):
         status = sep_sum_circann(
             &im,
@@ -1157,11 +1157,11 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
 
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
                 var=None, err=None, gain=None, np.ndarray mask=None,
-                double maskthresh=0.0, 
-                seg_id=None, np.ndarray segmap=None, 
+                double maskthresh=0.0,
+                seg_id=None, np.ndarray segmap=None,
                 bkgann=None, int subpix=5):
     """sum_ellipse(data, x, y, a, b, theta, r, err=None, var=None, mask=None,
-                   maskthresh=0.0, seg_id=None, segmap=None, bkgann=None, 
+                   maskthresh=0.0, seg_id=None, segmap=None, bkgann=None,
                    gain=None, subpix=5)
 
     Sum data in elliptical aperture(s).
@@ -1172,7 +1172,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         2-d array to be summed.
 
     x, y : array_like
-        Center coordinates and radius (radii) of aperture(s). 
+        Center coordinates and radius (radii) of aperture(s).
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
@@ -1183,7 +1183,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         obey numpy broadcasting rules. ``a`` is the semi-major axis,
         ``b`` is the semi-minor axis and ``theta`` is angle in radians between
         the positive x axis and the major axis. It must be in the range
-        ``[-pi/2, pi/2]``. It is also required that ``a >= b >= 0.0``. 
+        ``[-pi/2, pi/2]``. It is also required that ``a >= b >= 0.0``.
 
     r : array_like, optional
         Scaling factor for the semi-minor and semi-major axes. The
@@ -1206,7 +1206,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -1215,9 +1215,9 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-    
+
     bkgann : tuple, optional
         Length 2 tuple giving the inner and outer radius of a
         "background annulus". If supplied, the background is estimated
@@ -1254,11 +1254,11 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
     cdef np.broadcast it
     cdef sep_image im
 
-    # Test for seg without seg_id.  Nothing happens if seg_id supplied but 
+    # Test for seg without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
@@ -1281,7 +1281,7 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
             raise ValueError('Shapes of `x` and `seg_id` do not match')
     else:
         seg_id = np.zeros(len(x), dtype=dint)
-    
+
     if bkgann is None:
 
         # allocate ouput arrays
@@ -1373,8 +1373,8 @@ def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
 @cython.wraparound(False)
 def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
                  var=None, err=None, gain=None, np.ndarray mask=None,
-                 double maskthresh=0.0, 
-                 seg_id=None, np.ndarray segmap=None, 
+                 double maskthresh=0.0,
+                 seg_id=None, np.ndarray segmap=None,
                  int subpix=5):
     """sum_ellipann(data, x, y, a, b, theta, rin, rout, err=None, var=None,
                     mask=None, maskthresh=0.0, gain=None, subpix=5)
@@ -1387,7 +1387,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         2-d array to be summed.
 
     x, y : array_like
-        Center coordinates and radius (radii) of aperture(s). 
+        Center coordinates and radius (radii) of aperture(s).
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
@@ -1420,7 +1420,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -1429,9 +1429,9 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-    
+
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1455,11 +1455,11 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     cdef np.broadcast it
     cdef sep_image im
 
-    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, err, var, mask, segmap, &im)
     im.maskthresh = maskthresh
     if gain is not None:
@@ -1468,7 +1468,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
     # Require that inputs are float64 arrays. See note in circular aperture.
     dt = np.dtype(np.double)
     dint = np.dtype(np.int32)
-    
+
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     a = np.require(a, dtype=dt)
@@ -1484,7 +1484,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
             raise ValueError('Shapes of `x` and `seg_id` do not match')
     else:
         seg_id = np.zeros(len(x), dtype=dint)
-    
+
     # allocate ouput arrays
     shape = np.broadcast(x, y, a, b, theta, rin, rout).shape
     sum = np.empty(shape, dt)
@@ -1516,7 +1516,7 @@ def sum_ellipann(np.ndarray data not None, x, y, a, b, theta, rin, rout,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
-                np.ndarray mask=None, double maskthresh=0.0, 
+                np.ndarray mask=None, double maskthresh=0.0,
                 seg_id=None, np.ndarray segmap=None,
                 int subpix=5):
     """flux_radius(data, x, y, rmax, frac, normflux=None, mask=None,
@@ -1530,7 +1530,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
         2-d array to be summed.
 
     x, y : array_like
-        Center coordinates and radius (radii) of aperture(s). 
+        Center coordinates and radius (radii) of aperture(s).
         ``x`` corresponds to the second ("fast") axis of the input array
         and ``y`` corresponds to the first ("slow") axis.
         ``x, y = (0.0, 0.0)`` corresponds to the center of the first
@@ -1559,7 +1559,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -1568,9 +1568,9 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-        
+
     subpix : int, optional
         Subpixel sampling factor. Default is 5.
 
@@ -1603,11 +1603,11 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
     cdef double *normfluxptr
     cdef sep_image im
 
-    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, None, None, mask, segmap, &im)
     im.maskthresh = maskthresh
 
@@ -1660,7 +1660,7 @@ def flux_radius(np.ndarray data not None, x, y, rmax, frac, normflux=None,
         if normfluxptr != NULL:
             normfluxptr = &normfluxbuf[i]
         status = sep_flux_radius(&im,
-                                 xtmp[i], ytmp[i], rtmp[i], itmp[i], 
+                                 xtmp[i], ytmp[i], rtmp[i], itmp[i],
                                  subpix, 0,
                                  normfluxptr, &fractmp[0], fracn,
                                  &radius[i, 0], &flag[i])
@@ -1721,7 +1721,7 @@ def mask_ellipse(np.ndarray arr not None, x, y, a=None, b=None, theta=None,
     x = np.require(x, dtype=dt)
     y = np.require(y, dtype=dt)
     r = np.require(r, dtype=dt)
-    
+
     # a, b, theta representation
     if (a is not None and b is not None and theta is not None):
         a = np.require(a, dtype=dt)
@@ -1771,7 +1771,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     Calculate Kron "radius" within an ellipse.
 
-    The Kron radius is given by 
+    The Kron radius is given by
 
     .. math::
 
@@ -1809,12 +1809,12 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
 
     maskthresh : float, optional
         Pixels with mask > maskthresh will be ignored.
-    
+
     segmap : `~numpy.ndarray`, optional
         Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
         This is an optional input and corresponds to the segmentation map
         output by `~sep.extract`.
-            
+
     seg_id : array_like, optional
         Array of segmentation ids used to mask additional pixels in the image.
         Dimensions correspond to the dimensions of ``x`` and ``y``. The
@@ -1823,9 +1823,9 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
         objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
         and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
         than those belonging to the object of interest are masked. (Pixel ``j,
-        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if 
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
         ``segmap` is provided.
-            
+
     Returns
     -------
     kronrad : array_like
@@ -1840,11 +1840,11 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
     cdef double cxx, cyy, cxy
     cdef sep_image im
 
-    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but 
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but
     # without segmap.
     if (segmap is not None) and (seg_id is None):
         raise ValueError('`segmap` supplied but not `seg_id`.')
-        
+
     _parse_arrays(data, None, None, mask, segmap, &im)
     im.maskthresh = maskthresh
 
@@ -1866,10 +1866,10 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
             raise ValueError('Shapes of `x` and `seg_id` do not match')
     else:
         seg_id = np.zeros(len(x), dtype=dint)
-        
+
     # allocate output arrays
     shape = np.broadcast(x, y, a, b, theta, r).shape
-    kr = np.empty(shape, np.float)
+    kr = np.empty(shape, np.float64)
     flag = np.empty(shape, np.short)
 
     it = np.broadcast(x, y, a, b, theta, r, seg_id, kr, flag)
@@ -1889,7 +1889,7 @@ def kron_radius(np.ndarray data not None, x, y, a, b, theta, r,
         _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
-    return kr, flag 
+    return kr, flag
 
 def winpos(np.ndarray data not None, xinit, yinit, sig,
            np.ndarray mask=None, double maskthresh=0.0, int subpix=11,
@@ -1969,8 +1969,8 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
 
     # allocate output arrays
     shape = np.broadcast(xinit, yinit, sig).shape
-    x = np.empty(shape, np.float)
-    y = np.empty(shape, np.float)
+    x = np.empty(shape, np.float64)
+    y = np.empty(shape, np.float64)
     flag = np.empty(shape, np.short)
 
     it = np.broadcast(xinit, yinit, sig, x, y, flag)
@@ -1990,7 +1990,7 @@ def winpos(np.ndarray data not None, xinit, yinit, sig,
         _assert_ok(status)
         np.PyArray_MultiIter_NEXT(it)
 
-    return x, y, flag 
+    return x, y, flag
 
 
 
