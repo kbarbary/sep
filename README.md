@@ -128,7 +128,7 @@ and header file in `/path/to/prefix/include`. The default prefix is
 [sep.h](src/sep.h).
 
 
-**Rust bindings:** Low-level Rust wrapper for the C library can be found at https://crates.io/crates/sep-sys.
+**Rust bindings:** Low-level Rust wrapper for the C library can be found at https://crates.io/crates/sep-sys
 
 Contributing
 ------------
