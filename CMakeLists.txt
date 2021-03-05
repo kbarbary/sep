@@ -24,7 +24,9 @@ add_library(sep SHARED ${SOURCES})
 set_target_properties(sep PROPERTIES OUTPUT_NAME sep)
 set_target_properties(sep PROPERTIES VERSION 0.6.0 SOVERSION 0)
 
-target_link_libraries(sep m)
+if (NOT MSVC)
+   target_link_libraries(sep m)
+endif()
 
 install(TARGETS sep LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_SOURCE_DIR}/src/sep.h DESTINATION include)
