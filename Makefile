@@ -35,7 +35,7 @@ CPPFLAGS ?=
 LDFLAGS ?=
 
 CPPFLAGS += -Isrc
-CFLAGS += -Wall -Wextra -O3  # -Werror
+CFLAGS += -Wall -Wextra -O3 -fvisibility=hidden  # -Werror
 CFLAGS_LIB = $(CFLAGS) -fPIC
 LDFLAGS_LIB = $(LDFLAGS) -shared -Wl,$(SONAME_FLAG),$(SONAME_MAJOR)
 
