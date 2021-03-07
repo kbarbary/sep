@@ -35,10 +35,11 @@
 			             /* thresholding filtered weight-maps */
 
 /* globals */
-int plistexist_cdvalue, plistexist_thresh, plistexist_var;
-int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
-int plistsize;
-size_t extract_pixstack = 300000;
+_Thread_local int plistexist_cdvalue, plistexist_thresh, plistexist_var;
+_Thread_local int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
+_Thread_local int plistsize;
+_Thread_local unsigned int randseed;
+static _Atomic size_t extract_pixstack = 300000;
 
 /* get and set pixstack */
 void sep_set_extract_pixstack(size_t val)
@@ -56,7 +57,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   int deblend_nthresh, double deblend_mincont, double gain);
 void plistinit(int hasconv, int hasvar);
 void clean(objliststruct *objlist, double clean_param, int *survives);
-int convert_to_catalog(objliststruct *objlist, int *survives,
+int convert_to_catalog(objliststruct *objlist, const int *survives,
                        sep_catalog *cat, int w, int include_pixels);
 
 int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
@@ -125,8 +126,6 @@ void arraybuffer_readline(arraybuffer *buf)
   if (y < buf->dh)
     buf->readline(buf->dptr + buf->elsize * buf->dw * y, buf->dw,
                   buf->lastline);
-
-  return;
 }
 
 void arraybuffer_free(arraybuffer *buf)
@@ -151,12 +150,12 @@ void arraybuffer_free(arraybuffer *buf)
  * For the purpose of the full matched filter, we should set noise = infinity.
  *
  * So, this routine sets masked pixels to zero in the image buffer and
- * infinity in the noise buffer (if present). It affects the first 
+ * infinity in the noise buffer (if present). It affects the first
  */
 void apply_mask_line(arraybuffer *mbuf, arraybuffer *imbuf, arraybuffer *nbuf)
 {
   int i;
-  
+
   for (i=0; i<mbuf->bw; i++)
     {
       if (mbuf->lastline[i] > 0.0)
@@ -225,12 +224,12 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
   pixvar = 0.0;
   pixsig = 0.0;
   isvarnoise = 0;
-  
+
   mem_pixstack = sep_get_extract_pixstack();
 
   /* seed the random number generator consistently on each call to get
-   * consistent results. rand() is used in deblending. */
-  srand(1);
+   * consistent results. rand_r() is used in deblending. */
+  randseed = 1;
 
   /* Noise characteristics of the image: None, scalar or variable? */
   if (image->noise_type == SEP_NOISE_NONE) { } /* nothing to do */
@@ -310,7 +309,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
     }
 
   /* `scan` (or `wscan`) is always a pointer to the current line being
-   * processed. It might be the only line in the buffer, or it might be the 
+   * processed. It might be the only line in the buffer, or it might be the
    * middle line. */
   scan = dbuf.midline;
   if (isvarnoise)
@@ -384,7 +383,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 
       ps = COMPLETE;
       cs = NONOBJECT;
-    
+
       /* Need an empty line for Lutz' algorithm to end gracely */
       if (yl==h)
 	{
@@ -433,11 +432,11 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	  else
 	    {
 	      cdscan = scan;
-	    }	  
+	    }
 	}
-      
+
       trunflag = (yl==0 || yl==h-1)? SEP_OBJ_TRUNC: 0;
-      
+
       for (xl=0; xl<=w; xl++)
 	{
 	  if (xl == w)
@@ -467,7 +466,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
               status = UNKNOWN_NOISE_TYPE;
               goto exit;
             }
-            
+
             /* set `thresh` (This is needed later, even
              * if filter_type is SEP_FILTER_MATCHED */
             thresh = relthresh * pixsig;
@@ -484,14 +483,14 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 	      /* flag the current object if we're near the image bounds */
 	      if (xl==0 || xl==w-1)
 		curpixinfo.flag |= SEP_OBJ_TRUNC;
-	      
+
 	      /* point pixt to first free pixel in pixel list */
 	      /* and increment the "first free pixel" */
 	      pixt = pixel + (cn=freeinfo.firstpix);
 	      freeinfo.firstpix = PLIST(pixt, nextpix);
 	      curpixinfo.lastpix = curpixinfo.firstpix = cn;
 
-	      /* set values for the new pixel */ 
+	      /* set values for the new pixel */
 	      PLIST(pixt, nextpix) = -1;
 	      PLIST(pixt, x) = xl;
 	      PLIST(pixt, y) = yl;
@@ -537,7 +536,7 @@ int sep_extract(sep_image *image, float thresh, int thresh_type,
 		      goto exit;
 		    }
 
-		  /* set next free pixel to the start of the new block 
+		  /* set next free pixel to the start of the new block
 		   * and link up all the pixels in the new block */
 		  PLIST(pixel+freeinfo.firstpix, nextpix) = oldnposize;
 		  pixt = pixel + oldnposize;
@@ -753,10 +752,10 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   int deblend_nthresh, double deblend_mincont, double gain)
 {
   objliststruct	        objlistout, *objlist2;
-  static objstruct	obj;
+  objstruct	obj;
   int 			i, status;
 
-  status=RETURN_OK;  
+  status=RETURN_OK;
   objlistout.obj = NULL;
   objlistout.plist = NULL;
   objlistout.nobj = objlistout.npix = 0;
@@ -823,7 +822,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
   objstruct	*objl2obj;
   pliststruct	*plist1 = objl1->plist, *plist2 = objl2->plist;
   int		fp, i, j, npx, objnb2;
-  
+
   fp = objl2->npix;      /* 2nd list's plist size in pixels */
   j = fp*plistsize;      /* 2nd list's plist size in bytes */
   objnb2 = objl2->nobj;  /* # of objects currently in 2nd list*/
@@ -849,7 +848,7 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
   if (!plist2)
     goto earlyexit;
   objl2->plist = plist2;
-  
+
   /* copy the plist */
   plist2 += j;
   for(i=objl1->obj[objnb].firstpix; i!=-1; i=PLIST(plist1+i,nextpix))
@@ -859,14 +858,14 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
       plist2 += plistsize;
     }
   PLIST(plist2-=plistsize, nextpix) = -1;
-  
+
   /* copy the object itself */
   objl2->obj[objnb2] = objl1->obj[objnb];
   objl2->obj[objnb2].firstpix = fp*plistsize;
   objl2->obj[objnb2].lastpix = j-plistsize;
 
   return RETURN_OK;
-  
+
   /* if early exit, reset 2nd list */
  earlyexit:
   objl2->nobj--;
@@ -915,14 +914,13 @@ void plistinit(int hasconv, int hasvar)
       plistexist_thresh = 0;
     }
 
-  return;
 
 }
 
 
 /************************** clean an objliststruct ***************************/
 /*
-Fill a list with whether each object in the list survived the cleaning 
+Fill a list with whether each object in the list survived the cleaning
 (assumes that mthresh has already been calculated for all objects in the list)
 */
 
@@ -1045,8 +1043,8 @@ void free_catalog_fields(sep_catalog *catalog)
  * `cat`:      catalog object to be filled.
  * `w`:        width of image (used to calculate linear indicies).
  */
-int convert_to_catalog(objliststruct *objlist, int *survives,
-                       sep_catalog *cat, int w, int include_pixels) 
+int convert_to_catalog(objliststruct *objlist, const int *survives,
+                       sep_catalog *cat, int w, int include_pixels)
 {
   int i, j, k;
   int totnpix;
@@ -1064,7 +1062,7 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
      appropriate amount of space in the output catalog. */
   if (survives)
     for (i=0; i<objlist->nobj; i++) nobj += survives[i];
-  else 
+  else
     nobj = objlist->nobj;
 
   /* allocate catalog fields */
@@ -1154,7 +1152,7 @@ int convert_to_catalog(objliststruct *objlist, int *survives,
       /* count the total number of pixels */
       totnpix = 0;
       for (i=0; i<cat->nobj; i++) totnpix += cat->npix[i];
-      
+
       /* allocate buffer for all objects' pixels */
       QMALLOC(cat->objectspix, int, totnpix, status);
 

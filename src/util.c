@@ -4,12 +4,12 @@
 *
 * All content except array comparison functions fqcmp() and fqmedian() is
 * distributed under an MIT license.
-* 
+*
 * Copyright 2014 SEP developers
 *
 * Array comparison functions fqcmp() and fqmedian() are distributed under an
 * LGPL license:
-* 
+*
 * Copyright 1993-2011 Emmanuel Bertin -- IAP/CNRS/UPMC
 * Copyright 2014 SEP developers
 *
@@ -24,8 +24,8 @@
 
 #define DETAILSIZE 512
 
-char *sep_version_string = "0.6.0";
-static char _errdetail_buffer[DETAILSIZE] = "";
+const char *const sep_version_string = "0.6.0";
+static _Thread_local char _errdetail_buffer[DETAILSIZE] = "";
 
 /****************************************************************************/
 /* data type conversion mechanics for runtime type conversion */
@@ -332,7 +332,7 @@ float fqmedian(float *ra, int n)
  * WARNING: input data are reordered! */
 {
   int dqcmp(const void *p1, const void *p2);
-  
+
   qsort(ra, n, sizeof(float), fqcmp);
   if (n<2)
     return *ra;

@@ -3,6 +3,22 @@ unreleased
 
 * Changed `numpy.float` and `numpy.int` types for deprecations in numpy 1.20 (#96).
 
+* Make it possible to safely invoke C library from multiple threads on
+  independent inputs.
+
+  Global config functions such as `set_sub_object_limit()`
+  and `set_extract_pixstack()` still configure global params
+  (once for all threads), while other functions will retain their data
+  in thread-local storages, so they can be invoked from multiple threads as
+  long as they work on independent structures.
+
+  Library compilation will now require a C11 compatible compiler, which should
+  be nowadays available on all supported platforms.
+
+* Mark some pointer parameters with `const *`. This is a backward-compatible
+  change, but makes it easier to extract constants that can be safely shared
+  between multiple threads and/or invocations.
+
 v1.1.1 (6 January 2021)
 =======================
 

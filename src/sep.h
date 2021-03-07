@@ -330,7 +330,7 @@ SEP_API int sep_sum_circann_multi(sep_image *im,
  */
 SEP_API int sep_flux_radius(sep_image *im,
 		    double x, double y, double rmax, int id, int subpix, short inflag,
-		    double *fluxtot, double *fluxfrac, int n,
+		    const double *fluxtot, const double *fluxfrac, int n,
 		    double *r, short *flag);
 
 /* sep_kron_radius()
@@ -402,7 +402,7 @@ SEP_API void sep_ellipse_coeffs(double a, double b, double theta,
 /*----------------------- info & error messaging ----------------------------*/
 
 /* sep_version_string : library version (e.g., "0.2.0") */
-SEP_API extern char *sep_version_string;
+SEP_API extern const char *const sep_version_string;
 
 /* sep_get_errmsg()
  *

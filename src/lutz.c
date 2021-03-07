@@ -36,11 +36,11 @@ void lutzsort(infostruct *, objliststruct *);
 
 /*------------------------- Static buffers for lutz() -----------------------*/
 
-static infostruct  *info=NULL, *store=NULL;
-static char	   *marker=NULL;
-static pixstatus   *psstack=NULL;
-static int         *start=NULL, *end=NULL, *discan=NULL;
-static int         xmin, ymin, xmax, ymax;
+static _Thread_local infostruct  *info=NULL, *store=NULL;
+static _Thread_local char	   *marker=NULL;
+static _Thread_local pixstatus   *psstack=NULL;
+static _Thread_local int         *start=NULL, *end=NULL, *discan=NULL;
+static _Thread_local int         xmin, ymin, xmax, ymax;
 
 
 /******************************* lutzalloc ***********************************/
@@ -95,9 +95,12 @@ void lutzfree()
   start = NULL;
   free(end);
   end = NULL;
-  return;
 }
 
+static const infostruct initinfo = {
+	.firstpix = -1,
+	.lastpix = -1
+};
 
 /********************************** lutz *************************************/
 /*
@@ -108,10 +111,10 @@ int lutz(pliststruct *plistin,
 	 int *objrootsubmap, int subx, int suby, int subw,
 	 objstruct *objparent, objliststruct *objlist, int minarea)
 {
-  static infostruct	curpixinfo,initinfo;
+  infostruct	curpixinfo;
   objstruct		*obj;
   pliststruct		*plist,*pixel, *plistint;
-  
+
   char			newmarker;
   int			cn, co, luflag, pstop, xl,xl2,yl,
                         out, deb_maxarea, stx,sty,enx,eny, step,
@@ -130,9 +133,6 @@ int lutz(pliststruct *plistin,
   enx = objparent->xmax;
   eny = objparent->ymax;
   thresh = objlist->thresh;
-  initinfo.pixnb = 0;
-  initinfo.flag = 0;
-  initinfo.firstpix = initinfo.lastpix = -1;
   cn = 0;
 
   iscan = objrootsubmap + (sty-suby)*subw + (stx-subx);
@@ -356,19 +356,17 @@ void  lutzsort(infostruct *info, objliststruct *objlist)
   obj->lastpix = info->lastpix;
   obj->flag = info->flag;
   objlist->npix += info->pixnb;
-  
+
   preanalyse(objlist->nobj, objlist);
-  
+
   objlist->nobj++;
-  
-  return;
 }
 
 /********************************* update ************************************/
 /*
 update object's properties each time one of its pixels is scanned by lutz()
 */
-void  update(infostruct *infoptr1, infostruct *infoptr2, pliststruct *pixel)
+void  update(infostruct *infoptr1, infostruct *infoptr2, const pliststruct *pixel)
 {
   infoptr1->pixnb += infoptr2->pixnb;
   infoptr1->flag |= infoptr2->flag;
@@ -382,6 +380,4 @@ void  update(infostruct *infoptr1, infostruct *infoptr2, pliststruct *pixel)
       PLIST(pixel+infoptr1->lastpix, nextpix) = infoptr2->firstpix;
       infoptr1->lastpix = infoptr2->lastpix;
     }
-
-  return;
 }

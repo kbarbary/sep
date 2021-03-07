@@ -26,8 +26,8 @@
                               /* (MEMORY_OBJSTACK in sextractor inputs) */
 #define CLEAN_MARGIN    0  /* replaces prefs.cleanmargin which was set based */
                            /* on stuff like apertures and vignet size */
-#define	MARGIN_SCALE   2.0 /* Margin / object height */ 
-#define	MARGIN_OFFSET  4.0 /* Margin offset (pixels) */ 
+#define	MARGIN_SCALE   2.0 /* Margin / object height */
+#define	MARGIN_OFFSET  4.0 /* Margin offset (pixels) */
 #define	MAXDEBAREA     3   /* max. area for deblending (must be >= 1)*/
 #define	MAXPICSIZE     1048576 /* max. image size in any dimension */
 
@@ -70,15 +70,16 @@ typedef struct
   PIXTYPE *midline;   /* "middle" line in buffer (at index bh/2) */
   PIXTYPE *lastline;  /* last line in buffer */
   array_converter readline;  /* function to read a data line into buffer */
-  int elsize;         /* size in bytes of one element in original data */ 
+  int elsize;         /* size in bytes of one element in original data */
   int yoff;           /* line index in original data corresponding to bufptr */
 } arraybuffer;
 
 
 /* globals */
-extern int plistexist_cdvalue, plistexist_thresh, plistexist_var;
-extern int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
-extern int plistsize;
+extern _Thread_local int plistexist_cdvalue, plistexist_thresh, plistexist_var;
+extern _Thread_local int plistoff_value, plistoff_cdvalue, plistoff_thresh, plistoff_var;
+extern _Thread_local int plistsize;
+extern _Thread_local unsigned int randseed;
 
 typedef struct
 {
@@ -92,7 +93,7 @@ typedef struct
   int	   npix;       			/* "" in measured frame */
   int	   nzdwpix;			/* nb of zero-dweights around */
   int	   nzwpix;		       	/* nb of zero-weights inside */
-  
+
   /* position */
   int	   xpeak, ypeak;                     /* pos of brightest pix */
   int	   xcpeak,ycpeak;                    /* pos of brightest pix */
@@ -143,7 +144,7 @@ int  lutz(pliststruct *plistin,
 	  int *objrootsubmap, int subx, int suby, int subw,
 	  objstruct *objparent, objliststruct *objlist, int minarea);
 
-void update(infostruct *, infostruct *, pliststruct *);
+void update(infostruct *, infostruct *, const pliststruct *);
 
 int  allocdeblend(int);
 void freedeblend(void);
@@ -155,8 +156,8 @@ void mergeobjshallow(objstruct *, objstruct *);
 */
 int addobjdeep(int, objliststruct *, objliststruct *);
 
-int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
+int convolve(arraybuffer *buf, int y, const float *conv, int convw, int convh,
              PIXTYPE *out);
 int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
-                   float *conv, int convw, int convh,
+                   const float *conv, int convw, int convh,
                    PIXTYPE *work, PIXTYPE *out, int noise_type);

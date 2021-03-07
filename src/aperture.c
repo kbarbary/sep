@@ -558,7 +558,7 @@ int sep_sum_circann_multi(sep_image *im,
 
 
 /* for use in flux_radius */
-static double inverse(double xmax, double *y, int n, double ytarg)
+static double inverse(double xmax, const double *y, int n, double ytarg)
 {
   double step;
   int i;
@@ -586,7 +586,7 @@ static double inverse(double xmax, double *y, int n, double ytarg)
 int sep_flux_radius(sep_image *im,
                     double x, double y, double rmax, int id, 
                     int subpix, short inflag,
-                    double *fluxtot, double *fluxfrac, int n, double *r,
+                    const double *fluxtot, const double *fluxfrac, int n, double *r,
                     short *flag)
 {
   int status;

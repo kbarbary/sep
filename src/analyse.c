@@ -109,7 +109,7 @@ void  preanalyse(int no, objliststruct *objlist)
   double	rv;
   int		x, y, xmin,xmax, ymin,ymax, fdnpix;
   int           xpeak, ypeak, xcpeak, ycpeak;
-  
+
   /*-----  initialize stacks and bounds */
   fdnpix = 0;
   rv = 0.0;
@@ -147,8 +147,8 @@ void  preanalyse(int no, objliststruct *objlist)
       if (ymax < y)
 	ymax = y;
       fdnpix++;
-    }    
-  
+    }
+
   obj->fdnpix = (LONG)fdnpix;
   obj->fdflux = (float)rv;
   obj->fdpeak = cpeak;
@@ -161,8 +161,6 @@ void  preanalyse(int no, objliststruct *objlist)
   obj->xmax = xmax;
   obj->ymin = ymin;
   obj->ymax = ymax;
-
-  return;
 }
 
 /******************************** analyse *********************************/
@@ -183,7 +181,7 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
   int		x, y, xmin, ymin, area2, dnpix;
 
   preanalyse(no, objlist);
-  
+
   dnpix = 0;
   mx = my = tv = 0.0;
   mx2 = my2 = mxy = 0.0;
@@ -194,7 +192,7 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
   rv2 = rv * rv;
   thresh2 = (thresh + peak)/2.0;
   area2 = 0;
-  
+
   xmin = obj->xmin;
   ymin = obj->ymin;
 
@@ -225,7 +223,7 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
   if ((robust) && (obj->flag & SEP_OBJ_MERGED))
     {
       double xn, yn;
-	  
+
       xn = obj->mx-xmin;
       yn = obj->my-ymin;
       xm2 = mx2 / rv + xn*xn - 2*xm*xn;
@@ -290,7 +288,7 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
   pmy2 = pmx2 = 0.5*(xm2+ym2);
   pmx2+=temp;
   pmy2-=temp;
-  
+
   obj->dnpix = (LONG)dnpix;
   obj->dflux = tv;
   obj->mx = xm+xmin;	/* add back xmin */
@@ -304,11 +302,11 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
   obj->a = (float)sqrt(pmx2);
   obj->b = (float)sqrt(pmy2);
   obj->theta = theta;
-  
+
   obj->cxx = (float)(ym2/temp2);
   obj->cyy = (float)(xm2/temp2);
   obj->cxy = (float)(-2*xym/temp2);
-  
+
   darea = (double)area2 - dnpix;
   t1t2 = thresh/thresh2;
 
@@ -325,7 +323,4 @@ void  analyse(int no, objliststruct *objlist, int robust, double gain)
     {
       obj->abcor = 1.0;
     }
-
-  return;
-
 }

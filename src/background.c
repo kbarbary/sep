@@ -251,7 +251,7 @@ void backstat(backstruct *backmesh,
   PIXTYPE	*buft,*wbuft;
   PIXTYPE       lcut,hcut;
   int		m,h,x,y, npix,wnpix, offset, lastbite;
-  
+
   h = bufsize/w;  /* height of background boxes in this row */
   bm = backmesh;
   offset = w - bw;
@@ -311,7 +311,7 @@ void backstat(backstruct *backmesh,
       mean = sigma = 0.0;
       npix = wnpix = 0;
       buft = buf;
-      
+
       /* do statistics for this mesh again, with cuts */
       if (wbuf)
 	{
@@ -355,9 +355,6 @@ void backstat(backstruct *backmesh,
       if (wbuf)
 	wbuf += bw;
     }
-
-  return;
-
 }
 
 /******************************** backhisto *********************************/
@@ -416,13 +413,12 @@ void backhisto(backstruct *backmesh,
 	  for (x=bw; x--;)
 	    {
 	      bin = (int)(*(buft++)/qscale + cste);
-	      
+
 	      if (bin>=0 && bin<nlevels)
 		(*(histo+bin))++;
 	    }
     }
-  return;
-}
+  }
 
 /******************************* backguess **********************************/
 /*
@@ -495,7 +491,7 @@ float backguess(backstruct *bkg, float *mean, float *sigma)
 			    bkg->qzero+(2.5*med-1.5*mea)*bkg->qscale
 			    :bkg->qzero+med*bkg->qscale))
     :bkg->qzero+mea*bkg->qscale;
-  
+
   *sigma = sig*bkg->qscale;
 
   return *mean;
@@ -511,7 +507,7 @@ int filterback(sep_bkg *bkg, int fw, int fh, double fthresh)
   float d2, d2min, med, val, sval;
   int i, j, px, py, np, nx, ny, npx, npx2, npy, npy2, dpx, dpy, x, y, nmin;
   int status;
-  
+
   status = RETURN_OK;
   bmask = smask = back2 = sigma2 = NULL;
 
@@ -682,7 +678,7 @@ int makebackspline(sep_bkg *bkg, float *map, float *dmap)
 
   return status;
 
- exit: 
+ exit:
   if (u) free(u);
   return status;
 }
@@ -866,7 +862,7 @@ int bkg_line_flt_internal(sep_bkg *bkg, float *values, float *dvalues, int y,
 	    }
 	  cdx = 1 - dx;
 
-	  *(line++) = (float)(cdx*(*blo+(cdx*cdx-1)**dblo) 
+	  *(line++) = (float)(cdx*(*blo+(cdx*cdx-1)**dblo)
 			      + dx*(*bhi+(dx*dx-1)**dbhi));
 
 	  if (i==nx)
@@ -889,7 +885,7 @@ int bkg_line_flt_internal(sep_bkg *bkg, float *values, float *dvalues, int y,
   return status;
 }
 
-int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line) 
+int sep_bkg_line_flt(sep_bkg *bkg, int y, float *line)
 /* Interpolate background at line y (bicubic spline interpolation between
  * background map vertices) and save to line */
 {
@@ -913,11 +909,11 @@ int sep_bkg_line(sep_bkg *bkg, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
-  float *tmpline; 
+  float *tmpline;
 
   if (dtype == SEP_TFLOAT)
     return sep_bkg_line_flt(bkg, y, (float *)line);
-   
+
   tmpline = NULL;
 
   status = get_array_writer(dtype, &write_array, &size);
@@ -941,11 +937,11 @@ int sep_bkg_rmsline(sep_bkg *bkg, int y, void *line, int dtype)
 {
   array_writer write_array;
   int size, status;
-  float *tmpline; 
+  float *tmpline;
 
   if (dtype == SEP_TFLOAT)
     return sep_bkg_rmsline_flt(bkg, y, (float *)line);
-   
+
   tmpline = NULL;
 
   status = get_array_writer(dtype, &write_array, &size);
@@ -984,7 +980,7 @@ int sep_bkg_array(sep_bkg *bkg, void *arr, int dtype)
 	  return status;
       return status;
     }
-  
+
   if ((status = get_array_writer(dtype, &write_array, &size)) != RETURN_OK)
     goto exit;
 
@@ -1022,7 +1018,7 @@ int sep_bkg_rmsarray(sep_bkg *bkg, void *arr, int dtype)
 	  return status;
       return status;
     }
-  
+
   if ((status = get_array_writer(dtype, &write_array, &size)) != RETURN_OK)
     goto exit;
 
@@ -1086,7 +1082,7 @@ int sep_bkg_subarray(sep_bkg *bkg, void *arr, int dtype)
     goto exit;
 
   for (y=0; y<bkg->h; y++, arrt+=(width*size))
-    { 
+    {
       if ((status = sep_bkg_line_flt(bkg, y, tmpline)) != RETURN_OK)
 	goto exit;
       subtract_array(tmpline, width, arrt);
@@ -1109,6 +1105,4 @@ void sep_bkg_free(sep_bkg *bkg)
       free(bkg->dsigma);
     }
   free(bkg);
-  
-  return;
 }
