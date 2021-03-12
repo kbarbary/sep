@@ -53,7 +53,7 @@ src/aperture.o: src/aperture.c src/aperture.i src/overlap.h src/sepcore.h src/se
 src/background.o src/util.o: src/%.o: src/%.c src/sepcore.h src/sep.h
 	$(CC) $(CPPFLAGS) $(CFLAGS_LIB) -c src/$*.c -o $@
 
-src/$(SONAME_FULL): $(OBJS)
+src/$(SONAME_FULL) src/$(SONAME_MAJOR) src/$(SONAME) &: $(OBJS)
 	$(CC) $(LDFLAGS_LIB) $^ -lm -o src/$(SONAME_FULL)
 	ln -sf $(SONAME_FULL) src/$(SONAME_MAJOR)
 	ln -sf $(SONAME_FULL) src/$(SONAME)
