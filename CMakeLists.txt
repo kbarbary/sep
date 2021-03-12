@@ -23,6 +23,7 @@ link_directories(${CMAKE_LIBRARY_PATH} ${CMAKE_SOURCE_DIR}/src)
 add_library(sep SHARED ${SOURCES})
 set_target_properties(sep PROPERTIES OUTPUT_NAME sep)
 set_target_properties(sep PROPERTIES VERSION 0.6.0 SOVERSION 0)
+set_target_properties(sep PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if (NOT MSVC)
    target_link_libraries(sep m)
