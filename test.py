@@ -177,7 +177,7 @@ def test_vs_sextractor():
     assert_allclose(flux, refobjs['flux_aper'], rtol=2.e-4)
     assert_allclose(fluxerr, refobjs['fluxerr_aper'], rtol=1.0e-5)
 
-    # check if the flags work at all (comparison values 
+    # check if the flags work at all (comparison values
     assert ((flag & sep.APER_TRUNC) != 0).sum() == 4
     assert ((flag & sep.APER_HASMASKED) != 0).sum() == 0
 
@@ -201,19 +201,19 @@ def test_vs_sextractor():
 
     # We use atol for radius because it is reported to nearest 0.01 in
     # reference objects.
-    assert_allclose(2.5*kr, refobjs['kron_radius'], atol=0.01, rtol=0.) 
+    assert_allclose(2.5*kr, refobjs['kron_radius'], atol=0.01, rtol=0.)
     assert_allclose(flux, refobjs['flux_auto'], rtol=0.0005)
     assert_allclose(fluxerr, refobjs['fluxerr_auto'], rtol=0.0005)
 
     # Test using a mask in kron_radius and sum_ellipse.
-    for dtype in [np.bool, np.int32, np.float32, np.float64]:
+    for dtype in [np.bool_, np.int32, np.float32, np.float64]:
         mask = np.zeros_like(data, dtype=dtype)
         kr2, flag = sep.kron_radius(data, objs['x'], objs['y'],
                                     objs['a'], objs['b'], objs['theta'],
                                     6.0, mask=mask)
         kr2[i] = 0.
         assert np.all(kr == kr2)
-    
+
     # Test ellipse representation conversion
     cxx, cyy, cxy = sep.ellipse_coeffs(objs['a'], objs['b'], objs['theta'])
     assert_allclose(cxx, objs['cxx'], rtol=1.e-4)
@@ -253,7 +253,7 @@ def test_masked_background():
     data[1,4] = 1.
     data[4,4] = 1.
 
-    mask = np.zeros((6,6), dtype=np.bool)
+    mask = np.zeros((6,6), dtype=np.bool_)
 
     # Background array without mask
     sky = sep.Background(data, bw=3, bh=3, fw=1, fh=1)
@@ -420,11 +420,11 @@ def test_extract_with_mask():
 
     # mask half the image
     ylim = data.shape[0] // 2
-    mask = np.zeros(data.shape, dtype=np.bool)
+    mask = np.zeros(data.shape, dtype=np.bool_)
     mask[ylim:,:] = True
 
     objects = sep.extract(data, 1.5*bkg.globalrms, mask=mask)
-    
+
     # check that we found some objects and that they are all in the unmasked
     # region.
     assert len(objects) > 0
@@ -547,7 +547,7 @@ def test_aperture_bkgann_overlapping():
     f, _, _ = sep.sum_ellipse(data, x, y, 2., 1., np.pi/4., r=r,
                               bkgann=(0., r), subpix=1)
     assert_allclose(f, 0., rtol=0., atol=1.e-13)
-    
+
 
 def test_aperture_bkgann_ones():
     """Test bkgann functionality with flat data"""
@@ -572,74 +572,74 @@ def test_aperture_bkgann_ones():
 
 def test_masked_segmentation_measurements():
     """Test measurements with segmentation masking"""
-    
+
     NX = 100
     data = np.zeros((NX*2,NX*2))
     yp, xp = np.indices(data.shape)
-    
+
     ####
     # Make two 2D gaussians that slightly overlap
-    
+
     # width of the 2D objects
-    gsigma = 10.  
-      
+    gsigma = 10.
+
     # offset between two gaussians in sigmas
-    off = 4 
+    off = 4
 
     for xy in [[NX,NX], [NX+off*gsigma, NX+off*gsigma]]:
         R = np.sqrt((xp-xy[0])**2+(yp-xy[1])**2)
         g_i = np.exp(-R**2/2/gsigma**2)
         data += g_i
-    
+
     # Absolute total
     total_exact = g_i.sum()
-    
+
     # Add some noise
     rms = 0.02
     np.random.seed(1)
     data += np.random.normal(size=data.shape)*rms
-    
+
     # Run source detection
     objs, segmap = sep.extract(data, thresh=1.2, err=rms, mask=None,
                                segmentation_map=True)
-    
+
     seg_id = np.arange(1, len(objs)+1, dtype=np.int32)
-    
+
     # Compute Kron/Auto parameters
     x, y, a, b = objs['x'], objs['y'], objs['a'], objs['b']
     theta = objs['theta']
-    
+
     kronrad, krflag = sep.kron_radius(data, x, y, a, b, theta, 6.0)
-    
+
     flux_auto, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta,
-                                               2.5*kronrad, 
-                                               segmap=segmap, seg_id=seg_id, 
+                                               2.5*kronrad,
+                                               segmap=segmap, seg_id=seg_id,
                                                subpix=1)
-    
+
     # Test total flux
     assert_allclose(flux_auto, total_exact, rtol=5.e-2)
-        
+
     # Flux_radius
     for flux_fraction in [0.2, 0.5]:
-    
+
         # Exact solution
         rhalf_exact = np.sqrt(-np.log(1-flux_fraction)*gsigma**2*2)
-    
+
         # Masked measurement
         flux_radius, flag = sep.flux_radius(data, x, y, 6.*a, flux_fraction,
-                                        seg_id=seg_id, segmap=segmap, 
+                                        seg_id=seg_id, segmap=segmap,
                                         normflux=flux_auto, subpix=5)
-        
+
         # Test flux fraction
         assert_allclose(flux_radius, rhalf_exact, rtol=5.e-2)
-    
+
     if False:
         print('test_masked_flux_radius')
         print(total_exact, flux_auto)
         print(rhalf_exact, flux_radius)
-    
+
 def test_mask_ellipse():
-    arr = np.zeros((20, 20), dtype=np.bool)
+    arr = np.zeros((20, 20), dtype=np.bool_)
 
     # should mask 5 pixels:
     sep.mask_ellipse(arr, 10., 10., 1.0, 1.0, 0.0, r=1.001)
@@ -662,7 +662,7 @@ def test_flux_radius():
 
 def test_mask_ellipse_alt():
     """mask_ellipse with cxx, cyy, cxy parameters."""
-    arr = np.zeros((20, 20), dtype=np.bool)
+    arr = np.zeros((20, 20), dtype=np.bool_)
 
     # should mask 5 pixels:
     sep.mask_ellipse(arr, 10., 10., cxx=1.0, cyy=1.0, cxy=0.0, r=1.001)
