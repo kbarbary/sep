@@ -7,3 +7,4 @@
 * Evert Rol (@evertrol): setup.py fixes
 * Joe Lyman (@lyalpha): Make deblending limit settable
 * Michael Wuertenberger (@mworion): PyPI wheels
+* Ingvar Stepanyan (@rreverser): Build system, public API and thread safety fixes.
