@@ -168,8 +168,8 @@ void apply_mask_line(arraybuffer *mbuf, arraybuffer *imbuf, arraybuffer *nbuf)
 }
 
 /****************************** extract **************************************/
-int sep_extract(sep_image *image, float thresh, int thresh_type,
-                int minarea, float *conv, int convw, int convh,
+int sep_extract(const sep_image *image, float thresh, int thresh_type,
+                int minarea, const float *conv, int convw, int convh,
 		int filter_type, int deblend_nthresh, double deblend_cont,
 		int clean_flag, double clean_param,
 		sep_catalog **catalog)

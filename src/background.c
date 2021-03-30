@@ -54,7 +54,7 @@ float backguess(backstruct *bkg, float *mean, float *sigma);
 int makebackspline(sep_bkg *bkg, float *map, float *dmap);
 
 
-int sep_background(sep_image* image, int bw, int bh, int fw, int fh,
+int sep_background(const sep_image* image, int bw, int bh, int fw, int fh,
                    double fthresh, sep_bkg **bkg)
 {
   BYTE *imt, *maskt;

@@ -36,7 +36,7 @@
 #define WINPOS_FAC      2.0     /* Centroid offset factor (2 for a Gaussian) */
 
 /*
-  Adding (void *) pointers is a GNU C extension, not part of standard C. 
+  Adding (void *) pointers is a GNU C extension, not part of standard C.
   When compiling on Windows with MS VIsual C compiler need to cast the
   (void *) to something the size of one byte.
 */
@@ -325,9 +325,9 @@ static void oversamp_ann_ellipse(double r, double b, double *r_in2,
  * This is just different enough from the other aperture functions
  * that it doesn't quite make sense to use aperture.i.
  */
-int sep_sum_circann_multi(sep_image *im,
-                          double x, double y, double rmax, int n, 
-                          int id, 
+int sep_sum_circann_multi(const sep_image *im,
+                          double x, double y, double rmax, int n,
+                          int id,
                           int subpix,
                           short inflag,
                           double *sum, double *sumvar, double *area,
@@ -436,7 +436,7 @@ int sep_sum_circann_multi(sep_image *im,
                   if (errisstd)
                     varpix *= varpix;
                 }
-              
+
               ismasked = 0;
               if (im->mask)
                 {
@@ -447,18 +447,18 @@ int sep_sum_circann_multi(sep_image *im,
                     }
                 }
 
-              /* Segmentation image:  
+              /* Segmentation image:
 
-    	           If `id` is negative, require segmented pixels within the 
+    	           If `id` is negative, require segmented pixels within the
     	           aperture.
 
     	           If `id` is positive, mask pixels with nonzero segment ids
     	           not equal to `id`.
 
-    	      */ 
+    	      */
     	      if (im->segmap)
       	        {
-      	          if (id > 0) 
+      	          if (id > 0)
       	            {
       	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
       	                {
@@ -470,10 +470,10 @@ int sep_sum_circann_multi(sep_image *im,
     	                {
                           *flag |= SEP_APER_HASMASKED;
     	                  ismasked = 1;
-    	                }  	            
+    	                }
       	            }
       	        }
-      	        
+
               /* check if oversampling is needed (close to bin boundary?) */
               rpix = sqrt(rpix2);
               d = fmod(rpix, step);
@@ -583,8 +583,8 @@ static double inverse(double xmax, const double *y, int n, double ytarg)
   return step * (i + (ytarg - y[i-1])/(y[i] - y[i-1]));
 }
 
-int sep_flux_radius(sep_image *im,
-                    double x, double y, double rmax, int id, 
+int sep_flux_radius(const sep_image *im,
+                    double x, double y, double rmax, int id,
                     int subpix, short inflag,
                     const double *fluxtot, const double *fluxfrac, int n, double *r,
                     short *flag)
@@ -619,8 +619,8 @@ int sep_flux_radius(sep_image *im,
 
 /*****************************************************************************/
 /* calculate Kron radius from pixels within an ellipse. */
-int sep_kron_radius(sep_image *im, double x, double y,
-                    double cxx, double cyy, double cxy, double r, int id, 
+int sep_kron_radius(const sep_image *im, double x, double y,
+                    double cxx, double cyy, double cxy, double r, int id,
                     double *kronrad, short *flag)
 {
   float pix;
@@ -628,7 +628,7 @@ int sep_kron_radius(sep_image *im, double x, double y,
   int ix, iy, xmin, xmax, ymin, ymax, status, size, msize, ssize;
   long pos;
   int ismasked;
-  
+
   BYTE *datat, *maskt, *segt;
   converter convert, mconvert, sconvert;
 
@@ -675,18 +675,18 @@ int sep_kron_radius(sep_image *im, double x, double y,
               if ((pix < -BIG) || (im->mask && mconvert(maskt) > im->maskthresh))
                 ismasked = 1;
 
-              /* Segmentation image:  
+              /* Segmentation image:
 
-    	           If `id` is negative, require segmented pixels within the 
+    	           If `id` is negative, require segmented pixels within the
     	           aperture.
 
     	           If `id` is positive, mask pixels with nonzero segment ids
     	           not equal to `id`.
 
-    	      */ 
+    	      */
     	      if (im->segmap)
       	        {
-      	          if (id > 0) 
+      	          if (id > 0)
       	            {
       	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
       	                {
@@ -696,10 +696,10 @@ int sep_kron_radius(sep_image *im, double x, double y,
     	              if (sconvert(segt) != -1*id)
     	                {
     	                  ismasked = 1;
-    	                }  	            
+    	                }
       	            }
       	        }
-                
+
               if (ismasked > 0)
                 {
                   *flag |= SEP_APER_HASMASKED;
@@ -779,7 +779,7 @@ void sep_set_ellipse(unsigned char *arr, int w, int h,
  *
  */
 
-int sep_windowed(sep_image *im,
+int sep_windowed(const sep_image *im,
                  double x, double y, double sig, int subpix, short inflag,
                  double *xout, double *yout, int *niter, short *flag)
 {
@@ -915,7 +915,7 @@ int sep_windowed(sep_image *im,
                     }
 
                   /* offset of this pixel from center */
-                  dx = ix - x; 
+                  dx = ix - x;
                   dy = iy - y;
 
                   /* weight by gaussian */
