@@ -33,7 +33,7 @@
 #endif
 #define	NBRANCH	16    /* starting number per branch */
 
-nsonmax	= 1024;  /* max. number sub-objects per level */
+static _Atomic int nsonmax	= 1024;  /* max. number sub-objects per level */
 
 /* get and set pixstack */
 void sep_set_sub_object_limit(int val)
@@ -51,8 +51,8 @@ int belong(int, objliststruct *, int, objliststruct *);
 int *createsubmap(objliststruct *, int, int *, int *, int *, int *);
 int gatherup(objliststruct *, objliststruct *);
 
-static objliststruct *objlist=NULL;
-static short	     *son=NULL, *ok=NULL;
+static _Thread_local objliststruct *objlist=NULL;
+static _Thread_local short	     *son=NULL, *ok=NULL;
 
 /******************************** deblend ************************************/
 /*
@@ -66,7 +66,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    int deblend_nthresh, double deblend_mincont, int minarea)
 {
   objstruct		*obj;
-  static objliststruct	debobjlist, debobjlist2;
+  objliststruct	debobjlist, debobjlist2;
   double		thresh, thresh0, value0;
   int			h,i,j,k,m,subx,suby,subh,subw,
                         xn,
@@ -87,7 +87,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   debobjlist.nobj = debobjlist2.nobj = 0;
   debobjlist.npix = debobjlist2.npix = 0;
 
-  /* Create the submap for the object. 
+  /* Create the submap for the object.
    * The submap is used in lutz(). We create it here because we may call
    * lutz multiple times below, and we only want to create it once.
    */
@@ -114,23 +114,23 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
     {
       /*------ Calculate threshold */
       thresh = objlistin->obj[l].fdpeak;
-      debobjlist.thresh = thresh > 0.0? 
+      debobjlist.thresh = thresh > 0.0?
 	thresh0*pow(thresh/thresh0,(double)k/xn) : thresh0;
-      
+
       /*--------- Build tree (bottom->up) */
       if (objlist[k-1].nobj>=nsonmax)
 	{
 	  status = DEBLEND_OVERFLOW;
 	  goto exit;
 	}
-      
+
       for (i=0; i<objlist[k-1].nobj; i++)
 	{
 	  status = lutz(objlistin->plist, submap, subx, suby, subw,
 			&objlist[k-1].obj[i], &debobjlist, minarea);
 	  if (status != RETURN_OK)
 	    goto exit;
-	  
+
 	  for (j=h=0; j<debobjlist.nobj; j++)
 	    if (belong(j, &debobjlist, i, &objlist[k-1]))
 	      {
@@ -157,7 +157,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	  son[k-1+xn*(i+nsonmax*h)] = (short)-1;
 	}
     }
-  
+
   /*------- cut the right branches (top->down) */
   for (k = xn-2; k>=0; k--)
     {
@@ -170,7 +170,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		m++;
 	      ok[k+xn*i] &= ok[k+1+xn*j];
 	    }
-	  if (m>1)	
+	  if (m>1)
 	    {
 	      for (h=0; (j=(int)son[k+xn*(i+nsonmax*h)])!=-1; h++)
 		if (ok[k+1+xn*j] &&
@@ -185,12 +185,12 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 	    }
 	}
     }
-  
+
   if (ok[0])
     status = addobjdeep(0, &debobjlist2, objlistout);
   else
     status = gatherup(&debobjlist2, objlistout);
-  
+
  exit:
   if (status == DEBLEND_OVERFLOW)
     put_errdetail("limit of sub-objects reached while deblending. Increase "
@@ -201,7 +201,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   submap = NULL;
   free(debobjlist2.obj);
   free(debobjlist2.plist);
-  
+
   for (k=0; k<xn; k++)
     {
       free(objlist[k].obj);
@@ -210,7 +210,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 
   free(debobjlist.obj);
   free(debobjlist.plist);
-  
+
   return status;
 }
 
@@ -244,7 +244,6 @@ void freedeblend(void)
   ok = NULL;
   free(objlist);
   objlist = NULL;
-  return;
 }
 
 /********************************* gatherup **********************************/
@@ -286,7 +285,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
       status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
-  
+
   for (objt = objin+(i=1); i<nobj; i++, objt++)
     {
       /*-- Now we have passed the deblending section, reset threshold */
@@ -296,7 +295,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
       for (pixt=pixelin+objin[i].firstpix; pixt>=pixelin;
 	   pixt=pixelin+PLIST(pixt,nextpix))
 	bmp[(PLIST(pixt,x)-xs) + (PLIST(pixt,y)-ys)*bmwidth] = '\1';
-      
+
       status = addobjdeep(i, objlistin, objlistout);
       if (status != RETURN_OK)
 	goto exit;
@@ -318,7 +317,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
       status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
-  
+
   objlistout->plist = pixelout;
   k = objlistout->npix;
   iclst = 0;				/* To avoid gcc -Wall warnings */
@@ -344,10 +343,10 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 		  distmin = dist;
 		  iclst = i;
 		}
-	    }			
+	    }
 	  if (p[nobj-1] > 1.0e-31)
 	    {
-	      drand = p[nobj-1]*rand()/RAND_MAX;
+	      drand = p[nobj-1]*rand_r(&randseed)/(float)RAND_MAX;
 	      for (i=1; i<nobj && p[i]<drand; i++);
 	      if (i==nobj)
 		i=iclst;
@@ -408,7 +407,7 @@ int *createsubmap(objliststruct *objlistin, int no,
 
   obj = objlistin->obj+no;
   pixel = objlistin->plist;
-  
+
   *subx = xmin = obj->xmin;
   *suby = ymin = obj->ymin;
   *subw = w = obj->xmax - xmin + 1;
@@ -420,12 +419,12 @@ int *createsubmap(objliststruct *objlistin, int no,
   pt = pix;
   for (i=n; i--;)
     *(pt++) = -1;
-  
+
   for (i=obj->firstpix; i!=-1; i=PLIST(pixt,nextpix))
     {
       pixt = pixel+i;
       *(pix+(PLIST(pixt,x)-xmin) + (PLIST(pixt,y)-ymin)*w) = i;
     }
-  
+
   return submap;
 }

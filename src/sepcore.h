@@ -33,7 +33,7 @@
 #define UNKNOWN_NOISE_TYPE  10
 
 #define	BIG 1e+30  /* a huge number (< biggest value a float can store) */
-#define	PI  3.1415926535898
+#define	PI  M_PI
 #define	DEG (PI/180.0)	    /* 1 deg in radians */
 
 typedef	int	      LONG;

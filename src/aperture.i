@@ -1,5 +1,5 @@
 /*
-	Adding (void *) pointers is a GNU C extension, not part of standard C. 
+	Adding (void *) pointers is a GNU C extension, not part of standard C.
 	When compiling on Windows with MS Visual C compiler need to cast the
 	(void *) to something the size of one byte.
 */
@@ -9,7 +9,7 @@
   	#define MSVC_VOID_CAST
 #endif
 
-int APER_NAME(sep_image *im,
+int APER_NAME(const sep_image *im,
 	      double x, double y, APER_ARGS, int id, int subpix, short inflag,
 	      double *sum, double *sumerr, double *area, short *flag)
 {
@@ -53,7 +53,7 @@ int APER_NAME(sep_image *im,
 
   if (im->segmap && (status = get_converter(im->sdtype, &sconvert, &ssize)))
     return status;
-      
+
   /* get image noise */
   if (im->noise_type != SEP_NOISE_NONE)
     {
@@ -72,7 +72,7 @@ int APER_NAME(sep_image *im,
 
   /* get extent of box */
   APER_BOXEXTENT;
-  
+
   /* loop over rows in the box */
   for (iy=ymin; iy<ymax; iy++)
     {
@@ -85,7 +85,7 @@ int APER_NAME(sep_image *im,
 	maskt = MSVC_VOID_CAST im->mask + pos*msize;
       if (im->segmap)
   	segt = MSVC_VOID_CAST im->segmap + pos*ssize;
-  	
+
       /* loop over pixels in this row */
       for (ix=xmin; ix<xmax; ix++)
 	{
@@ -119,7 +119,7 @@ int APER_NAME(sep_image *im,
 	      else
 		/* definitely fully in aperture */
 		overlap = 1.0;
-	      
+
 	      pix = convert(datat);
 
 	      if (errisarray)
@@ -128,25 +128,25 @@ int APER_NAME(sep_image *im,
 		  if (errisstd)
 		    varpix *= varpix;
 		}
-              
+
               ismasked = 0;
 	      if (im->mask && (mconvert(maskt) > im->maskthresh))
 	        {
 	          ismasked = 1;
 	        }
-	      
-	      /* Segmentation image:  
-	           
-	           If `id` is negative, require segmented pixels within the 
+
+	      /* Segmentation image:
+
+	           If `id` is negative, require segmented pixels within the
 	           aperture.
-	           
+
 	           If `id` is positive, mask pixels with nonzero segment ids
 	           not equal to `id`.
-	           
-	      */ 
+
+	      */
 	      if (im->segmap)
   	        {
-  	          if (id > 0) 
+  	          if (id > 0)
   	            {
   	              if ((sconvert(segt) > 0.) & (sconvert(segt) != id))
   	                {
@@ -156,12 +156,12 @@ int APER_NAME(sep_image *im,
 	              if (sconvert(segt) != -1*id)
 	                {
 	                  ismasked = 1;
-	                }  	            
+	                }
   	            }
   	        }
-  	      
-	      if (ismasked > 0) 
-	      	{ 
+
+	      if (ismasked > 0)
+	      	{
 		  *flag |= SEP_APER_HASMASKED;
 		  maskarea += overlap;
 		}
@@ -174,7 +174,7 @@ int APER_NAME(sep_image *im,
 	      totarea += overlap;
 
 	    } /* closes "if pixel might be within aperture" */
-	  
+
 	  /* increment pointers by one element */
 	  datat += size;
 	  if (errisarray)

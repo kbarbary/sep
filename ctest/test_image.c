@@ -32,58 +32,12 @@ float *uniformf(float a, float b, int n)
 {
   int i;
   float *result;
-    
+
   result = (float*)malloc(n*sizeof(float));
   for (i=0; i<n; i++)
     result[i] = a + (b-a) * rand() / ((double)RAND_MAX);
 
   return result;
-}
-
-double gaussrand()
-{
-  static double V1, V2, S;
-  static int phase = 0;
-  double x, u1, u2;
-  
-  if (phase == 0)
-    {
-      do
-	{
-	  u1 = (double)rand() / RAND_MAX;
-	  u2 = (double)rand() / RAND_MAX;
-	  
-	  V1 = 2.*u1 - 1.;
-	  V2 = 2.*u2 - 1.;
-	  S = V1*V1 + V2*V2;
-	} 
-      while (S >= 1. || S == 0.);
-      
-      x = V1 * sqrt(-2. * log(S) / S);
-    }
-  else
-    {
-      x = V2 * sqrt(-2. * log(S) / S);
-    }
-
-  phase = 1 - phase;
-  
-  return x;
-}
-
-float *makenoiseim(int nx, int ny, float mean, float sigma)
-{
-  int i, npix;
-  float *im, *imt;
-
-  im = (float*)malloc((npix=nx*ny)*sizeof(float));
-
-  /* fill with noise */
-  imt = im;
-  for (i=0; i<npix; i++, imt++)
-    *imt = mean + sigma*(float)gaussrand();
-
-  return im;
 }
 
 float *ones(int nx, int ny)
@@ -286,7 +240,7 @@ int main(int argc, char **argv)
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_bkg_array()", t1-t0);
-  
+
     /* subtract background */
   t0 = gettime_ns();
   status = sep_bkg_subarray(bkg, im.data, im.dtype);
@@ -294,7 +248,7 @@ int main(int argc, char **argv)
   if (status) goto exit;
   print_time("sep_bkg_subarray()", t1-t0);
 
-  /* extract sources 
+  /* extract sources
    * Note that we set deblend_cont = 1.0 to turn off deblending.
    */
   t0 = gettime_ns();

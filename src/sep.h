@@ -149,7 +149,7 @@ typedef struct {
  * - fw, fh = (3, 3)
  * - fthresh = 0.0
  */
-SEP_API int sep_background(sep_image *image,
+SEP_API int sep_background(const sep_image *image,
                    int bw, int bh,   /* size of a single background tile */
                    int fw, int fh,   /* filter size in tiles             */
                    double fthresh,   /* filter threshold                 */
@@ -218,11 +218,11 @@ SEP_API void sep_bkg_free(sep_bkg *bkg);
  * (the absolute threshold will be thresh*noise[i,j]).
  *
  */
-SEP_API int sep_extract(sep_image *image,
+SEP_API int sep_extract(const sep_image *image,
 		float thresh,         /* detection threshold           [1.5] */
                 int thresh_type,      /* threshold units    [SEP_THRESH_REL] */
 		int minarea,          /* minimum area in pixels          [5] */
-		float *conv,          /* convolution array (can be NULL)     */
+		const float *conv,    /* convolution array (can be NULL)     */
                                       /*               [{1 2 1 2 4 2 1 2 1}] */
 		int convw, int convh, /* w, h of convolution array     [3,3] */
                 int filter_type,      /* convolution (0) or matched (1)  [0] */
@@ -264,7 +264,7 @@ SEP_API void sep_catalog_free(sep_catalog *catalog);
  *        corrected. The area can differ from the exact area of a circle due
  *        to inexact subpixel sampling and intersection with array boundaries.
  */
-SEP_API int sep_sum_circle(sep_image *image,
+SEP_API int sep_sum_circle(const sep_image *image,
 		   double x,          /* center of aperture in x */
 		   double y,          /* center of aperture in y */
 		   double r,          /* radius of aperture */
@@ -277,17 +277,17 @@ SEP_API int sep_sum_circle(sep_image *image,
 		   short *flag);      /* OUTPUT: flags */
 
 
-SEP_API int sep_sum_circann(sep_image *image,
+SEP_API int sep_sum_circann(const sep_image *image,
                     double x, double y, double rin, double rout,
                     int id, int subpix, short inflags,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-SEP_API int sep_sum_ellipse(sep_image *image,
+SEP_API int sep_sum_ellipse(const sep_image *image,
 		    double x, double y, double a, double b, double theta,
 		    double r, int id, int subpix, short inflags,
 		    double *sum, double *sumerr, double *area, short *flag);
 
-SEP_API int sep_sum_ellipann(sep_image *image,
+SEP_API int sep_sum_ellipann(const sep_image *image,
 		     double x, double y, double a, double b, double theta,
 		     double rin, double rout, int id, int subpix, short inflags,
 		     double *sum, double *sumerr, double *area, short *flag);
@@ -308,7 +308,7 @@ SEP_API int sep_sum_ellipann(sep_image *image,
              annulus (if mask not NULL).
  * flag:     Output flag (non-array).
  */
-SEP_API int sep_sum_circann_multi(sep_image *im,
+SEP_API int sep_sum_circann_multi(const sep_image *im,
 			  double x, double y, double rmax, int n, int id, int subpix,
                           short inflag,
 			  double *sum, double *sumvar, double *area,
@@ -328,9 +328,9 @@ SEP_API int sep_sum_circann_multi(sep_image *im,
  * r : (output) result array of length n.
  * flag : (output) scalar flag
  */
-SEP_API int sep_flux_radius(sep_image *im,
+SEP_API int sep_flux_radius(const sep_image *im,
 		    double x, double y, double rmax, int id, int subpix, short inflag,
-		    double *fluxtot, double *fluxfrac, int n,
+		    const double *fluxtot, const double *fluxfrac, int n,
 		    double *r, short *flag);
 
 /* sep_kron_radius()
@@ -349,7 +349,7 @@ SEP_API int sep_flux_radius(sep_image *im,
  * SEP_APER_NONPOSITIVE - There was a nonpositive numerator or deminator.
  *                        kronrad = 0.
  */
-SEP_API int sep_kron_radius(sep_image *im, double x, double y,
+SEP_API int sep_kron_radius(const sep_image *im, double x, double y,
 		    double cxx, double cyy, double cxy, double r, int id,
 		    double *kronrad, short *flag);
 
@@ -366,7 +366,7 @@ SEP_API int sep_kron_radius(sep_image *im, double x, double y,
  * xout, yout : output center.
  * niter      : number of iterations used.
  */
-SEP_API int sep_windowed(sep_image *im,
+SEP_API int sep_windowed(const sep_image *im,
                  double x, double y, double sig, int subpix, short inflag,
                  double *xout, double *yout, int *niter, short *flag);
 
@@ -402,7 +402,7 @@ SEP_API void sep_ellipse_coeffs(double a, double b, double theta,
 /*----------------------- info & error messaging ----------------------------*/
 
 /* sep_version_string : library version (e.g., "0.2.0") */
-SEP_API extern char *sep_version_string;
+SEP_API extern const char *const sep_version_string;
 
 /* sep_get_errmsg()
  *

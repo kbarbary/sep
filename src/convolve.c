@@ -36,7 +36,7 @@ f* GNU Lesser General Public License for more details.
  * convw, convh : width and height of conv
  * buf : output convolved line (buf->dw elements long)
  */
-int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
+int convolve(arraybuffer *buf, int y, const float *conv, int convw, int convh,
              PIXTYPE *out)
 {
   int convw2, convn, cx, cy, i, dcx, y0;
@@ -121,7 +121,7 @@ int convolve(arraybuffer *buf, int y, float *conv, int convw, int convh,
  * (their `yoff` fields should be the same).
  */
 int matched_filter(arraybuffer *imbuf, arraybuffer *nbuf, int y,
-                   float *conv, int convw, int convh,
+                   const float *conv, int convw, int convh,
                    PIXTYPE *work, PIXTYPE *out, int noise_type)
 {
   int convw2, convn, cx, cy, i, dcx, y0;
