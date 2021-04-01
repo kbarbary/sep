@@ -143,7 +143,7 @@ int  lutz(pliststruct *plistin,
 	  int *objrootsubmap, int subx, int suby, int subw,
 	  objstruct *objparent, objliststruct *objlist, int minarea);
 
-void update(infostruct *, infostruct *, const pliststruct *);
+void update(infostruct *, infostruct *, pliststruct *);
 
 int  allocdeblend(int);
 void freedeblend(void);

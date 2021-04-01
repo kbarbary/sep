@@ -366,7 +366,7 @@ void  lutzsort(infostruct *info, objliststruct *objlist)
 /*
 update object's properties each time one of its pixels is scanned by lutz()
 */
-void  update(infostruct *infoptr1, infostruct *infoptr2, const pliststruct *pixel)
+void  update(infostruct *infoptr1, infostruct *infoptr2, pliststruct *pixel)
 {
   infoptr1->pixnb += infoptr2->pixnb;
   infoptr1->flag |= infoptr2->flag;
