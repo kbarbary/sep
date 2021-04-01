@@ -83,3 +83,9 @@ int get_converter(int dtype, converter *f, int *size);
 int get_array_converter(int dtype, array_converter *f, int *size);
 int get_array_writer(int dtype, array_writer *f, int *size);
 int get_array_subtractor(int dtype, array_writer *f, int *size);
+
+#if defined(_MSC_VER)
+#define _Thread_local __declspec(thread)
+#define _Atomic // this isn't great, but we only use atomic for global settings
+#define rand_r(SEED) rand() // MSVC doesn't provide rand_r, but makes rand safe for re-entrancy
+#endif

@@ -111,7 +111,7 @@ int lutz(pliststruct *plistin,
 	 int *objrootsubmap, int subx, int suby, int subw,
 	 objstruct *objparent, objliststruct *objlist, int minarea)
 {
-  infostruct	curpixinfo = {};
+  infostruct	curpixinfo;
   objstruct		*obj;
   pliststruct		*plist,*pixel, *plistint;
 
