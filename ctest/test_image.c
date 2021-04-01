@@ -243,7 +243,7 @@ int main(int argc, char **argv)
 
     /* subtract background */
   t0 = gettime_ns();
-  status = sep_bkg_subarray(bkg, im.data, im.dtype);
+  status = sep_bkg_subarray(bkg, data, im.dtype);
   t1 = gettime_ns();
   if (status) goto exit;
   print_time("sep_bkg_subarray()", t1-t0);

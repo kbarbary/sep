@@ -20,7 +20,7 @@ int APER_NAME(const sep_image *im,
   int ismasked;
   long pos;
   short errisarray, errisstd;
-  BYTE *datat, *errort, *maskt, *segt;
+  const BYTE *datat, *errort, *maskt, *segt;
   converter convert, econvert, mconvert, sconvert;
   APER_DECL;
 

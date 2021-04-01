@@ -311,7 +311,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
 
   objout = objlistout->obj;		/* DO NOT MOVE !!! */
 
-  if (!(pixelout=(pliststruct *)realloc(objlistout->plist,
+  if (!(pixelout=realloc(objlistout->plist,
 					(objlistout->npix + npix)*plistsize)))
     {
       status = MEMORY_ALLOC_ERROR;
@@ -358,7 +358,7 @@ int gatherup(objliststruct *objlistin, objliststruct *objlistout)
     }
 
   objlistout->npix = k;
-  if (!(objlistout->plist = (pliststruct *)realloc(pixelout,
+  if (!(objlistout->plist = realloc(pixelout,
 						   objlistout->npix*plistsize)))
     status = MEMORY_ALLOC_ERROR;
 
@@ -414,7 +414,7 @@ int *createsubmap(objliststruct *objlistin, int no,
   *subh = obj->ymax - ymin + 1;
 
   n = w**subh;
-  if (!(submap = pix = (int *)malloc(n*sizeof(int))))
+  if (!(submap = pix = malloc(n*sizeof(int))))
     return NULL;
   pt = pix;
   for (i=n; i--;)

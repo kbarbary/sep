@@ -26,6 +26,7 @@ set_target_properties(sep PROPERTIES VERSION 0.6.0 SOVERSION 0)
 set_target_properties(sep PROPERTIES C_VISIBILITY_PRESET hidden)
 
 if (NOT MSVC)
+   add_compile_options(-Wcast-qual)
    target_link_libraries(sep m)
 endif()
 
