@@ -61,10 +61,10 @@ DEF MEMORY_ALLOC_ERROR = 1
 cdef extern from "sep.h":
 
     ctypedef struct sep_image:
-        void *data
-        void *noise
-        void *mask
-        void *segmap
+        const void *data
+        const void *noise
+        const void *mask
+        const void *segmap
         int dtype
         int ndtype
         int mdtype
@@ -117,7 +117,7 @@ cdef extern from "sep.h":
         int    **pix
         int    *objectspix
 
-    int sep_background(sep_image *im,
+    int sep_background(const sep_image *im,
                        int bw, int bh,
                        int fw, int fh,
                        double fthresh,
@@ -128,7 +128,7 @@ cdef extern from "sep.h":
     int sep_bkg_array(const sep_bkg *bkg, void *arr, int dtype)
     int sep_bkg_rmsarray(const sep_bkg *bkg, void *arr, int dtype)
     int sep_bkg_subarray(const sep_bkg *bkg, void *arr, int dtype)
-    void sep_bkg_free(const sep_bkg *bkg)
+    void sep_bkg_free(sep_bkg *bkg)
 
     int sep_extract(const sep_image *image,
                     float thresh,
