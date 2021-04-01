@@ -34,43 +34,36 @@
 
 void lutzsort(infostruct *, objliststruct *);
 
-/*------------------------- Static buffers for lutz() -----------------------*/
-
-static _Thread_local infostruct  *info=NULL, *store=NULL;
-static _Thread_local char	   *marker=NULL;
-static _Thread_local pixstatus   *psstack=NULL;
-static _Thread_local int         *start=NULL, *end=NULL, *discan=NULL;
-static _Thread_local int         xmin, ymin, xmax, ymax;
-
-
 /******************************* lutzalloc ***********************************/
 /*
 Allocate once for all memory space for buffers used by lutz().
 */
-int lutzalloc(int width, int height)
+int lutzalloc(int width, int height, lutzbuffers *buffers)
 {
   int *discant;
   int stacksize, i, status=RETURN_OK;
 
+  memset(buffers, 0, sizeof(lutzbuffers));
+
   stacksize = width+1;
-  xmin = ymin = 0;
-  xmax = width-1;
-  ymax = height-1;
-  QMALLOC(info, infostruct, stacksize, status);
-  QMALLOC(store, infostruct, stacksize, status);
-  QMALLOC(marker, char, stacksize, status);
-  QMALLOC(psstack, pixstatus, stacksize, status);
-  QMALLOC(start, int, stacksize, status);
-  QMALLOC(end, int, stacksize, status);
-  QMALLOC(discan, int, stacksize, status);
-  discant = discan;
+  buffers->xmin = buffers->ymin = 0;
+  buffers->xmax = width-1;
+  buffers->ymax = height-1;
+  QMALLOC(buffers->info, infostruct, stacksize, status);
+  QMALLOC(buffers->store, infostruct, stacksize, status);
+  QMALLOC(buffers->marker, char, stacksize, status);
+  QMALLOC(buffers->psstack, pixstatus, stacksize, status);
+  QMALLOC(buffers->start, int, stacksize, status);
+  QMALLOC(buffers->end, int, stacksize, status);
+  QMALLOC(buffers->discan, int, stacksize, status);
+  discant = buffers->discan;
   for (i=stacksize; i--;)
     *(discant++) = -1;
 
   return status;
 
  exit:
-  lutzfree();
+  lutzfree(buffers);
 
   return status;
 }
@@ -79,22 +72,22 @@ int lutzalloc(int width, int height)
 /*
 Free once for all memory space for buffers used by lutz().
 */
-void lutzfree()
+void lutzfree(lutzbuffers *buffers)
 {
-  free(discan);
-  discan = NULL;
-  free(info);
-  info = NULL;
-  free(store);
-  store = NULL;
-  free(marker);
-  marker = NULL;
-  free(psstack);
-  psstack = NULL;
-  free(start);
-  start = NULL;
-  free(end);
-  end = NULL;
+  free(buffers->discan);
+  buffers->discan = NULL;
+  free(buffers->info);
+  buffers->info = NULL;
+  free(buffers->store);
+  buffers->store = NULL;
+  free(buffers->marker);
+  buffers->marker = NULL;
+  free(buffers->psstack);
+  buffers->psstack = NULL;
+  free(buffers->start);
+  buffers->start = NULL;
+  free(buffers->end);
+  buffers->end = NULL;
 }
 
 static const infostruct initinfo = {
@@ -109,7 +102,8 @@ xels in an image
 */
 int lutz(pliststruct *plistin,
 	 int *objrootsubmap, int subx, int suby, int subw,
-	 objstruct *objparent, objliststruct *objlist, int minarea)
+	 objstruct *objparent, objliststruct *objlist, int minarea,
+	 lutzbuffers *buffers)
 {
   infostruct	curpixinfo;
   objstruct		*obj;
@@ -165,7 +159,7 @@ int lutz(pliststruct *plistin,
 
   /*----------------------------------------*/
   for (xl=stx; xl<=enx; xl++)
-    marker[xl] = 0;
+    buffers->marker[xl] = 0;
 
   objlist->nobj = 0;
   co = pstop = 0;
@@ -175,14 +169,14 @@ int lutz(pliststruct *plistin,
     {
       ps = COMPLETE;
       cs = NONOBJECT;
-      trunflag = (yl==0 || yl==ymax) ? SEP_OBJ_TRUNC : 0;
+      trunflag = (yl==0 || yl==buffers->ymax) ? SEP_OBJ_TRUNC : 0;
       if (yl==eny)
-	iscan = discan;
+	iscan = buffers->discan;
 
       for (xl=stx; xl<=enx; xl++)
 	{
-	  newmarker = marker[xl];
-	  marker[xl] = 0;
+	  newmarker = buffers->marker[xl];
+	  buffers->marker[xl] = 0;
 	  if ((inewsymbol = (xl!=enx)?*(iscan++):-1) < 0)
 	    luflag = 0;
 	  else
@@ -193,7 +187,7 @@ int lutz(pliststruct *plistin,
 	    }
 	  if (luflag)
 	    {
-	      if (xl==0 || xl==xmax)
+	      if (xl==0 || xl==buffers->xmax)
 		curpixinfo.flag |= SEP_OBJ_TRUNC;
 	      memcpy(pixel, plistint, (size_t)plistsize);
 	      PLIST(pixel, nextpix) = -1;
@@ -207,20 +201,20 @@ int lutz(pliststruct *plistin,
 		  cs = OBJECT;
 		  if (ps == OBJECT)
 		    {
-		      if (start[co] == UNKNOWN)
+		      if (buffers->start[co] == UNKNOWN)
 			{
-			  marker[xl] = 'S';
-			  start[co] = xl;
+			  buffers->marker[xl] = 'S';
+			  buffers->start[co] = xl;
 			}
-		      else  marker[xl] = 's';
+		      else  buffers->marker[xl] = 's';
 		    }
 		  else
 		    {
-		      psstack[pstop++] = ps;
-		      marker[xl] = 'S';
-		      start[++co] = xl;
+		      buffers->psstack[pstop++] = ps;
+		      buffers->marker[xl] = 'S';
+		      buffers->start[++co] = xl;
 		      ps = COMPLETE;
-		      info[co] = initinfo;
+		      buffers->info[co] = initinfo;
 		    }
 		}
 	    }
@@ -230,15 +224,15 @@ int lutz(pliststruct *plistin,
 	    {
 	      if (newmarker == 'S')
 		{
-		  psstack[pstop++] = ps;
+		  buffers->psstack[pstop++] = ps;
 		  if (cs == NONOBJECT)
 		    {
-		      psstack[pstop++] = COMPLETE;
-		      info[++co] = store[xl];
-		      start[co] = UNKNOWN;
+		      buffers->psstack[pstop++] = COMPLETE;
+		      buffers->info[++co] = buffers->store[xl];
+		      buffers->start[co] = UNKNOWN;
 		    }
 		  else
-		    update(&info[co], &store[xl], plist);
+		    update(&buffers->info[co], &buffers->store[xl], plist);
 		  ps = OBJECT;
 		}
 
@@ -247,12 +241,12 @@ int lutz(pliststruct *plistin,
 		  if ((cs == OBJECT) && (ps == COMPLETE))
 		    {
 		      pstop--;
-		      xl2 = start[co];
-		      update(&info[co-1], &info[co], plist);
-		      if (start[--co] == UNKNOWN)
-			start[co] = xl2;
+		      xl2 = buffers->start[co];
+		      update(&buffers->info[co-1], &buffers->info[co], plist);
+		      if (buffers->start[--co] == UNKNOWN)
+			buffers->start[co] = xl2;
 		      else
-			marker[xl2] = 's';
+			buffers->marker[xl2] = 's';
 		    }
 		  ps = OBJECT;
 		}
@@ -260,12 +254,12 @@ int lutz(pliststruct *plistin,
 		ps = INCOMPLETE;
 	      else if (newmarker == 'F')
 		{
-		  ps = psstack[--pstop];
+		  ps = buffers->psstack[--pstop];
 		  if ((cs == NONOBJECT) && (ps == COMPLETE))
 		    {
-		      if (start[co] == UNKNOWN)
+		      if (buffers->start[co] == UNKNOWN)
 			{
-			  if ((int)info[co].pixnb >= deb_maxarea)
+			  if ((int)buffers->info[co].pixnb >= deb_maxarea)
 			    {
 			      if (objlist->nobj>=nobjm)
 				if (!(obj = objlist->obj = (objstruct *)
@@ -275,23 +269,23 @@ int lutz(pliststruct *plistin,
 				    out = MEMORY_ALLOC_ERROR;
 				    goto exit_lutz;
 				  }
-			      lutzsort(&info[co], objlist);
+			      lutzsort(&buffers->info[co], objlist);
 			    }
 			}
 		      else
 			{
-			  marker[end[co]] = 'F';
-			  store[start[co]] = info[co];
+			  buffers->marker[buffers->end[co]] = 'F';
+			  buffers->store[buffers->start[co]] = buffers->info[co];
 			}
 		      co--;
-		      ps = psstack[--pstop];
+		      ps = buffers->psstack[--pstop];
 		    }
 		}
 	    }
 	  /* end process new marker -----------------------------------------*/
 
 	  if (luflag)
-	    update (&info[co],&curpixinfo, plist);
+	    update (&buffers->info[co],&curpixinfo, plist);
 	  else
 	    {
 	      /* ----------------- End Segment ------------------------------*/
@@ -300,14 +294,14 @@ int lutz(pliststruct *plistin,
 		  cs = NONOBJECT;
 		  if (ps != COMPLETE)
 		    {
-		      marker[xl] = 'f';
-		      end[co] = xl;
+		      buffers->marker[xl] = 'f';
+		      buffers->end[co] = xl;
 		    }
 		  else
 		    {
-		      ps = psstack[--pstop];
-		      marker[xl] = 'F';
-		      store[start[co]] = info[co];
+		      ps = buffers->psstack[--pstop];
+		      buffers->marker[xl] = 'F';
+		      buffers->store[buffers->start[co]] = buffers->info[co];
 		      co--;
 		    }
 		}

@@ -63,7 +63,8 @@ NOTE: Even if the object is not deblended, the output objlist threshold is
 This can return two error codes: DEBLEND_OVERFLOW or MEMORY_ALLOC_ERROR
 */
 int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
-	    int deblend_nthresh, double deblend_mincont, int minarea)
+	    int deblend_nthresh, double deblend_mincont, int minarea,
+	    lutzbuffers *lutzbuf)
 {
   objstruct		*obj;
   objliststruct	debobjlist, debobjlist2;
@@ -127,7 +128,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       for (i=0; i<objlist[k-1].nobj; i++)
 	{
 	  status = lutz(objlistin->plist, submap, subx, suby, subw,
-			&objlist[k-1].obj[i], &debobjlist, minarea);
+			&objlist[k-1].obj[i], &debobjlist, minarea, lutzbuf);
 	  if (status != RETURN_OK)
 	    goto exit;
 
