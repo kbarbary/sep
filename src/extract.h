@@ -155,9 +155,15 @@ int  lutz(pliststruct *plistin,
 
 void update(infostruct *, infostruct *, const pliststruct *);
 
-int  allocdeblend(int);
-void freedeblend(void);
-int  deblend(objliststruct *, int, objliststruct *, int, double, int, lutzbuffers *);
+typedef struct {
+	objliststruct *objlist;
+	short *son, *ok;
+	lutzbuffers lutz;
+} deblendctx;
+
+int  allocdeblend(int deblend_nthresh, int w, int h, deblendctx *);
+void freedeblend(deblendctx *);
+int  deblend(objliststruct *, int, objliststruct *, int, double, int, deblendctx *);
 
 /*int addobjshallow(objstruct *, objliststruct *);
 int rmobjshallow(int, objliststruct *);

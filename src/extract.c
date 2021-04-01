@@ -55,7 +55,7 @@ size_t sep_get_extract_pixstack()
 int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   objliststruct *finalobjlist,
 	   int deblend_nthresh, double deblend_mincont, double gain,
-	   lutzbuffers *lutzbuf);
+	   deblendctx *deblendctx);
 void plistinit(int hasconv, int hasvar);
 void clean(objliststruct *objlist, double clean_param, int *survives);
 int convert_to_catalog(objliststruct *objlist, const int *survives,
@@ -202,7 +202,7 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
   pixstatus         *psstack;
   char              errtext[512];
   sep_catalog       *cat;
-  lutzbuffers       lutzbuf;
+  deblendctx        deblendctx;
 
   status = RETURN_OK;
   pixel = NULL;
@@ -226,7 +226,7 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
   pixvar = 0.0;
   pixsig = 0.0;
   isvarnoise = 0;
-  memset(&lutzbuf, 0, sizeof(lutzbuffers));
+  memset(&deblendctx, 0, sizeof(deblendctx));
 
   mem_pixstack = sep_get_extract_pixstack();
 
@@ -286,9 +286,7 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
   QMALLOC(psstack, pixstatus, stacksize, status);
   QCALLOC(start, int, stacksize, status);
   QMALLOC(end, int, stacksize, status);
-  if ((status = lutzalloc(w, h, &lutzbuf)) != RETURN_OK)
-    goto exit;
-  if ((status = allocdeblend(deblend_nthresh)) != RETURN_OK)
+  if ((status = allocdeblend(deblend_nthresh, w, h, &deblendctx)) != RETURN_OK)
     goto exit;
 
   /* Initialize buffers for input array(s).
@@ -633,7 +631,7 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
 			      status = sortit(&info[co], &objlist, minarea,
 					      finalobjlist,
 					      deblend_nthresh,deblend_cont,
-                                              image->gain, &lutzbuf);
+                                              image->gain, &deblendctx);
 			      if (status != RETURN_OK)
 				goto exit;
 			    }
@@ -703,12 +701,13 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
   if (status != RETURN_OK) goto exit;
 
  exit:
-  free(finalobjlist->obj);
-  free(finalobjlist->plist);
-  free(finalobjlist);
-  freedeblend();
+  if (finalobjlist) {
+    free(finalobjlist->obj);
+    free(finalobjlist->plist);
+    free(finalobjlist);
+  }
+  freedeblend(&deblendctx);
   free(pixel);
-  lutzfree(&lutzbuf);
   free(info);
   free(store);
   free(marker);
@@ -753,7 +752,7 @@ build the object structure.
 int sortit(infostruct *info, objliststruct *objlist, int minarea,
 	   objliststruct *finalobjlist,
 	   int deblend_nthresh, double deblend_mincont, double gain,
-	   lutzbuffers *lutzbuf)
+	   deblendctx *deblendctx)
 {
   objliststruct	        objlistout, *objlist2;
   objstruct	obj;
@@ -778,7 +777,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
   preanalyse(0, objlist);
 
   status = deblend(objlist, 0, &objlistout, deblend_nthresh, deblend_mincont,
-		   minarea, lutzbuf);
+		   minarea, deblendctx);
   if (status)
     {
       /* formerly, this wasn't a fatal error, so a flag was set for
