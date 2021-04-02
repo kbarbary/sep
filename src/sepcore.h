@@ -77,7 +77,7 @@ typedef void (*array_writer)(const float *ptr, int n, void *target);
   }
 
 float fqmedian(float *ra, int n);
-void put_errdetail(char *errtext);
+void put_errdetail(const char *errtext);
 
 int get_converter(int dtype, converter *f, int *size);
 int get_array_converter(int dtype, array_converter *f, int *size);

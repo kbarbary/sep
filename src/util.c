@@ -308,7 +308,7 @@ void sep_get_errdetail(char *errtext)
   memset(_errdetail_buffer, 0, DETAILSIZE);
 }
 
-void put_errdetail(char *errtext)
+void put_errdetail(const char *errtext)
 {
    strcpy(_errdetail_buffer, errtext);
 
