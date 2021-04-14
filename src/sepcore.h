@@ -46,9 +46,9 @@ typedef float         PIXTYPE;    /* type used inside of functions */
 
 
 /* signature of converters */
-typedef PIXTYPE (*converter)(void *ptr);
-typedef void (*array_converter)(void *ptr, int n, PIXTYPE *target);
-typedef void (*array_writer)(float *ptr, int n, void *target);
+typedef PIXTYPE (*converter)(const void *ptr);
+typedef void (*array_converter)(const void *ptr, int n, PIXTYPE *target);
+typedef void (*array_writer)(const float *ptr, int n, void *target);
 
 #define	QCALLOC(ptr, typ, nel, status)				     	\
   {if (!(ptr = (typ *)calloc((size_t)(nel),sizeof(typ))))		\
@@ -64,7 +64,7 @@ typedef void (*array_writer)(float *ptr, int n, void *target);
   }
 
 #define	QMALLOC(ptr, typ, nel, status)					\
-  {if (!(ptr = (typ *)malloc((size_t)(nel)*sizeof(typ))))		\
+  {if (!(ptr = malloc((size_t)(nel)*sizeof(typ))))		\
       {									\
 	char errtext[160];						\
 	sprintf(errtext, #ptr " (" #nel "=%lu elements) "		\
@@ -77,9 +77,15 @@ typedef void (*array_writer)(float *ptr, int n, void *target);
   }
 
 float fqmedian(float *ra, int n);
-void put_errdetail(char *errtext);
+void put_errdetail(const char *errtext);
 
 int get_converter(int dtype, converter *f, int *size);
 int get_array_converter(int dtype, array_converter *f, int *size);
 int get_array_writer(int dtype, array_writer *f, int *size);
 int get_array_subtractor(int dtype, array_writer *f, int *size);
+
+#if defined(_MSC_VER)
+#define _Thread_local __declspec(thread)
+#define _Atomic // this isn't great, but we only use atomic for global settings
+#define rand_r(SEED) rand() // MSVC doesn't provide rand_r, but makes rand safe for re-entrancy
+#endif

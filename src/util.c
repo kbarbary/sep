@@ -30,24 +30,24 @@ static _Thread_local char _errdetail_buffer[DETAILSIZE] = "";
 /****************************************************************************/
 /* data type conversion mechanics for runtime type conversion */
 
-PIXTYPE convert_dbl(void *ptr)
+PIXTYPE convert_dbl(const void *ptr)
 {
-  return *(double *)ptr;
+  return *(const double *)ptr;
 }
 
-PIXTYPE convert_flt(void *ptr)
+PIXTYPE convert_flt(const void *ptr)
 {
-  return *(float *)ptr;
+  return *(const float *)ptr;
 }
 
-PIXTYPE convert_int(void *ptr)
+PIXTYPE convert_int(const void *ptr)
 {
-  return *(int *)ptr;
+  return *(const int *)ptr;
 }
 
-PIXTYPE convert_byt(void *ptr)
+PIXTYPE convert_byt(const void *ptr)
 {
-  return *(BYTE *)ptr;
+  return *(const BYTE *)ptr;
 }
 
 /* return the correct converter depending on the datatype code */
@@ -85,33 +85,33 @@ int get_converter(int dtype, converter *f, int *size)
 }
 
 /* array conversions */
-void convert_array_flt(void *ptr, int n, PIXTYPE *target)
+void convert_array_flt(const void *ptr, int n, PIXTYPE *target)
 {
-  float *source = (float *)ptr;
+  const float *source = ptr;
   int i;
   for (i=0; i<n; i++, source++)
     target[i] = *source;
 }
 
-void convert_array_dbl(void *ptr, int n, PIXTYPE *target)
+void convert_array_dbl(const void *ptr, int n, PIXTYPE *target)
 {
-  double *source = (double *)ptr;
+  const double *source = ptr;
   int i;
   for (i=0; i<n; i++, source++)
     target[i] = *source;
 }
 
-void convert_array_int(void *ptr, int n, PIXTYPE *target)
+void convert_array_int(const void *ptr, int n, PIXTYPE *target)
 {
-  int *source = (int *)ptr;
+  const int *source = ptr;
   int i;
   for (i=0; i<n; i++, source++)
     target[i] = *source;
 }
 
-void convert_array_byt(void *ptr, int n, PIXTYPE *target)
+void convert_array_byt(const void *ptr, int n, PIXTYPE *target)
 {
-  BYTE *source = (BYTE *)ptr;
+  const BYTE *source = ptr;
   int i;
   for (i=0; i<n; i++, source++)
     target[i] = *source;
@@ -154,17 +154,17 @@ int get_array_converter(int dtype, array_converter *f, int *size)
 /****************************************************************************/
 /* Copy a float array to various sorts of arrays */
 
-void write_array_dbl(float *ptr, int n, void *target)
+void write_array_dbl(const float *ptr, int n, void *target)
 {
-  double *t = (double *)target;
+  double *t = target;
   int i;
   for (i=0; i<n; i++, ptr++)
     t[i] = (double)(*ptr);
 }
 
-void write_array_int(float *ptr, int n, void *target)
+void write_array_int(const float *ptr, int n, void *target)
 {
-  int *t = (int *)target;
+  int *t = target;
   int i;
   for (i=0; i<n; i++, ptr++)
     t[i] = (int)(*ptr+0.5);
@@ -196,25 +196,25 @@ int get_array_writer(int dtype, array_writer *f, int *size)
 
 /* subtract a float array from arrays of various types */
 
-void subtract_array_dbl(float *ptr, int n, void *target)
+void subtract_array_dbl(const float *ptr, int n, void *target)
 {
-  double *t = (double *)target;
+  double *t = target;
   int i;
   for (i=0; i<n; i++, ptr++)
     t[i] -= (double)(*ptr);
 }
 
-void subtract_array_flt(float *ptr, int n, void *target)
+void subtract_array_flt(const float *ptr, int n, void *target)
 {
-  float *t = (float *)target;
+  float *t = target;
   int i;
   for (i=0; i<n; i++, ptr++)
     t[i] -= *ptr;
 }
 
-void subtract_array_int(float *ptr, int n, void *target)
+void subtract_array_int(const float *ptr, int n, void *target)
 {
-  int *t = (int *)target;
+  int *t = target;
   int i;
   for (i=0; i<n; i++, ptr++)
     t[i] -= (int)(*ptr+0.5);
@@ -308,7 +308,7 @@ void sep_get_errdetail(char *errtext)
   memset(_errdetail_buffer, 0, DETAILSIZE);
 }
 
-void put_errdetail(char *errtext)
+void put_errdetail(const char *errtext)
 {
    strcpy(_errdetail_buffer, errtext);
 
@@ -321,8 +321,8 @@ static int fqcmp(const void *p1, const void *p2)
 /* Sorting function for floats, used in fqmedian() below.
  * Return value is 1 if *p1>*p2, 0 if *p1==*p2, -1 otherwise */
 {
-  double f1=*((float *)p1);
-  double f2=*((float *)p2);
+  double f1=*((const float *)p1);
+  double f2=*((const float *)p2);
   return f1>f2? 1 : (f1<f2? -1 : 0);
 }
 
@@ -331,8 +331,6 @@ float fqmedian(float *ra, int n)
  *
  * WARNING: input data are reordered! */
 {
-  int dqcmp(const void *p1, const void *p2);
-
   qsort(ra, n, sizeof(float), fqcmp);
   if (n<2)
     return *ra;

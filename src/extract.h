@@ -35,7 +35,6 @@
 #define	PLIST(ptr, elem)	(((pbliststruct *)(ptr))->elem)
 #define	PLISTEXIST(elem)	(plistexist_##elem)
 #define	PLISTPIX(ptr, elem)	(*((PIXTYPE *)((ptr)+plistoff_##elem)))
-#define	PLISTFLAG(ptr, elem)	(*((FLAGTYPE *)((ptr)+plistoff_##elem)))
 
 /* Extraction status */
 typedef	enum {COMPLETE, INCOMPLETE, NONOBJECT, OBJECT} pixstatus;
@@ -61,7 +60,7 @@ typedef struct
 /* array buffer struct */
 typedef struct
 {
-  BYTE *dptr;         /* pointer to original data, can be any supported type */
+  const BYTE *dptr;         /* pointer to original data, can be any supported type */
   int dtype;          /* data type of original data */
   int dw, dh;         /* original data width, height */
   PIXTYPE *bptr;      /* buffer pointer (self-managed memory) */
@@ -144,7 +143,7 @@ int  lutz(pliststruct *plistin,
 	  int *objrootsubmap, int subx, int suby, int subw,
 	  objstruct *objparent, objliststruct *objlist, int minarea);
 
-void update(infostruct *, infostruct *, const pliststruct *);
+void update(infostruct *, infostruct *, pliststruct *);
 
 int  allocdeblend(int);
 void freedeblend(void);
