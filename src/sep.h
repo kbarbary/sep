@@ -66,10 +66,10 @@
  * gain.
  */
 typedef struct {
-  void *data;        /* data array                */
-  void *noise;       /* noise array (can be NULL) */
-  void *mask;        /* mask array (can be NULL)  */
-  void *segmap;      /* segmap array (can be NULL)  */
+  const void *data;  /* data array                */
+  const void *noise; /* noise array (can be NULL) */
+  const void *mask;  /* mask array (can be NULL)  */
+  const void *segmap;/* segmap array (can be NULL)  */
   int dtype;         /* element type of image     */
   int ndtype;        /* element type of noise     */
   int mdtype;        /* element type of mask      */
@@ -160,8 +160,8 @@ SEP_API int sep_background(const sep_image *image,
  *
  * Get the estimate of the global background "median" or standard deviation.
  */
-SEP_API float sep_bkg_global(sep_bkg *bkg);
-SEP_API float sep_bkg_globalrms(sep_bkg *bkg);
+SEP_API float sep_bkg_global(const sep_bkg *bkg);
+SEP_API float sep_bkg_globalrms(const sep_bkg *bkg);
 
 
 /* sep_bkg_pix()
@@ -169,7 +169,7 @@ SEP_API float sep_bkg_globalrms(sep_bkg *bkg);
  * Return background at (x, y).
  * Unlike other routines, this uses simple linear interpolation.
  */
-SEP_API float sep_bkg_pix(sep_bkg *bkg, int x, int y);
+SEP_API float sep_bkg_pix(const sep_bkg *bkg, int x, int y);
 
 
 /* sep_bkg_[sub,rms]line()
@@ -179,9 +179,9 @@ SEP_API float sep_bkg_pix(sep_bkg *bkg, int x, int y);
  * The second function subtracts the background from the input array.
  * Line must be an array with same width as original image.
  */
-SEP_API int sep_bkg_line(sep_bkg *bkg, int y, void *line, int dtype);
-SEP_API int sep_bkg_subline(sep_bkg *bkg, int y, void *line, int dtype);
-SEP_API int sep_bkg_rmsline(sep_bkg *bkg, int y, void *line, int dtype);
+SEP_API int sep_bkg_line(const sep_bkg *bkg, int y, void *line, int dtype);
+SEP_API int sep_bkg_subline(const sep_bkg *bkg, int y, void *line, int dtype);
+SEP_API int sep_bkg_rmsline(const sep_bkg *bkg, int y, void *line, int dtype);
 
 
 /* sep_bkg_[sub,rms]array()
@@ -191,9 +191,9 @@ SEP_API int sep_bkg_rmsline(sep_bkg *bkg, int y, void *line, int dtype);
  * The second function subtracts the background from the input array.
  * `arr` must be an array of the same size as original image.
  */
-SEP_API int sep_bkg_array(sep_bkg *bkg, void *arr, int dtype);
-SEP_API int sep_bkg_subarray(sep_bkg *bkg, void *arr, int dtype);
-SEP_API int sep_bkg_rmsarray(sep_bkg *bkg, void *arr, int dtype);
+SEP_API int sep_bkg_array(const sep_bkg *bkg, void *arr, int dtype);
+SEP_API int sep_bkg_subarray(const sep_bkg *bkg, void *arr, int dtype);
+SEP_API int sep_bkg_rmsarray(const sep_bkg *bkg, void *arr, int dtype);
 
 /* sep_bkg_free()
  *

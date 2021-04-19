@@ -61,10 +61,10 @@ DEF MEMORY_ALLOC_ERROR = 1
 cdef extern from "sep.h":
 
     ctypedef struct sep_image:
-        void *data
-        void *noise
-        void *mask
-        void *segmap
+        const void *data
+        const void *noise
+        const void *mask
+        const void *segmap
         int dtype
         int ndtype
         int mdtype
@@ -117,20 +117,20 @@ cdef extern from "sep.h":
         int    **pix
         int    *objectspix
 
-    int sep_background(sep_image *im,
+    int sep_background(const sep_image *im,
                        int bw, int bh,
                        int fw, int fh,
                        double fthresh,
                        sep_bkg **bkg)
 
-    float sep_bkg_global(sep_bkg *bkg)
-    float sep_bkg_globalrms(sep_bkg *bkg)
-    int sep_bkg_array(sep_bkg *bkg, void *arr, int dtype)
-    int sep_bkg_rmsarray(sep_bkg *bkg, void *arr, int dtype)
-    int sep_bkg_subarray(sep_bkg *bkg, void *arr, int dtype)
+    float sep_bkg_global(const sep_bkg *bkg)
+    float sep_bkg_globalrms(const sep_bkg *bkg)
+    int sep_bkg_array(const sep_bkg *bkg, void *arr, int dtype)
+    int sep_bkg_rmsarray(const sep_bkg *bkg, void *arr, int dtype)
+    int sep_bkg_subarray(const sep_bkg *bkg, void *arr, int dtype)
     void sep_bkg_free(sep_bkg *bkg)
 
-    int sep_extract(sep_image *image,
+    int sep_extract(const sep_image *image,
                     float thresh,
                     int thresh_type,
                     int minarea,
@@ -145,23 +145,23 @@ cdef extern from "sep.h":
 
     void sep_catalog_free(sep_catalog *catalog)
 
-    int sep_sum_circle(sep_image *image,
+    int sep_sum_circle(const sep_image *image,
                        double x, double y, double r,
                        int id, int subpix, short inflags,
                        double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_sum_circann(sep_image *image,
+    int sep_sum_circann(const sep_image *image,
                         double x, double y, double rin, double rout,
                         int id, int subpix, short inflags,
                         double *sum, double *sumerr, double *area, short *flag)
 
-    int sep_sum_ellipse(sep_image *image,
+    int sep_sum_ellipse(const sep_image *image,
                         double x, double y, double a, double b, double theta,
                         double r, int id, int subpix, short inflags,
                         double *sum, double *sumerr, double *area,
                         short *flag)
 
-    int sep_sum_ellipann(sep_image *image,
+    int sep_sum_ellipann(const sep_image *image,
                          double x, double y, double a, double b,
                          double theta, double rin, double rout,
                          int id, int subpix,
@@ -169,18 +169,18 @@ cdef extern from "sep.h":
                          double *sum, double *sumerr, double *area,
                          short *flag)
 
-    int sep_flux_radius(sep_image *image,
+    int sep_flux_radius(const sep_image *image,
                         double x, double y, double rmax, int id, int subpix,
                         short inflag,
                         double *fluxtot, double *fluxfrac, int n,
                         double *r, short *flag)
 
-    int sep_kron_radius(sep_image *image,
+    int sep_kron_radius(const sep_image *image,
                         double x, double y, double cxx, double cyy,
                         double cxy, double r, int id,
                         double *kronrad, short *flag)
 
-    int sep_windowed(sep_image *image,
+    int sep_windowed(const sep_image *image,
                      double x, double y, double sig, int subpix, short inflag,
                      double *xout, double *yout, int *niter, short *flag)
 

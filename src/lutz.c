@@ -138,7 +138,7 @@ int lutz(pliststruct *plistin,
   /*------Allocate memory to store object data */
   free(objlist->obj);
 
-  if (!(obj=objlist->obj=(objstruct *)malloc(nobjm*sizeof(objstruct))))
+  if (!(obj=objlist->obj=malloc(nobjm*sizeof(objstruct))))
     {
       out = MEMORY_ALLOC_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
@@ -148,7 +148,7 @@ int lutz(pliststruct *plistin,
   /*------Allocate memory for the pixel list */
   free(objlist->plist);
   if (!(objlist->plist
-	= (pliststruct *)malloc((eny-sty)*(enx-stx)*plistsize)))
+	= malloc((eny-sty)*(enx-stx)*plistsize)))
     {
       out = MEMORY_ALLOC_ERROR;
       plist = NULL;			/* To avoid gcc -Wall warnings */
@@ -314,7 +314,7 @@ int lutz(pliststruct *plistin,
   if (objlist->nobj && out == RETURN_OK)
     {
       if (!(objlist->obj=
-	    (objstruct *)realloc(obj, objlist->nobj*sizeof(objstruct))))
+	    realloc(obj, objlist->nobj*sizeof(objstruct))))
 	out = MEMORY_ALLOC_ERROR;
     }
   else
@@ -325,7 +325,7 @@ int lutz(pliststruct *plistin,
 
   if (cn && out == RETURN_OK)
     {
-      if (!(objlist->plist=(pliststruct *)realloc(plist,cn)))
+      if (!(objlist->plist=realloc(plist,cn)))
 	out = MEMORY_ALLOC_ERROR;
     }
   else
@@ -360,7 +360,7 @@ void  lutzsort(infostruct *info, objliststruct *objlist)
 /*
 update object's properties each time one of its pixels is scanned by lutz()
 */
-void  update(infostruct *infoptr1, infostruct *infoptr2, const pliststruct *pixel)
+void  update(infostruct *infoptr1, infostruct *infoptr2, pliststruct *pixel)
 {
   infoptr1->pixnb += infoptr2->pixnb;
   infoptr1->flag |= infoptr2->flag;

@@ -54,7 +54,7 @@ int analysemthresh(int objnb, objliststruct *objlist, int minarea,
       return status;
     }
 
-  QMALLOC(heap, float, minarea, status);
+  QCALLOC(heap, float, minarea, status);
   heapt = heap;
 
   /*-- Find the minareath pixel in decreasing intensity for CLEANing */

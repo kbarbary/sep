@@ -61,7 +61,7 @@ void clean(objliststruct *objlist, double clean_param, int *survives);
 int convert_to_catalog(objliststruct *objlist, const int *survives,
                        sep_catalog *cat, int w, int include_pixels);
 
-int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
+int arraybuffer_init(arraybuffer *buf, const void *arr, int dtype, int w, int h,
                      int bufw, int bufh);
 void arraybuffer_readline(arraybuffer *buf);
 void arraybuffer_free(arraybuffer *buf);
@@ -70,7 +70,7 @@ void arraybuffer_free(arraybuffer *buf);
 
 /* initialize buffer */
 /* bufw must be less than or equal to w */
-int arraybuffer_init(arraybuffer *buf, void *arr, int dtype, int w, int h,
+int arraybuffer_init(arraybuffer *buf, const void *arr, int dtype, int w, int h,
                      int bufw, int bufh)
 {
   int status, yl;
@@ -529,7 +529,7 @@ int sep_extract(const sep_image *image, float thresh, int thresh_type,
 		  oldnposize = nposize;
  		  mem_pixstack = (int)(mem_pixstack * 2);
 		  nposize = mem_pixstack * plistsize;
-		  pixel = (pliststruct *)realloc(pixel, nposize);
+		  pixel = realloc(pixel, nposize);
 		  objlist.plist = pixel;
 		  if (!pixel)
 		    {
@@ -832,10 +832,10 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
 
   /* Allocate space in `objl2` for the new object */
   if (objnb2)
-    objl2obj = (objstruct *)realloc(objl2->obj,
+    objl2obj = realloc(objl2->obj,
 				    (++objl2->nobj)*sizeof(objstruct));
   else
-    objl2obj = (objstruct *)malloc((++objl2->nobj)*sizeof(objstruct));
+    objl2obj = malloc((++objl2->nobj)*sizeof(objstruct));
 
   if (!objl2obj)
     goto earlyexit;
@@ -844,9 +844,9 @@ int addobjdeep(int objnb, objliststruct *objl1, objliststruct *objl2)
   /* Allocate space for the new object's pixels in 2nd list's plist */
   npx = objl1->obj[objnb].fdnpix;
   if (fp)
-    plist2 = (pliststruct *)realloc(plist2, (objl2->npix+=npx)*plistsize);
+    plist2 = realloc(plist2, (objl2->npix+=npx)*plistsize);
   else
-    plist2 = (pliststruct *)malloc((objl2->npix=npx)*plistsize);
+    plist2 = malloc((objl2->npix=npx)*plistsize);
 
   if (!plist2)
     goto earlyexit;
