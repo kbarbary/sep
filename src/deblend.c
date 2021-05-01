@@ -51,9 +51,6 @@ int belong(int, objliststruct *, int, objliststruct *);
 int *createsubmap(objliststruct *, int, int *, int *, int *, int *);
 int gatherup(objliststruct *, objliststruct *);
 
-static _Thread_local objliststruct *objlist=NULL;
-static _Thread_local short	     *son=NULL, *ok=NULL;
-
 /******************************** deblend ************************************/
 /*
 Divide a list of isophotal detections in several parts (deblending).
@@ -63,7 +60,8 @@ NOTE: Even if the object is not deblended, the output objlist threshold is
 This can return two error codes: DEBLEND_OVERFLOW or MEMORY_ALLOC_ERROR
 */
 int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
-	    int deblend_nthresh, double deblend_mincont, int minarea)
+	    int deblend_nthresh, double deblend_mincont, int minarea,
+	    deblendctx *ctx)
 {
   objstruct		*obj;
   objliststruct	debobjlist, debobjlist2;
@@ -79,6 +77,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
   xn = deblend_nthresh;
 
   /* reset global static objlist for deblending */
+  objliststruct *const objlist = ctx->objlist;
   memset(objlist, 0, (size_t)xn*sizeof(objliststruct));
 
   /* initialize local object lists */
@@ -109,7 +108,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
     goto exit;
 
   value0 = objlist[0].obj[0].fdflux*deblend_mincont;
-  ok[0] = (short)1;
+  ctx->ok[0] = (short)1;
   for (k=1; k<xn; k++)
     {
       /*------ Calculate threshold */
@@ -127,7 +126,7 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       for (i=0; i<objlist[k-1].nobj; i++)
 	{
 	  status = lutz(objlistin->plist, submap, subx, suby, subw,
-			&objlist[k-1].obj[i], &debobjlist, minarea);
+			&objlist[k-1].obj[i], &debobjlist, minarea, &ctx->lutz);
 	  if (status != RETURN_OK)
 	    goto exit;
 
@@ -145,16 +144,16 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		    goto exit;
 		  }
 		if (h>=nbm-1)
-		  if (!(son = (short *)
-			realloc(son,xn*nsonmax*(nbm+=16)*sizeof(short))))
+		  if (!(ctx->son = (short *)
+			realloc(ctx->son,xn*nsonmax*(nbm+=16)*sizeof(short))))
 		    {
 		      status = MEMORY_ALLOC_ERROR;
 		      goto exit;
 		    }
-		son[k-1+xn*(i+nsonmax*(h++))] = (short)m;
-		ok[k+xn*m] = (short)1;
+		ctx->son[k-1+xn*(i+nsonmax*(h++))] = (short)m;
+		ctx->ok[k+xn*m] = (short)1;
 	      }
-	  son[k-1+xn*(i+nsonmax*h)] = (short)-1;
+	  ctx->son[k-1+xn*(i+nsonmax*h)] = (short)-1;
 	}
     }
 
@@ -164,16 +163,16 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       obj = objlist[k+1].obj;
       for (i=0; i<objlist[k].nobj; i++)
 	{
-	  for (m=h=0; (j=(int)son[k+xn*(i+nsonmax*h)])!=-1; h++)
+	  for (m=h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
 	    {
 	      if (obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		m++;
-	      ok[k+xn*i] &= ok[k+1+xn*j];
+	      ctx->ok[k+xn*i] &= ctx->ok[k+1+xn*j];
 	    }
 	  if (m>1)
 	    {
-	      for (h=0; (j=(int)son[k+xn*(i+nsonmax*h)])!=-1; h++)
-		if (ok[k+1+xn*j] &&
+	      for (h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
+		if (ctx->ok[k+1+xn*j] &&
 		    obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
 		  {
 		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED;
@@ -181,12 +180,12 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 		    if (status != RETURN_OK)
 		      goto exit;
 		  }
-	      ok[k+xn*i] = (short)0;
+	      ctx->ok[k+xn*i] = (short)0;
 	    }
 	}
     }
 
-  if (ok[0])
+  if (ctx->ok[0])
     status = addobjdeep(0, &debobjlist2, objlistout);
   else
     status = gatherup(&debobjlist2, objlistout);
@@ -219,16 +218,20 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
 /*
 Allocate the memory allocated by global pointers in refine.c
 */
-int allocdeblend(int deblend_nthresh)
+int allocdeblend(int deblend_nthresh, int w, int h, deblendctx *ctx)
 {
   int status=RETURN_OK;
-  QMALLOC(son, short,  deblend_nthresh*nsonmax*NBRANCH, status);
-  QMALLOC(ok, short,  deblend_nthresh*nsonmax, status);
-  QMALLOC(objlist, objliststruct, deblend_nthresh, status);
+  memset(ctx, 0, sizeof(deblendctx));
+  QMALLOC(ctx->son, short,  deblend_nthresh*nsonmax*NBRANCH, status);
+  QMALLOC(ctx->ok, short,  deblend_nthresh*nsonmax, status);
+  QMALLOC(ctx->objlist, objliststruct, deblend_nthresh, status);
+  status = lutzalloc(w, h, &ctx->lutz);
+  if (status != RETURN_OK)
+    goto exit;
 
   return status;
  exit:
-  freedeblend();
+  freedeblend(ctx);
   return status;
 }
 
@@ -236,14 +239,15 @@ int allocdeblend(int deblend_nthresh)
 /*
 Free the memory allocated by global pointers in refine.c
 */
-void freedeblend(void)
+void freedeblend(deblendctx *ctx)
 {
-  free(son);
-  son = NULL;
-  free(ok);
-  ok = NULL;
-  free(objlist);
-  objlist = NULL;
+  lutzfree(&ctx->lutz);
+  free(ctx->son);
+  ctx->son = NULL;
+  free(ctx->ok);
+  ctx->ok = NULL;
+  free(ctx->objlist);
+  ctx->objlist = NULL;
 }
 
 /********************************* gatherup **********************************/

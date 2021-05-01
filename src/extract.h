@@ -137,17 +137,32 @@ int analysemthresh(int objnb, objliststruct *objlist, int minarea,
 void preanalyse(int, objliststruct *);
 void analyse(int, objliststruct *, int, double);
 
-int  lutzalloc(int, int);
-void lutzfree(void);
+typedef struct {
+	infostruct  *info, *store;
+	char	   *marker;
+	pixstatus   *psstack;
+	int         *start, *end, *discan;
+	int         xmin, ymin, xmax, ymax;
+} lutzbuffers;
+
+int  lutzalloc(int, int, lutzbuffers *);
+void lutzfree(lutzbuffers *);
 int  lutz(pliststruct *plistin,
 	  int *objrootsubmap, int subx, int suby, int subw,
-	  objstruct *objparent, objliststruct *objlist, int minarea);
+	  objstruct *objparent, objliststruct *objlist, int minarea,
+	  lutzbuffers *buffers);
 
 void update(infostruct *, infostruct *, pliststruct *);
 
-int  allocdeblend(int);
-void freedeblend(void);
-int  deblend(objliststruct *, int, objliststruct *, int, double, int);
+typedef struct {
+	objliststruct *objlist;
+	short *son, *ok;
+	lutzbuffers lutz;
+} deblendctx;
+
+int  allocdeblend(int deblend_nthresh, int w, int h, deblendctx *);
+void freedeblend(deblendctx *);
+int  deblend(objliststruct *, int, objliststruct *, int, double, int, deblendctx *);
 
 /*int addobjshallow(objstruct *, objliststruct *);
 int rmobjshallow(int, objliststruct *);
