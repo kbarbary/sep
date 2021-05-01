@@ -1,5 +1,5 @@
-unreleased
-==========
+v1.2.0 (1 May 2021)
+===================
 
 * Changed `numpy.float` and `numpy.int` types for deprecations in numpy 1.20 (#96).
 
