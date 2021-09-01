@@ -776,7 +776,7 @@ int sortit(infostruct *info, objliststruct *objlist, int minarea,
 
   preanalyse(0, objlist);
 
-  status = deblend(objlist, 0, &objlistout, deblend_nthresh, deblend_mincont,
+  status = deblend(objlist, &objlistout, deblend_nthresh, deblend_mincont,
 		   minarea, deblendctx);
   if (status)
     {

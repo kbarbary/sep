@@ -59,14 +59,14 @@ NOTE: Even if the object is not deblended, the output objlist threshold is
 
 This can return two error codes: DEBLEND_OVERFLOW or MEMORY_ALLOC_ERROR
 */
-int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
+int deblend(objliststruct *objlistin, objliststruct *objlistout,
 	    int deblend_nthresh, double deblend_mincont, int minarea,
 	    deblendctx *ctx)
 {
   objstruct		*obj;
   objliststruct	debobjlist, debobjlist2;
   double		thresh, thresh0, value0;
-  int			h,i,j,k,m,subx,suby,subh,subw,
+  int			h,i,j,k,l,m,subx,suby,subh,subw,
                         xn,
 			nbm = NBRANCH,
 			status;
@@ -96,100 +96,102 @@ int deblend(objliststruct *objlistin, int l, objliststruct *objlistout,
       status = MEMORY_ALLOC_ERROR;
       goto exit;
     }
-
-  /* set thresholds of object lists based on object threshold */
-  thresh0 = objlistin->obj[l].thresh;
-  objlistout->thresh = debobjlist2.thresh = thresh0;
-
-  /* add input object to global deblending objlist and one local objlist */
-  if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
-    goto exit;
-  if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
-    goto exit;
-
-  value0 = objlist[0].obj[0].fdflux*deblend_mincont;
-  ctx->ok[0] = (short)1;
-  for (k=1; k<xn; k++)
+  for (l=0; l<objlistin->nobj && status == RETURN_OK; l++)
     {
-      /*------ Calculate threshold */
-      thresh = objlistin->obj[l].fdpeak;
-      debobjlist.thresh = thresh > 0.0?
-	thresh0*pow(thresh/thresh0,(double)k/xn) : thresh0;
+      /* set thresholds of object lists based on object threshold */
+      thresh0 = objlistin->obj[l].thresh;
+      objlistout->thresh = debobjlist2.thresh = thresh0;
 
-      /*--------- Build tree (bottom->up) */
-      if (objlist[k-1].nobj>=nsonmax)
-	{
-	  status = DEBLEND_OVERFLOW;
-	  goto exit;
-	}
+      /* add input object to global deblending objlist and one local objlist */
+      if ((status = addobjdeep(l, objlistin, &objlist[0])) != RETURN_OK)
+        goto exit;
+      if ((status = addobjdeep(l, objlistin, &debobjlist2)) != RETURN_OK)
+        goto exit;
 
-      for (i=0; i<objlist[k-1].nobj; i++)
-	{
-	  status = lutz(objlistin->plist, submap, subx, suby, subw,
-			&objlist[k-1].obj[i], &debobjlist, minarea, &ctx->lutz);
-	  if (status != RETURN_OK)
-	    goto exit;
+      value0 = objlist[0].obj[0].fdflux*deblend_mincont;
+      ctx->ok[0] = (short)1;
+      for (k=1; k<xn; k++)
+        {
+          /*------ Calculate threshold */
+          thresh = objlistin->obj[l].fdpeak;
+          debobjlist.thresh = thresh > 0.0?
+        thresh0*pow(thresh/thresh0,(double)k/xn) : thresh0;
 
-	  for (j=h=0; j<debobjlist.nobj; j++)
-	    if (belong(j, &debobjlist, i, &objlist[k-1]))
-	      {
-		debobjlist.obj[j].thresh = debobjlist.thresh;
-		if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
-		    != RETURN_OK)
-		  goto exit;
-		m = objlist[k].nobj - 1;
-		if (m>=nsonmax)
-		  {
-		    status = DEBLEND_OVERFLOW;
-		    goto exit;
-		  }
-		if (h>=nbm-1)
-		  if (!(ctx->son = (short *)
-			realloc(ctx->son,xn*nsonmax*(nbm+=16)*sizeof(short))))
-		    {
-		      status = MEMORY_ALLOC_ERROR;
-		      goto exit;
-		    }
-		ctx->son[k-1+xn*(i+nsonmax*(h++))] = (short)m;
-		ctx->ok[k+xn*m] = (short)1;
-	      }
-	  ctx->son[k-1+xn*(i+nsonmax*h)] = (short)-1;
-	}
-    }
+          /*--------- Build tree (bottom->up) */
+          if (objlist[k-1].nobj>=nsonmax)
+        {
+          status = DEBLEND_OVERFLOW;
+          goto exit;
+        }
 
-  /*------- cut the right branches (top->down) */
-  for (k = xn-2; k>=0; k--)
-    {
-      obj = objlist[k+1].obj;
-      for (i=0; i<objlist[k].nobj; i++)
-	{
-	  for (m=h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
-	    {
-	      if (obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
-		m++;
-	      ctx->ok[k+xn*i] &= ctx->ok[k+1+xn*j];
-	    }
-	  if (m>1)
-	    {
-	      for (h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
-		if (ctx->ok[k+1+xn*j] &&
-		    obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
-		  {
-		    objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED;
-		    status = addobjdeep(j, &objlist[k+1], &debobjlist2);
-		    if (status != RETURN_OK)
-		      goto exit;
-		  }
-	      ctx->ok[k+xn*i] = (short)0;
-	    }
-	}
-    }
+          for (i=0; i<objlist[k-1].nobj; i++)
+        {
+          status = lutz(objlistin->plist, submap, subx, suby, subw,
+                &objlist[k-1].obj[i], &debobjlist, minarea, &ctx->lutz);
+          if (status != RETURN_OK)
+            goto exit;
 
-  if (ctx->ok[0])
-    status = addobjdeep(0, &debobjlist2, objlistout);
-  else
-    status = gatherup(&debobjlist2, objlistout);
+          for (j=h=0; j<debobjlist.nobj; j++)
+            if (belong(j, &debobjlist, i, &objlist[k-1]))
+              {
+            debobjlist.obj[j].thresh = debobjlist.thresh;
+            if ((status = addobjdeep(j, &debobjlist, &objlist[k]))
+                != RETURN_OK)
+              goto exit;
+            m = objlist[k].nobj - 1;
+            if (m>=nsonmax)
+              {
+                status = DEBLEND_OVERFLOW;
+                goto exit;
+              }
+            if (h>=nbm-1)
+              if (!(ctx->son = (short *)
+                realloc(ctx->son,xn*nsonmax*(nbm+=16)*sizeof(short))))
+                {
+                  status = MEMORY_ALLOC_ERROR;
+                  goto exit;
+                }
+            ctx->son[k-1+xn*(i+nsonmax*(h++))] = (short)m;
+            ctx->ok[k+xn*m] = (short)1;
+              }
+          ctx->son[k-1+xn*(i+nsonmax*h)] = (short)-1;
+        }
+        }
 
+      /*------- cut the right branches (top->down) */
+      for (k = xn-2; k>=0; k--)
+        {
+          obj = objlist[k+1].obj;
+          for (i=0; i<objlist[k].nobj; i++)
+        {
+          for (m=h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
+            {
+              if (obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
+            m++;
+              ctx->ok[k+xn*i] &= ctx->ok[k+1+xn*j];
+            }
+          if (m>1)
+            {
+              for (h=0; (j=(int)ctx->son[k+xn*(i+nsonmax*h)])!=-1; h++)
+            if (ctx->ok[k+1+xn*j] &&
+                obj[j].fdflux - obj[j].thresh * obj[j].fdnpix > value0)
+              {
+                objlist[k+1].obj[j].flag |= SEP_OBJ_MERGED;
+                status = addobjdeep(j, &objlist[k+1], &debobjlist2);
+                if (status != RETURN_OK)
+                  goto exit;
+              }
+              ctx->ok[k+xn*i] = (short)0;
+            }
+        }
+        }
+
+      if (ctx->ok[0])
+        status = addobjdeep(0, &debobjlist2, objlistout);
+      else
+        status = gatherup(&debobjlist2, objlistout);
+
+  }
  exit:
   if (status == DEBLEND_OVERFLOW)
     put_errdetail("limit of sub-objects reached while deblending. Increase "
