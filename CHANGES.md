@@ -1,3 +1,8 @@
+v1.2.1 (1 June 2022)
+====================
+
+* Same as v1.2.0 but with new wheels for Python 3.10 and AArch64.
+
 v1.2.0 (1 May 2021)
 ===================
 
