@@ -99,7 +99,7 @@ for ntile in [4]:
             try:
                 bkg = photutils.Background(data, (64, 64))  # estimate background
             except AttributeError:
-                bkg = photutils.Background2D(data, (64, 64))  # estimate background
+                bkg = photutils.background.Background2D(data, (64, 64))  # estimate background
         t1 = time.time()
         t_pu = (t1-t0) * 1.e3 / nloop
         line += "      {0:7.2f} ms | {1:6.2f} |".format(t_pu, t_pu/t_sep)
@@ -142,10 +142,10 @@ for r in r_list:
         line += " {0:7.2f} us/aper |".format(t_sep)
 
         if HAVE_PHOTUTILS:
-            apertures = photutils.CircularAperture((x, y), r)
+            apertures = photutils.aperture.CircularAperture(np.array((x, y)).T, r)
             t0 = time.time()
             for _ in range(0, nloop):
-                res = photutils.aperture_photometry(
+                res = photutils.aperture.aperture_photometry(
                     data, apertures, method=method, subpixels=subpix)
             t1 = time.time()
             t_pu = (t1-t0) * 1.e6 / naper / nloop
@@ -173,10 +173,10 @@ for r in r_list:
         line += " {0:7.2f} us/aper |".format(t_sep)
 
         if HAVE_PHOTUTILS:
-            apertures = photutils.EllipticalAperture((x, y), a*r, b*r, theta)
+            apertures = photutils.aperture.EllipticalAperture(np.array((x, y)).T, a*r, b*r, theta)
             t0 = time.time()
             for _ in range(0, nloop):
-                res = photutils.aperture_photometry(
+                res = photutils.aperture.aperture_photometry(
                     data, apertures, method=method, subpixels=subpix)
             t1 = time.time()
             t_pu = (t1-t0) * 1.e6 / naper / nloop
