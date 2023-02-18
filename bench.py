@@ -87,7 +87,7 @@ for ntile in [4]:
     line = "| {0:4d}^2 image background |".format(data.shape[0])
 
     t0 = time.time()
-    for _ in xrange(0, nloop):
+    for _ in range(0, nloop):
         bkg = sep.Background(data)
     t1 = time.time()
     t_sep = (t1-t0) * 1.e3 / nloop
@@ -95,7 +95,7 @@ for ntile in [4]:
 
     if HAVE_PHOTUTILS:
         t0 = time.time()
-        for _ in xrange(0, nloop):
+        for _ in range(0, nloop):
             try:
                 bkg = photutils.Background(data, (64, 64))  # estimate background
             except AttributeError:
@@ -135,7 +135,7 @@ for r in r_list:
         line = "| circles  r={0:2d}  {1:8s} |".format(int(r), label)
 
         t0 = time.time()
-        for _ in xrange(0, nloop):
+        for _ in range(0, nloop):
             flux, fluxerr, flag = sep.sum_circle(data, x, y, r, subpix=subpix)
         t1 = time.time()
         t_sep = (t1-t0) * 1.e6 / naper / nloop
@@ -144,7 +144,7 @@ for r in r_list:
         if HAVE_PHOTUTILS:
             apertures = photutils.CircularAperture((x, y), r)
             t0 = time.time()
-            for _ in xrange(0, nloop):
+            for _ in range(0, nloop):
                 res = photutils.aperture_photometry(
                     data, apertures, method=method, subpixels=subpix)
             t1 = time.time()
@@ -165,7 +165,7 @@ for r in r_list:
         line = "| ellipses r={0:2d}  {1:8s} |".format(int(r), label)
 
         t0 = time.time()
-        for _ in xrange(0, nloop):
+        for _ in range(0, nloop):
             flux, fluxerr, flag = sep.sum_ellipse(data, x, y, a, b, theta, r,
                                                 subpix=subpix)
         t1 = time.time()
@@ -175,7 +175,7 @@ for r in r_list:
         if HAVE_PHOTUTILS:
             apertures = photutils.EllipticalAperture((x, y), a*r, b*r, theta)
             t0 = time.time()
-            for _ in xrange(0, nloop):
+            for _ in range(0, nloop):
                 res = photutils.aperture_photometry(
                     data, apertures, method=method, subpixels=subpix)
             t1 = time.time()
