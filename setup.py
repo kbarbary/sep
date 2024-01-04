@@ -50,15 +50,15 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research"]
 
-setup(name="sep",
+setup(name="sep_mw4",
       version=version,
       description=description,
       long_description=long_description,
       license="LGPLv3+",
       classifiers=classifiers,
       url="https://github.com/kbarbary/sep",
-      author="Kyle Barbary",
-      author_email="kylebarbary@gmail.com",
+      author="Michael Wuertenberger",
+      author_email="michael@wuertenberger.org",
       python_requires='>=3.5',
       install_requires=['numpy'],
       ext_modules=extensions)
