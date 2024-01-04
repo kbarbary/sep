@@ -164,7 +164,10 @@ jobs:
 
     runs-on: [ubuntu-latest]
     needs: [build_wheels, build_sdist]
-
+    environment: release
+    permissions:
+      id-token: write
+    
     # upload to PyPI on every tag starting with 'v'
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
 
@@ -181,4 +184,4 @@ jobs:
     - name: upload_to_pypi
       uses: pypa/gh-action-pypi-publish@v1.8.10
       with:
-        skip_existing: true
+        skip-existing: true
