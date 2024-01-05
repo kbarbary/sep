@@ -10,7 +10,7 @@ from setuptools.dist import Distribution
 from setuptools.extension import Extension
 
 # Synchronize version from code.
-fname = "sep.pyx"
+fname = "sep_mw4.pyx"
 version = re.findall(r"__version__ = \"(.*?)\"", open(fname).read())[0]
 
 # Detect if setup.py is being run with an argument that doesn't require
