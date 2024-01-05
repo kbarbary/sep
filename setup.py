@@ -40,7 +40,7 @@ else:
 
 
 description = "Astronomical source extraction and photometry library"
-long_description = "http://sep.readthedocs.org"
+long_description = "http://sep_mw4.readthedocs.org"
 
 classifiers = [
     "Development Status :: 5 - Production/Stable",
