@@ -33,7 +33,7 @@ else:
     sourcefiles = [fname] + glob(os.path.join("src", "*.c"))
     headerfiles = glob(os.path.join("src", "*.h"))
     include_dirs = [numpy.get_include(), "src"]
-    extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
+    extensions = [Extension("sep_mw4", sourcefiles, include_dirs=include_dirs,
                             depends=headerfiles, define_macros=[("_USE_MATH_DEFINES", "1")])]
     extensions = cythonize(extensions)
 
