@@ -10,7 +10,7 @@ from setuptools.dist import Distribution
 from setuptools.extension import Extension
 
 # Synchronize version from code.
-fname = "sep.pyx"
+fname = "sep_mw4.pyx"
 version = re.findall(r"__version__ = \"(.*?)\"", open(fname).read())[0]
 
 # Detect if setup.py is being run with an argument that doesn't require
@@ -33,14 +33,14 @@ else:
     sourcefiles = [fname] + glob(os.path.join("src", "*.c"))
     headerfiles = glob(os.path.join("src", "*.h"))
     include_dirs = [numpy.get_include(), "src"]
-    extensions = [Extension("sep", sourcefiles, include_dirs=include_dirs,
+    extensions = [Extension("sep_mw4", sourcefiles, include_dirs=include_dirs,
                             depends=headerfiles, define_macros=[("_USE_MATH_DEFINES", "1")])]
     extensions = cythonize(extensions)
 
 
 
 description = "Astronomical source extraction and photometry library"
-long_description = "http://sep.readthedocs.org"
+long_description = "http://sep_mw4.readthedocs.org"
 
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -50,15 +50,15 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Astronomy",
     "Intended Audience :: Science/Research"]
 
-setup(name="sep",
+setup(name="sep_mw4",
       version=version,
       description=description,
       long_description=long_description,
       license="LGPLv3+",
       classifiers=classifiers,
-      url="https://github.com/kbarbary/sep",
-      author="Kyle Barbary",
-      author_email="kylebarbary@gmail.com",
+      url="https://github.com/mworion/sep_mw4",
+      author="Michael Wuertenberger",
+      author_email="michael@wuertenberger.org",
       python_requires='>=3.5',
       install_requires=['numpy'],
       ext_modules=extensions)
