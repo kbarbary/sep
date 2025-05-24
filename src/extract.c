@@ -1293,8 +1293,6 @@ int convert_to_catalog(
   QMALLOC(cat->ycpeak, int64_t, nobj, status);
   QMALLOC(cat->xpeak, int64_t, nobj, status);
   QMALLOC(cat->ypeak, int64_t, nobj, status);
-  QMALLOC(cat->cflux, float, nobj, status);
-  QMALLOC(cat->flux, float, nobj, status);
   QMALLOC(cat->flag, short, nobj, status);
 
   /* fill output arrays */
