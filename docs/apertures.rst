@@ -12,6 +12,10 @@ Function                Sums data within...
 `sep.sum_ellipann`  elliptical annulus/annuli
 ==================  =========================
 
+
+The `~sep.stats_circann` function computes statistics in circular annuli,
+including a sigma-clipped mean and robust scatter estimates.
+
 The follow examples demonstrate options for circular aperture
 photometry. The other functions behave similarly.
 

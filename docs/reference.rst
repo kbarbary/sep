@@ -17,6 +17,7 @@ Reference/API
 
    sep.sum_circle
    sep.sum_circann
+   sep.stats_circann
    sep.sum_ellipse
    sep.sum_ellipann
 

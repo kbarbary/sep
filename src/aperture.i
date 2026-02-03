@@ -46,9 +46,15 @@ int APER_NAME(
   errort = im->noise;
   *flag = 0;
   varpix = 0.0;
-  scale = 1.0 / subpix;
-  scale2 = scale * scale;
-  offset = 0.5 * (scale - 1.0);
+  if (subpix > 0) {
+    scale = 1.0 / subpix;
+    scale2 = scale * scale;
+    offset = 0.5 * (scale - 1.0);
+  } else {
+    scale = 0.0;
+    scale2 = 0.0;
+    offset = 0.0;
+  }
   errisarray = 0;
   errisstd = 0;
 
@@ -185,7 +191,12 @@ int APER_NAME(
 
   /* correct for masked values */
   if (im->mask) {
-    if (inflag & SEP_MASK_IGNORE) {
+    if (totarea > 0.0 && maskarea >= totarea) {
+      *flag |= SEP_APER_ALLMASKED;
+      tv = 0.0;
+      sigtv = 0.0;
+      totarea = 0.0;
+    } else if (inflag & SEP_MASK_IGNORE) {
       totarea -= maskarea;
     } else {
       tv *= (tmp = totarea / (totarea - maskarea));

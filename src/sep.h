@@ -306,6 +306,33 @@ SEP_API int sep_sum_circann(
     short * flag
 );
 
+/* sep_stats_circann()
+ *
+ * Compute statistics within a circular annulus. The MAD output is scaled
+ * by 1.4826, providing a robust estimate of the standard deviation for
+ * Gaussian data.
+ */
+SEP_API int sep_stats_circann(
+    const sep_image * image,
+    double x,
+    double y,
+    double rin,
+    double rout,
+    int id,
+    int subpix,
+    short inflags,
+    double clip_sigma,
+    int clip_iters,
+    double * mean,
+    double * std,
+    double * median,
+    double * mad_std,
+    double * mean_clip,
+    double * area,
+    double * sumerr,
+    short * flag
+);
+
 SEP_API int sep_sum_ellipse(
     const sep_image * image,
     double x,

@@ -784,6 +784,71 @@ def test_apertures_exact():
             assert_allclose(flux, np.pi * ratio * (rout**2 - r**2))
 
 
+def _sigma_clip_mean(values, sigma=3.0, maxiters=5):
+    mask = np.ones(values.shape, dtype=bool)
+    for _ in range(maxiters):
+        vals = values[mask]
+        if vals.size == 0:
+            return np.nan
+        med = np.median(vals)
+        mad = np.median(np.abs(vals - med))
+        std = 1.4826 * mad
+        if std == 0.0:
+            return vals.mean()
+        lo = med - sigma * std
+        hi = med + sigma * std
+        newmask = mask & (values >= lo) & (values <= hi)
+        if newmask.sum() == mask.sum():
+            return vals.mean()
+        mask = newmask
+    vals = values[mask]
+    return vals.mean() if vals.size else np.nan
+
+
+def test_stats_circann_flat():
+    data = np.ones(data_shape)
+    rin, rout = 3.0, 6.0
+    mean, std, med, mad_std, mean_clip, flag = sep.stats_circann(
+        data, x, y, rin, rout, subpix=1
+    )
+    assert_allclose(mean, 1.0)
+    assert_allclose(std, 0.0)
+    assert_allclose(med, 1.0)
+    assert_allclose(mad_std, 0.0)
+    assert_allclose(mean_clip, 1.0)
+
+
+def test_stats_circann_matches_numpy_subpix1():
+    rng = np.random.default_rng(12345)
+    data = rng.normal(size=(64, 64))
+    x0 = np.array([30.4])
+    y0 = np.array([31.2])
+    rin, rout = 5.0, 8.0
+
+    mean, std, med, mad_std, mean_clip, flag = sep.stats_circann(
+        data, x0, y0, rin, rout, subpix=1
+    )
+
+    yy, xx = np.indices(data.shape)
+    rpix2 = (xx - x0[0]) ** 2 + (yy - y0[0]) ** 2
+    mask = (rpix2 >= rin**2) & (rpix2 < rout**2)
+    vals = data[mask]
+
+    exp_mean = vals.mean()
+    exp_std = vals.std()
+    exp_med = np.median(vals)
+    exp_mad = np.median(np.abs(vals - exp_med))
+    exp_mad_std = 1.4826 * exp_mad  # robust std estimate for Gaussian data
+    exp_clip = _sigma_clip_mean(vals)
+
+    assert_allclose(mean[0], exp_mean, rtol=1.0e-10, atol=1.0e-8)
+    assert_allclose(std[0], exp_std, rtol=1.0e-10, atol=1.0e-8)
+    assert_allclose(med[0], exp_med, rtol=1.0e-10, atol=1.0e-8)
+    assert_allclose(mad_std[0], exp_mad_std, rtol=1.0e-10, atol=1.0e-7)
+    assert_allclose(mean_clip[0], exp_clip, rtol=1.0e-10, atol=1.0e-8)
+    assert flag[0] == 0
+
+
 def test_aperture_bkgann_overlapping():
     """
     Test bkgann functionality in circular & elliptical apertures.

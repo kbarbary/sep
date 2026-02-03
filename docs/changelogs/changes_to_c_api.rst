@@ -74,6 +74,11 @@ All changes here are transparent to users of the Python interface.
 
  - The type of ``n`` has changed from ``int`` to ``int64_t``.
 
+
+.. c:function:: int sep_stats_circann()
+
+ - Added ``area`` and ``sumerr`` outputs.
+
 .. c:function:: int sep_flux_radius()
 
  - The type of ``n`` has changed from ``int`` to ``int64_t``.

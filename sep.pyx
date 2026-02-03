@@ -165,6 +165,14 @@ cdef extern from "sep.h":
                         int id, int subpix, short inflags,
                         double *sum, double *sumerr, double *area, short *flag)
 
+    int sep_stats_circann(const sep_image *image,
+                          double x, double y, double rin, double rout,
+                          int id, int subpix, short inflags,
+                          double clip_sigma, int clip_iters,
+                          double *mean, double *std, double *median,
+                          double *mad_std, double *mean_clip,
+                          double *area, double *sumerr, short *flag)
+
     int sep_sum_ellipse(const sep_image *image,
                         double x, double y, double a, double b, double theta,
                         double r, int id, int subpix, short inflags,
@@ -952,12 +960,12 @@ def sum_circle(np.ndarray data not None, x, y, r,
 
     flags : `~numpy.ndarray`
         Integer giving flags. (0 if no flags set.)
+
     """
 
     cdef double flux1, fluxerr1, area1,
     cdef double bkgflux, bkgfluxerr, bkgarea
     cdef short flag1, bkgflag
-    cdef size_t i
     cdef int status
     cdef np.broadcast it
     cdef sep_image im
@@ -1085,7 +1093,7 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
                 var=None, err=None, gain=None, np.ndarray mask=None,
                 double maskthresh=0.0, seg_id=None, np.ndarray segmap=None,
                 int subpix=5):
-    """sum_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
+    """sum_circann(data, x, y, rin, rout, var=None, err=None, mask=None,
                    maskthresh=0.0, seg_id=None, segmap=None, gain=None,
                    subpix=5)
 
@@ -1104,8 +1112,8 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         element of the array. These inputs obey numpy broadcasting rules.
         It is required that ``rout >= rin >= 0.0``.
 
-    err, var : float or ndarray
-        Error *or* variance (specify at most one).
+    var, err : float or ndarray
+        Variance *or* error (specify at most one).
 
     mask : `~numpy.ndarray`, optional
         Mask array. If supplied, a given pixel is masked if its value
@@ -1151,7 +1159,6 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
     """
 
     cdef double area1
-    cdef size_t i
     cdef int status
     cdef np.broadcast it
     cdef sep_image im
@@ -1210,6 +1217,166 @@ def sum_circann(np.ndarray data not None, x, y, rin, rout,
         np.PyArray_MultiIter_NEXT(it)
 
     return sum, sumerr, flag
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def stats_circann(np.ndarray data not None, x, y, rin, rout,
+                  var=None, err=None, gain=None, np.ndarray mask=None,
+                  double maskthresh=0.0, seg_id=None, np.ndarray segmap=None,
+                  int subpix=5, double clip_sigma=3.0, int clip_iters=5):
+    """stats_circann(data, x, y, rin, rout, err=None, var=None, mask=None,
+                     maskthresh=0.0, seg_id=None, segmap=None, gain=None,
+                     subpix=5)
+
+    Compute statistics in circular annular aperture(s).
+
+    Parameters
+    ----------
+    data : `~numpy.ndarray`
+        2-d array to be sampled.
+
+    x, y, rin, rout : array_like
+        Center coordinates and inner and outer radii of aperture(s).
+        ``x`` corresponds to the second ("fast") axis of the input array
+        and ``y`` corresponds to the first ("slow") axis.
+        ``x, y = (0.0, 0.0)`` corresponds to the center of the first
+        element of the array. These inputs obey numpy broadcasting rules.
+        It is required that ``rout >= rin >= 0.0``.
+
+    err, var : float or ndarray
+        Error *or* variance (specify at most one). Accepted for API
+        compatibility; not used in the statistics.
+
+    mask : `~numpy.ndarray`, optional
+        Mask array. If supplied, a given pixel is masked if its value
+        is greater than ``maskthresh``. Masked pixels are ignored (no
+        correction applied).
+
+    maskthresh : float, optional
+        Threshold for a pixel to be masked. Default is ``0.0``.
+
+    segmap : `~numpy.ndarray`, optional
+        Segmentation image with dimensions of ``data`` and dtype ``np.int32``.
+        This is an optional input and corresponds to the segmentation map
+        output by `~sep.extract`.
+
+    seg_id : array_like, optional
+        Array of segmentation ids used to mask additional pixels in the image.
+        Dimensions correspond to the dimensions of ``x`` and ``y``. The
+        behavior differs depending on whether ``seg_id`` is negative or
+        positive. If ``seg_id`` is positive, all pixels belonging to other
+        objects are masked. (Pixel ``j, i`` is masked if ``seg[j, i] != seg_id
+        and seg[j, i] != 0``). If ``seg_id`` is negative, all pixels other
+        than those belonging to the object of interest are masked. (Pixel ``j,
+        i`` is masked if ``seg[j, i] != -seg_id``).  NB: must be included if
+        ``segmap`` is provided.
+
+    gain : float, optional
+        Accepted for API compatibility; not used in the statistics.
+
+    subpix : int, optional
+        Subpixel sampling factor. Default is 5. If 0, exact overlap is used.
+
+    clip_sigma : float, optional
+        Sigma value for clipping. Default is 3.0.
+
+    clip_iters : int, optional
+        Maximum number of clipping iterations. Default is 5.
+
+    Returns
+    -------
+    mean : `~numpy.ndarray`
+        Weighted mean of the data within the aperture.
+
+    std : `~numpy.ndarray`
+        Weighted standard deviation of the data within the aperture.
+
+    median : `~numpy.ndarray`
+        Weighted median of the data within the aperture.
+
+    mad_std : `~numpy.ndarray`
+        Weighted median absolute deviation scaled by 1.4826, providing a
+        robust estimate of the standard deviation for Gaussian data.
+
+    mean_clip : `~numpy.ndarray`
+        Sigma-clipped mean using median/MAD.
+
+    flags : `~numpy.ndarray`
+        Integer giving flags. (0 if no flags set.)
+
+    Notes
+    -----
+    If no unmasked pixels fall within the annulus, outputs are ``NaN`` and
+    the ``APER_ALLMASKED`` flag is set.
+    """
+
+    cdef int status
+    cdef double area1, sumerr1
+    cdef np.broadcast it
+    cdef sep_image im
+
+    # Test for segmap without seg_id.  Nothing happens if seg_id supplied but
+    # without segmap.
+    if (segmap is not None) and (seg_id is None):
+        raise ValueError('`segmap` supplied but not `seg_id`.')
+
+    _parse_arrays(data, err, var, mask, segmap, &im)
+    im.maskthresh = maskthresh
+    if gain is not None:
+        im.gain = gain
+
+    # convert inputs to double arrays
+    dt = np.dtype(np.double)
+    dint = np.dtype(np.int32)
+    x = np.require(x, dtype=dt)
+    y = np.require(y, dtype=dt)
+    rin = np.require(rin, dtype=dt)
+    rout = np.require(rout, dtype=dt)
+
+    # Segmentation image and ids with same dimensions as x, y, etc.
+    if seg_id is not None:
+        seg_id = np.require(seg_id, dtype=dint)
+        if seg_id.shape != x.shape:
+            raise ValueError('Shapes of `x` and `seg_id` do not match')
+    else:
+        seg_id = np.zeros(len(x), dtype=dint)
+
+    # allocate output arrays
+    shape = np.broadcast(x, y, rin, rout).shape
+    mean = np.empty(shape, dt)
+    std = np.empty(shape, dt)
+    median = np.empty(shape, dt)
+    mad_std = np.empty(shape, dt)
+    mean_clip = np.empty(shape, dt)
+    flag = np.empty(shape, np.short)
+
+    it = np.broadcast(x, y, rin, rout, seg_id, mean, std, median, mad_std, mean_clip, flag)
+
+    while np.PyArray_MultiIter_NOTDONE(it):
+        status = sep_stats_circann(
+            &im,
+            (<double*>np.PyArray_MultiIter_DATA(it, 0))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 1))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 2))[0],
+            (<double*>np.PyArray_MultiIter_DATA(it, 3))[0],
+            (<int*>np.PyArray_MultiIter_DATA(it, 4))[0],
+            subpix, SEP_MASK_IGNORE,
+            clip_sigma, clip_iters,
+            <double*>np.PyArray_MultiIter_DATA(it, 5),
+            <double*>np.PyArray_MultiIter_DATA(it, 6),
+            <double*>np.PyArray_MultiIter_DATA(it, 7),
+            <double*>np.PyArray_MultiIter_DATA(it, 8),
+            <double*>np.PyArray_MultiIter_DATA(it, 9),
+            &area1,
+            &sumerr1,
+            <short*>np.PyArray_MultiIter_DATA(it, 10))
+
+        _assert_ok(status)
+
+        np.PyArray_MultiIter_NEXT(it)
+
+    return mean, std, median, mad_std, mean_clip, flag
 
 
 def sum_ellipse(np.ndarray data not None, x, y, a, b, theta, r=1.0,
